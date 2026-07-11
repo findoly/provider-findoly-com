@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("./bin/www");
 
 const crypto = require("crypto");
 const path = require("path");
