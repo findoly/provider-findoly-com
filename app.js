@@ -18,6 +18,17 @@ const apiRoutes = require("./routes/main");
 
 const app = express();
 
+
+app.disable("x-powered-by");
+
+const trustProxyValue = process.env.TRUST_PROXY || "1";
+
+if (!/^\d+$/.test(trustProxyValue)) {
+  throw new Error("TRUST_PROXY must be a number such as 1");
+}
+
+app.set("trust proxy", Number(trustProxyValue));
+
 app.locals.appName = process.env.APP_NAME || "Provider Lead Portal";
 app.locals.apiBase = "/api";
 app.locals.csrfCookieName =
@@ -98,7 +109,7 @@ app.get("/api/health", (req, res) => {
 app.use(attachProvider);
 app.use("/", frontendRoutes);
 app.use("/frontend", frontendRoutes);
-app.use("/api", apiLimiter, verifyCsrf, apiRoutes);
+app.use("/api", apiLimiter, apiRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
