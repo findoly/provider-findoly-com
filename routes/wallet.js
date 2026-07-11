@@ -1,0 +1,1 @@
+const router=require('express').Router();const c=require('../controllers/walletController');router.get('/',c.get);router.post('/demo-topup',c.demoTopup);router.post('/orders',c.createOrder);router.post('/verify',c.verify);module.exports=router;

@@ -1,0 +1,1 @@
+const service=require('../services/profile/profile-service');async function get(req,res,next){try{res.json({success:true,data:await service.get(req.provider.providerId)});}catch(e){next(e);}}module.exports={get};

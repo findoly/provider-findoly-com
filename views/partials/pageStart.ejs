@@ -1,0 +1,134 @@
+<%- include('head') %>
+<body
+  x-data='providerShell({ title: <%- JSON.stringify(title || "") %>, subtitle: <%- JSON.stringify(subtitle || "") %>, search: <%- JSON.stringify(searchQuery || "") %> })'
+  x-init="init()"
+  @wallet-updated.window="refreshProfile()"
+  @profile-updated.window="refreshProfile()"
+  @portal-page.window="setPage($event.detail)"
+>
+<svg aria-hidden="true" class="svg-sprite">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.7 12 3l9 7.7v9.8a.5.5 0 0 1-.5.5h-5.2v-6.2H8.7V21H3.5a.5.5 0 0 1-.5-.5z"/><path d="M9.2 21v-6.2h5.6V21"/></symbol>
+  <symbol id="i-lead" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M8 9h8M8 12h8M8 15h5"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H19v14H5.5A2.5 2.5 0 0 1 3 16.5z"/><path d="M15 10h6v5h-6a2.5 2.5 0 0 1 0-5z"/><path d="M17.5 12.5h.01"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></symbol>
+  <symbol id="i-location" viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2c0 8.8 7.2 16 16 16a2 2 0 0 0 2-2v-3l-5-1-2 2c-3.4-1.5-5.5-3.6-7-7l2-2z"/></symbol>
+  <symbol id="i-credit" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></symbol>
+</svg>
+
+<div class="navbar navbar-expand-lg navbar-static portal-navbar border-bottom">
+  <div class="container-fluid">
+    <div class="d-flex d-lg-none me-2">
+      <button type="button" class="navbar-toggler portal-sidebar-toggle" aria-label="Open navigation" @click="toggleSidebar()">
+        <svg class="icon"><use href="#i-menu"></use></svg>
+      </button>
+    </div>
+
+    <div class="navbar-brand flex-1 flex-lg-0">
+      <a href="/dashboard" class="portal-brand">
+        <span class="portal-brand-mark">L</span>
+        <span>LeadPortal</span>
+      </a>
+    </div>
+
+    <div class="d-none d-md-flex flex-fill justify-content-center px-4">
+      <form class="portal-global-search" @submit.prevent="runSearch()">
+        <svg class="icon"><use href="#i-search"></use></svg>
+        <input type="search" x-model="shellSearch" placeholder="Search available leads" aria-label="Search leads">
+      </form>
+    </div>
+
+    <ul class="nav flex-row align-items-center gap-2 ms-auto">
+      <li class="nav-item">
+        <a class="portal-wallet-pill" href="/wallet">
+          <span>Wallet</span>
+          <strong x-text="money(provider.walletBalancePaise)">₹0.00</strong>
+        </a>
+      </li>
+      <li class="nav-item dropdown">
+        <button class="portal-user-button" data-bs-toggle="dropdown" type="button" aria-expanded="false">
+          <span x-text="initials(provider.name || provider.businessName || 'Provider')">P</span>
+          <span class="d-none d-sm-inline" x-text="provider.businessName || provider.name || 'Provider'">Provider</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end">
+          <a class="dropdown-item" href="/profile">My profile</a>
+          <a class="dropdown-item" href="/wallet">Wallet &amp; transactions</a>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item text-danger" type="button" @click="logout()">Sign out</button>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="page-content">
+  <div class="sidebar sidebar-main sidebar-expand-lg portal-sidebar">
+    <div class="sidebar-content">
+      <div class="sidebar-section portal-provider-summary">
+        <div class="sidebar-section-body d-flex align-items-center">
+          <div class="flex-grow-1 min-w-0">
+            <div class="fw-semibold text-truncate" x-text="provider.businessName || provider.name || 'Provider'">Provider</div>
+            <div class="text-muted fs-sm text-truncate" x-text="provider.city || 'Service provider'">Service provider</div>
+          </div>
+          <button type="button" class="btn btn-light btn-icon d-lg-none portal-sidebar-toggle" aria-label="Close navigation" @click="closeSidebar()">×</button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <ul class="nav nav-sidebar">
+          <li class="nav-item-header"><div class="text-uppercase fs-sm">Workspace</div></li>
+          <li class="nav-item">
+            <a href="/dashboard" class="nav-link <%= currentPath.startsWith('/dashboard') ? 'active' : '' %>">
+              <svg class="icon"><use href="#i-home"></use></svg><span>Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="/leads" class="nav-link <%= currentPath.startsWith('/leads') && currentStatus !== 'unlocked' ? 'active' : '' %>">
+              <svg class="icon"><use href="#i-lead"></use></svg><span>Lead marketplace</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="/leads?status=unlocked" class="nav-link <%= currentPath.startsWith('/leads') && currentStatus === 'unlocked' ? 'active' : '' %>">
+              <svg class="icon"><use href="#i-unlock"></use></svg><span>Unlocked leads</span>
+            </a>
+          </li>
+
+          <li class="nav-item-header"><div class="text-uppercase fs-sm">Account</div></li>
+          <li class="nav-item">
+            <a href="/wallet" class="nav-link <%= currentPath.startsWith('/wallet') ? 'active' : '' %>">
+              <svg class="icon"><use href="#i-wallet"></use></svg><span>Wallet</span>
+              <span class="badge bg-light text-body border ms-auto" x-text="money(provider.walletBalancePaise)">₹0.00</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="/profile" class="nav-link <%= currentPath.startsWith('/profile') ? 'active' : '' %>">
+              <svg class="icon"><use href="#i-user"></use></svg><span>My profile</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-wrapper">
+    <div class="content-inner">
+      <div class="page-header portal-page-header border-bottom">
+        <div class="page-header-content d-flex align-items-center">
+          <div class="flex-grow-1 min-w-0">
+            <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
+            <div class="page-subtitle mt-1" x-show="page.subtitle" x-text="page.subtitle"><%= subtitle || '' %></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>

@@ -1,0 +1,32 @@
+{
+  "name": "provider-lead-portal",
+  "version": "1.0.0",
+  "description": "Simple Alpine.js provider portal using dedicated frontend and API routes with shared denormalized MongoDB collections.",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node ./bin/www",
+    "dev": "nodemon ./bin/www",
+    "check": "node scripts/check.js",
+    "test": "node --test",
+    "diagnose:provider": "node scripts/diagnose-provider.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.24.1",
+    "morgan": "^1.10.0",
+    "razorpay": "^2.9.6",
+    "uuid": "^11.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4",
+    "supertest": "^7.2.2"
+  }
+}

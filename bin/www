@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+const http=require('http');
+const app=require('../app');
+const port=Number(process.env.PORT||3100);
+app.set('port',port);
+const server=http.createServer(app);
+server.listen(port,()=>console.log(`Server running on http://localhost:${port}`));
+server.on('error',error=>{console.error(error);process.exitCode=1;});

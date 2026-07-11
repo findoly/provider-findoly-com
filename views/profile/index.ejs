@@ -1,0 +1,100 @@
+<%- include('../partials/pageStart') %>
+<div x-data="profilePage()" x-init="load()" :class="loading ? 'portal-loading' : ''">
+  <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
+
+  <div class="row g-4 align-items-start">
+    <div class="col-xl-8">
+      <div class="card portal-card mb-4">
+        <div class="card-body portal-profile-hero">
+          <div class="portal-profile-avatar" x-text="initials(profile.name || profile.businessName)">P</div>
+          <div class="min-w-0">
+            <h3 class="mb-1" x-text="profile.businessName || profile.name || 'Provider'"></h3>
+            <div class="text-muted" x-text="profile.name || ''"></div>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <span class="badge bg-success-subtle text-success" x-text="humanize(profile.status)"></span>
+              <span class="badge bg-light text-body border" x-text="profile.portalAccessEnabled === false ? 'Portal disabled' : 'Portal enabled'"></span>
+              <span class="badge bg-light text-body border" x-text="profile.documentsVerified ? 'Documents verified' : 'Documents pending'"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card portal-card mb-4">
+        <div class="card-header border-bottom"><h5 class="mb-0">Contact and service information</h5></div>
+        <div class="table-responsive">
+          <table class="table portal-detail-table mb-0">
+            <tbody>
+              <tr><th>Provider ID</th><td class="portal-id" x-text="profile.providerId || profile.id || '—'"></td></tr>
+              <tr><th>Mobile</th><td x-text="profile.mobile || '—'"></td></tr>
+              <tr><th>Email</th><td x-text="profile.email || '—'"></td></tr>
+              <tr><th>City</th><td x-text="[profile.city, profile.state].filter(Boolean).join(', ') || '—'"></td></tr>
+              <tr><th>Availability</th><td x-text="humanize(profile.availability)"></td></tr>
+              <tr><th>Rating</th><td x-text="profile.rating ? `${profile.rating} / 5` : '—'"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card portal-card">
+        <div class="card-header border-bottom"><h5 class="mb-0">Categories and service areas</h5></div>
+        <div class="card-body">
+          <div class="mb-4">
+            <div class="text-muted fs-sm mb-2">Matched categories</div>
+            <div class="d-flex flex-wrap gap-2">
+              <template x-for="category in profile.categorySlugs || []" :key="category">
+                <span class="badge bg-primary-subtle text-primary" x-text="humanize(category)"></span>
+              </template>
+              <span class="text-muted" x-show="!(profile.categorySlugs || []).length">No categories assigned</span>
+            </div>
+          </div>
+          <div>
+            <div class="text-muted fs-sm mb-2">Service areas</div>
+            <div class="d-flex flex-wrap gap-2">
+              <template x-for="area in profile.serviceAreas || []" :key="area">
+                <span class="badge bg-light text-body border" x-text="humanize(area)"></span>
+              </template>
+              <span class="text-muted" x-show="!(profile.serviceAreas || []).length">No service areas assigned</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-4">
+      <div class="card portal-card portal-sticky-card">
+        <div class="card-header border-bottom"><h5 class="mb-0">Account status</h5></div>
+        <div class="card-body portal-profile-status">
+          <div><span>CRM status</span><strong x-text="humanize(profile.status)"></strong></div>
+          <div><span>Portal access</span><strong x-text="profile.portalAccessEnabled === false ? 'Disabled' : 'Enabled'"></strong></div>
+          <div><span>Onboarding</span><strong x-text="humanize(profile.onboardingStage)"></strong></div>
+          <div><span>Documents</span><strong x-text="profile.documentsVerified ? 'Verified' : 'Pending'"></strong></div>
+          <div><span>Rating</span><strong x-text="profile.rating || '—'"></strong></div>
+          <div><span>Wallet</span><strong x-text="money(profile.walletBalancePaise)"></strong></div>
+        </div>
+        <div class="card-footer bg-white border-top">
+          <p class="text-muted fs-sm mb-0">Profile changes are controlled from the internal CRM.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function profilePage() {
+    return {
+      profile: {},
+      loading: true,
+      error: '',
+      async load() {
+        try {
+          this.profile = (await apiFetch('/api/profile')).data;
+        } catch (error) {
+          this.error = error.message;
+        } finally {
+          this.loading = false;
+        }
+      }
+    };
+  }
+</script>
+<%- include('../partials/pageEnd') %>

@@ -1,0 +1,151 @@
+<%- include('../partials/pageStart') %>
+<div x-data="dashboardPage()" x-init="load()" :class="loading ? 'portal-loading' : ''">
+  <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+      <a href="/leads?status=offered" class="portal-stat-card">
+        <div>
+          <span>Available leads</span>
+          <strong x-text="data.offered || 0">0</strong>
+          <small>Contact locked</small>
+        </div>
+        <span class="portal-stat-icon"><svg class="icon"><use href="#i-lead"></use></svg></span>
+      </a>
+    </div>
+    <div class="col-6 col-xl-3">
+      <a href="/leads?status=unlocked" class="portal-stat-card">
+        <div>
+          <span>Unlocked leads</span>
+          <strong x-text="data.unlocked || 0">0</strong>
+          <small>Your purchased contacts</small>
+        </div>
+        <span class="portal-stat-icon"><svg class="icon"><use href="#i-unlock"></use></svg></span>
+      </a>
+    </div>
+    <div class="col-6 col-xl-3">
+      <a href="/wallet" class="portal-stat-card">
+        <div>
+          <span>Wallet balance</span>
+          <strong x-text="money(data.provider?.walletBalancePaise)">₹0.00</strong>
+          <small>₹1 paid = ₹1 credit</small>
+        </div>
+        <span class="portal-stat-icon"><svg class="icon"><use href="#i-wallet"></use></svg></span>
+      </a>
+    </div>
+    <div class="col-6 col-xl-3">
+      <a href="/profile" class="portal-stat-card">
+        <div>
+          <span>Matched categories</span>
+          <strong x-text="(data.provider?.categorySlugs || []).length">0</strong>
+          <small x-text="categorySummary">No categories</small>
+        </div>
+        <span class="portal-stat-icon"><svg class="icon"><use href="#i-check"></use></svg></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4 align-items-start">
+    <div class="col-xl-8">
+      <div class="card portal-card">
+        <div class="card-header d-flex align-items-center border-bottom">
+          <div>
+            <h5 class="mb-1">Recent lead offers</h5>
+            <div class="text-muted fs-sm">Only categories assigned to your provider profile appear here.</div>
+          </div>
+          <a href="/leads" class="btn btn-light btn-sm ms-auto">View all</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table portal-table mb-0">
+            <thead>
+              <tr>
+                <th>Requirement</th>
+                <th>Location</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th class="text-end"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="lead in data.recent || []" :key="lead.leadDistributionId || lead.id">
+                <tr>
+                  <td>
+                    <div class="fw-semibold" x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></div>
+                    <div class="text-muted fs-sm">
+                      <span x-text="lead.category || humanize(lead.categorySlug)"></span>
+                      <span> · </span>
+                      <span class="portal-id" x-text="lead.requirementId || '—'"></span>
+                    </div>
+                  </td>
+                  <td>
+                    <div x-text="lead.city || '—'"></div>
+                    <div class="text-muted fs-sm" x-text="lead.state || ''"></div>
+                  </td>
+                  <td class="fw-semibold" x-text="money(lead.leadPricePaise)"></td>
+                  <td><span class="badge" :class="statusClass(lead)" x-text="lead.contactUnlocked ? 'Unlocked' : humanize(lead.status)"></span></td>
+                  <td class="text-end"><a class="btn btn-outline-primary btn-sm" :href="'/leads/' + (lead.leadDistributionId || lead.id)">View</a></td>
+                </tr>
+              </template>
+              <tr x-show="!loading && !(data.recent || []).length">
+                <td colspan="5" class="text-center text-muted py-5">No matched lead offers yet</td>
+              </tr>
+              <tr x-show="loading">
+                <td colspan="5" class="text-center text-muted py-5">Loading lead offers…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-4">
+      <div class="card portal-card">
+        <div class="card-header border-bottom"><h5 class="mb-0">How unlocking works</h5></div>
+        <div class="card-body">
+          <ol class="portal-steps">
+            <li>CRM approves and categorizes a customer lead.</li>
+            <li>The same lead is offered to all matching providers.</li>
+            <li>You see service, location and requirement details without contact information.</li>
+            <li>Unlock once using wallet balance to reveal the customer contact.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function dashboardPage() {
+    return {
+      data: {},
+      loading: true,
+      error: '',
+
+      get categorySummary() {
+        const categories = this.data.provider?.categorySlugs || [];
+        if (!categories.length) return 'No categories';
+        if (categories.length <= 2) return categories.map(humanize).join(', ');
+        return `${humanize(categories[0])} +${categories.length - 1} more`;
+      },
+
+      statusClass(lead) {
+        if (lead.contactUnlocked || lead.status === 'unlocked') return 'bg-success text-white';
+        if (lead.status === 'withdrawn') return 'bg-light text-muted border';
+        return 'bg-primary text-white';
+      },
+
+      async load() {
+        this.loading = true;
+        this.error = '';
+        try {
+          this.data = (await apiFetch('/api/dashboard')).data;
+        } catch (error) {
+          this.error = error.message;
+        } finally {
+          this.loading = false;
+        }
+      }
+    };
+  }
+</script>
+<%- include('../partials/pageEnd') %>

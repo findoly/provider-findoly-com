@@ -1,0 +1,134 @@
+      </div>
+      <footer class="portal-footer border-top">
+        <span>© <%= new Date().getFullYear() %> <%= appName %></span>
+        <span>Lead contacts are visible only after wallet unlock.</span>
+      </footer>
+    </div>
+  </div>
+</div>
+<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+
+<script>
+  async function apiFetch(url, options = {}) {
+    const response = await fetch(url, {
+      credentials: 'same-origin',
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      }
+    });
+
+    const body = await response.json().catch(() => ({
+      success: false,
+      message: 'Invalid server response'
+    }));
+
+    if (response.status === 401) {
+      location.href = '/login?returnTo=' + encodeURIComponent(location.pathname + location.search);
+      throw new Error('Authentication required');
+    }
+
+    if (!response.ok || body.success === false) {
+      throw new Error(body.message || 'Request failed');
+    }
+
+    return body;
+  }
+
+  function money(paise) {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Number(paise || 0) / 100);
+  }
+
+  function formatDate(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat('en-IN', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(date);
+  }
+
+  function formatDateOnly(value) {
+    if (!value) return 'Flexible';
+    const date = new Date(String(value).length === 10 ? `${value}T00:00:00` : value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(date);
+  }
+
+  function humanize(value) {
+    return String(value || '—')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[_-]/g, ' ')
+      .replace(/\b\w/g, (character) => character.toUpperCase());
+  }
+
+  function initials(value) {
+    const parts = String(value || 'Provider').trim().split(/\s+/).filter(Boolean);
+    return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'P';
+  }
+
+  function providerShell(config = {}) {
+    return {
+      provider: {},
+      shellError: '',
+      shellSearch: config.search || new URLSearchParams(location.search).get('q') || '',
+      page: {
+        title: config.title || '',
+        subtitle: config.subtitle || ''
+      },
+
+      async init() {
+        await this.refreshProfile();
+      },
+
+      async refreshProfile() {
+        try {
+          this.provider = (await apiFetch('/api/profile')).data;
+          this.shellError = '';
+        } catch (error) {
+          this.shellError = error.message;
+        }
+      },
+
+      setPage(detail = {}) {
+        if (detail.title) this.page.title = detail.title;
+        this.page.subtitle = detail.subtitle || '';
+        if (detail.documentTitle) document.title = detail.documentTitle;
+      },
+
+      runSearch() {
+        const query = String(this.shellSearch || '').trim();
+        location.href = query ? `/leads?q=${encodeURIComponent(query)}` : '/leads';
+      },
+
+      toggleSidebar() {
+        document.body.classList.toggle('portal-sidebar-open');
+      },
+
+      closeSidebar() {
+        document.body.classList.remove('portal-sidebar-open');
+      },
+
+      async logout() {
+        try {
+          await apiFetch('/api/auth/logout', { method: 'POST', body: '{}' });
+        } finally {
+          location.href = '/login';
+        }
+      }
+    };
+  }
+</script>
+</body>
+</html>

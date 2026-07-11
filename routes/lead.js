@@ -1,0 +1,1 @@
+const router=require('express').Router();const c=require('../controllers/leadController');router.get('/',c.list);router.get('/:leadDistributionId',c.get);router.post('/:leadDistributionId/unlock',c.unlock);module.exports=router;

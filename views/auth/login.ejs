@@ -1,0 +1,103 @@
+<%- include('../partials/head') %>
+<body class="portal-login-body" x-data='loginPage(<%- JSON.stringify(returnTo) %>)'>
+  <div class="portal-login-shell">
+    <div class="portal-login-brand">
+      <span class="portal-brand-mark">L</span>
+      <div><strong>LeadPortal</strong><span>Provider access</span></div>
+    </div>
+
+    <div class="card portal-login-card">
+      <div class="card-body">
+        <div class="text-center mb-4">
+          <h3 class="mb-2">Provider login</h3>
+          <p class="text-muted mb-0">Use the mobile number registered in the CRM.</p>
+        </div>
+
+        <div x-show="error" x-cloak class="alert alert-danger" x-text="error"></div>
+        <div x-show="message" x-cloak class="alert alert-success" x-text="message"></div>
+
+        <form @submit.prevent="step === 'mobile' ? sendOtp() : verifyOtp()">
+          <div class="mb-3">
+            <label class="form-label" for="providerMobile">Mobile number</label>
+            <input id="providerMobile" class="form-control" inputmode="numeric" autocomplete="tel" maxlength="15" x-model="mobile" :disabled="step === 'otp'" placeholder="10-digit mobile number" required>
+          </div>
+
+          <div class="mb-3" x-show="step === 'otp'" x-cloak>
+            <label class="form-label" for="providerOtp">One-time password</label>
+            <input id="providerOtp" class="form-control portal-otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" x-model="otp" placeholder="000000">
+          </div>
+
+          <button class="btn btn-primary w-100" type="submit" :disabled="loading">
+            <span x-text="loading ? 'Please wait…' : (step === 'mobile' ? 'Send OTP' : 'Verify and login')"></span>
+          </button>
+
+          <button type="button" class="btn btn-link w-100 mt-2" x-show="step === 'otp'" x-cloak @click="resetMobile()">Use another mobile</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="text-center text-muted fs-sm mt-3">Only active providers with portal access can sign in.</div>
+  </div>
+
+<script>
+  function loginPage(returnTo) {
+    return {
+      returnTo,
+      mobile: '',
+      otp: '',
+      step: 'mobile',
+      loading: false,
+      error: '',
+      message: '',
+
+      async sendOtp() {
+        this.loading = true;
+        this.error = '';
+        this.message = '';
+        try {
+          const response = await fetch('/api/auth/send-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobile: this.mobile })
+          });
+          const body = await response.json();
+          if (!response.ok || body.success === false) throw new Error(body.message || 'Unable to send OTP');
+          this.step = 'otp';
+          this.message = body.data?.devOtp ? `Development OTP: ${body.data.devOtp}` : 'OTP sent successfully.';
+        } catch (error) {
+          this.error = error.message;
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      async verifyOtp() {
+        this.loading = true;
+        this.error = '';
+        try {
+          const response = await fetch('/api/auth/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobile: this.mobile, otp: this.otp })
+          });
+          const body = await response.json();
+          if (!response.ok || body.success === false) throw new Error(body.message || 'Unable to verify OTP');
+          location.href = this.returnTo || '/dashboard';
+        } catch (error) {
+          this.error = error.message;
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      resetMobile() {
+        this.step = 'mobile';
+        this.otp = '';
+        this.message = '';
+        this.error = '';
+      }
+    };
+  }
+</script>
+</body>
+</html>
