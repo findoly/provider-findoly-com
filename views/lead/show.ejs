@@ -1,5 +1,31 @@
-<%- include('../partials/pageStart') %>
-<div x-data='leadShow(<%- JSON.stringify(recordId) %>)' x-init="load()">
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body
+  x-data='providerShell({ title: <%- JSON.stringify(title || "") %>, subtitle: <%- JSON.stringify(subtitle || "") %> })'
+  x-init="initShell()"
+  @wallet-updated.window="refreshProfile()"
+  @profile-updated.window="refreshProfile()"
+  @portal-page.window="setPage($event.detail)"
+  @portal-notify.window="notify($event.detail)"
+>
+<%- include('../partials/navbar') %>
+<div class="page-content">
+  <%- include('../partials/sidebar') %>
+  <div class="content-wrapper">
+    <div class="content-inner">
+      <div class="page-header portal-page-header border-bottom">
+        <div class="page-header-content d-flex align-items-center">
+          <div class="flex-grow-1 min-w-0">
+            <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
+            <div class="page-subtitle mt-1" x-show="page.subtitle" x-text="page.subtitle"><%= subtitle || '' %></div>
+          </div>
+        </div>
+      </div>
+      <div class="content">
+        <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
+
+<div x-data="leadShow()" x-init="load()">
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
   <div class="row g-4 align-items-start" :class="loading ? 'portal-loading' : ''">
@@ -124,10 +150,10 @@
   </div>
 </div>
 
-<script>
-  function leadShow(recordId) {
+<script nonce="<%= cspNonce %>">
+  function leadShow() {
     return {
-      recordId,
+      recordId: pathRecordId(),
       lead: {},
       loading: true,
       unlocking: false,
@@ -148,17 +174,16 @@
       },
 
       get detailEntries() {
-        const details = this.lead.additionalDetails || this.lead.leadPreview?.additionalDetails || {};
+        const details = this.lead.additionalDetails || {};
         return Object.entries(details).filter(([, value]) => value !== '' && value !== null && value !== undefined);
       },
 
       get contact() {
-        const snapshot = this.lead.contactSnapshot || {};
         return {
-          name: this.lead.customerName || snapshot.name || snapshot.customerName || '',
-          mobile: this.lead.customerMobile || snapshot.mobile || snapshot.customerMobile || '',
-          email: this.lead.customerEmail || snapshot.email || snapshot.customerEmail || '',
-          address: this.lead.customerAddress || snapshot.address || snapshot.customerAddress || ''
+          name: this.lead.customerName || '',
+          mobile: this.lead.customerMobile || '',
+          email: this.lead.customerEmail || '',
+          address: this.lead.customerAddress || ''
         };
       },
 
@@ -176,11 +201,11 @@
         this.error = '';
         try {
           this.lead = (await apiFetch('/api/lead/' + encodeURIComponent(this.recordId))).data;
-          const requirementId = this.lead.requirementId || this.recordId;
+          const enquiryId = this.lead.enquiryId || this.recordId;
           this.$dispatch('portal-page', {
-            title: `Lead ${requirementId}`,
-            subtitle: requirementId,
-            documentTitle: `Lead ${requirementId} · Provider Lead Portal`
+            title: `Lead ${enquiryId}`,
+            subtitle: enquiryId,
+            documentTitle: `Lead ${enquiryId} · Provider Lead Portal`
           });
         } catch (error) {
           this.error = error.message;
@@ -201,6 +226,7 @@
             body: '{}'
           })).data;
           this.$dispatch('wallet-updated');
+          this.$dispatch('portal-notify', { type: 'success', message: 'Customer contact unlocked successfully.' });
         } catch (error) {
           this.error = error.message;
         } finally {
@@ -210,4 +236,14 @@
     };
   }
 </script>
-<%- include('../partials/pageEnd') %>
+
+      </div>
+      <%- include('../partials/footer') %>
+    </div>
+  </div>
+</div>
+<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<%- include('../partials/scripts') %>
+</body>
+</html>
+

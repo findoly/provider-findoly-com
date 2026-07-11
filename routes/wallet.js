@@ -1,1 +1,11 @@
-const router=require('express').Router();const c=require('../controllers/walletController');router.get('/',c.get);router.post('/demo-topup',c.demoTopup);router.post('/orders',c.createOrder);router.post('/verify',c.verify);module.exports=router;
+const express = require("express");
+const walletController = require("../controllers/walletController");
+const { walletLimiter } = require("../middleware/rate-limit");
+
+const router = express.Router();
+
+router.get("/", walletController.get);
+router.post("/order", walletLimiter, walletController.createOrder);
+router.post("/verify", walletLimiter, walletController.verify);
+
+module.exports = router;

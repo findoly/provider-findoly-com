@@ -1,10 +1,143 @@
-const jwt=require('jsonwebtoken');
-const Provider=require('../../models/Provider');
-const {normalizeMobile}=require('../../utils/mobile');
+const Provider = require("../../models/Provider");
+const { normalizeMobile } = require("../../utils/mobile");
+const { fetchJson } = require("../../utils/http");
+const {
+  ensureProviderEligible,
+  presentProvider,
+  providerIdentity,
+  providerQuery,
+} = require("../../utils/provider");
 
-async function findProvider(mobileInput){const mobile=normalizeMobile(mobileInput);if(mobile.length!==10)return null;const list=await Provider.find({$or:[{normalizedMobile:mobile},{mobile}]}).limit(10).lean();return list.find(p=>String(p.status).toLowerCase()==='active'&&p.portalAccessEnabled!==false)||list[0]||null;}
-function assertEligible(provider){if(!provider)throw Object.assign(new Error('No provider account matches this mobile number'),{status:404});if(String(provider.status).toLowerCase()!=='active')throw Object.assign(new Error(`Provider account is ${provider.status||'inactive'}`),{status:403});if(provider.portalAccessEnabled===false)throw Object.assign(new Error('Provider portal access is disabled in CRM'),{status:403});return provider;}
-async function sendOtp(mobileInput){const mobile=normalizeMobile(mobileInput);if(mobile.length!==10)throw Object.assign(new Error('Enter a valid 10-digit mobile number'),{status:400});const provider=assertEligible(await findProvider(mobile));if(process.env.OTP_API_URL){const response=await fetch(`${process.env.OTP_API_URL}${process.env.OTP_SEND_PATH||'/otp/send-otp'}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile})});if(!response.ok)throw Object.assign(new Error('OTP service could not send the code'),{status:502});}return{mobile,providerId:provider.providerId||provider.id,devOtp:process.env.NODE_ENV==='production'?undefined:(process.env.DEV_OTP_CODE||'123456')};}
-async function verifyOtp(mobileInput,otpInput){const mobile=normalizeMobile(mobileInput);const otp=String(otpInput||'').trim();let verified=false;if(process.env.OTP_API_URL){const response=await fetch(`${process.env.OTP_API_URL}${process.env.OTP_VERIFY_PATH||'/otp/verify-otp'}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile,otp})});const body=await response.json().catch(()=>({}));verified=response.ok&&Boolean(body.success||body.verify||body.verified);}else if(process.env.NODE_ENV!=='production'){verified=otp===(process.env.DEV_OTP_CODE||'123456');}if(!verified)throw Object.assign(new Error('Invalid or expired OTP'),{status:401});const provider=assertEligible(await findProvider(mobile));const providerId=provider.providerId||provider.id||String(provider._id);await Provider.updateOne({$or:[{providerId},{id:providerId},{_id:providerId}]},{$set:{normalizedMobile:mobile,lastLoginAt:new Date(),updatedAt:new Date()}});return{...provider,providerId};}
-function sign(provider){return jwt.sign({sub:provider.providerId,type:'provider'},process.env.JWT_SECRET||'change-provider-secret',{expiresIn:`${Number(process.env.AUTH_COOKIE_DAYS||30)}d`});}
-module.exports={findProvider,assertEligible,sendOtp,verifyOtp,sign,normalizeMobile};
+function mobilePattern(mobile) {
+  const digits = String(mobile).split("").join("\\D*");
+  return new RegExp(`${digits}$`);
+}
+
+async function findProvider(mobileInput) {
+  const mobile = normalizeMobile(mobileInput);
+  if (mobile.length !== 10) return null;
+
+  const provider = await Provider.findOne({
+    $or: [
+      { normalizedMobile: mobile },
+      { mobile },
+      { mobile: `+91${mobile}` },
+      { mobile: mobilePattern(mobile) },
+    ],
+  })
+    .sort({ status: 1, portalAccessEnabled: -1, updatedAt: -1 })
+    .lean();
+
+  return provider;
+}
+
+function otpHeaders() {
+  const headers = { "Content-Type": "application/json" };
+  if (process.env.OTP_API_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.OTP_API_TOKEN}`;
+  }
+  return headers;
+}
+
+async function sendOtp(mobileInput) {
+  const mobile = normalizeMobile(mobileInput);
+  if (mobile.length !== 10) {
+    throw Object.assign(new Error("Enter a valid 10-digit mobile number"), {
+      status: 400,
+      code: "MOBILE_INVALID",
+    });
+  }
+
+  ensureProviderEligible(await findProvider(mobile));
+
+  if (!process.env.OTP_API_URL) {
+    if (process.env.NODE_ENV === "production") {
+      throw Object.assign(new Error("OTP service is not configured"), {
+        status: 503,
+        code: "OTP_NOT_CONFIGURED",
+      });
+    }
+
+    return {
+      mobile,
+      devOtp: process.env.DEV_OTP_CODE || "123456",
+      expiresInSeconds: 300,
+    };
+  }
+
+  const { response, body } = await fetchJson(
+    `${process.env.OTP_API_URL}${process.env.OTP_SEND_PATH || "/otp/send-otp"}`,
+    {
+      method: "POST",
+      headers: otpHeaders(),
+      body: JSON.stringify({ mobile }),
+      timeoutMs: Number(process.env.OTP_TIMEOUT_MS || 10000),
+    },
+  );
+
+  if (!response.ok || body.success === false) {
+    throw Object.assign(
+      new Error(body.message || "OTP service could not send the code"),
+      { status: 502, code: "OTP_SEND_FAILED" },
+    );
+  }
+
+  return {
+    mobile,
+    expiresInSeconds: Number(body.expiresInSeconds || 300),
+  };
+}
+
+async function verifyOtp(mobileInput, otpInput) {
+  const mobile = normalizeMobile(mobileInput);
+  const otp = String(otpInput || "").trim();
+
+  if (mobile.length !== 10 || !/^\d{4,8}$/.test(otp)) {
+    throw Object.assign(new Error("Enter a valid mobile number and OTP"), {
+      status: 400,
+      code: "OTP_INPUT_INVALID",
+    });
+  }
+
+  let verified = false;
+  if (process.env.OTP_API_URL) {
+    const { response, body } = await fetchJson(
+      `${process.env.OTP_API_URL}${process.env.OTP_VERIFY_PATH || "/otp/verify-otp"}`,
+      {
+        method: "POST",
+        headers: otpHeaders(),
+        body: JSON.stringify({ mobile, otp }),
+        timeoutMs: Number(process.env.OTP_TIMEOUT_MS || 10000),
+      },
+    );
+    verified =
+      response.ok &&
+      body.success !== false &&
+      Boolean(body.verified ?? body.verify ?? body.success);
+  } else if (process.env.NODE_ENV !== "production") {
+    verified = otp === (process.env.DEV_OTP_CODE || "123456");
+  }
+
+  if (!verified) {
+    throw Object.assign(new Error("Invalid or expired OTP"), {
+      status: 401,
+      code: "OTP_INVALID",
+    });
+  }
+
+  const provider = ensureProviderEligible(await findProvider(mobile));
+  const providerId = providerIdentity(provider);
+
+  await Provider.updateOne(providerQuery(providerId), {
+    $set: {
+      providerId,
+      normalizedMobile: mobile,
+      lastLoginAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+
+  return presentProvider({ ...provider, providerId, lastLoginAt: new Date() });
+}
+
+module.exports = { sendOtp, verifyOtp, findProvider };

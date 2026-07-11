@@ -1,4 +1,30 @@
-<%- include('../partials/pageStart') %>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body
+  x-data='providerShell({ title: <%- JSON.stringify(title || "") %>, subtitle: <%- JSON.stringify(subtitle || "") %> })'
+  x-init="initShell()"
+  @wallet-updated.window="refreshProfile()"
+  @profile-updated.window="refreshProfile()"
+  @portal-page.window="setPage($event.detail)"
+  @portal-notify.window="notify($event.detail)"
+>
+<%- include('../partials/navbar') %>
+<div class="page-content">
+  <%- include('../partials/sidebar') %>
+  <div class="content-wrapper">
+    <div class="content-inner">
+      <div class="page-header portal-page-header border-bottom">
+        <div class="page-header-content d-flex align-items-center">
+          <div class="flex-grow-1 min-w-0">
+            <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
+            <div class="page-subtitle mt-1" x-show="page.subtitle" x-text="page.subtitle"><%= subtitle || '' %></div>
+          </div>
+        </div>
+      </div>
+      <div class="content">
+        <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
+
 <div x-data="profilePage()" x-init="load()" :class="loading ? 'portal-loading' : ''">
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
@@ -24,7 +50,7 @@
         <div class="table-responsive">
           <table class="table portal-detail-table mb-0">
             <tbody>
-              <tr><th>Provider ID</th><td class="portal-id" x-text="profile.providerId || profile.id || '—'"></td></tr>
+              <tr><th>Provider ID</th><td class="portal-id" x-text="profile.providerId || '—'"></td></tr>
               <tr><th>Mobile</th><td x-text="profile.mobile || '—'"></td></tr>
               <tr><th>Email</th><td x-text="profile.email || '—'"></td></tr>
               <tr><th>City</th><td x-text="[profile.city, profile.state].filter(Boolean).join(', ') || '—'"></td></tr>
@@ -70,6 +96,7 @@
           <div><span>Documents</span><strong x-text="profile.documentsVerified ? 'Verified' : 'Pending'"></strong></div>
           <div><span>Rating</span><strong x-text="profile.rating || '—'"></strong></div>
           <div><span>Wallet</span><strong x-text="money(profile.walletBalancePaise)"></strong></div>
+          <div><span>CRM last updated</span><strong x-text="formatDate(profile.updatedAt)"></strong></div>
         </div>
         <div class="card-footer bg-white border-top">
           <p class="text-muted fs-sm mb-0">Profile changes are controlled from the internal CRM.</p>
@@ -79,7 +106,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="<%= cspNonce %>">
   function profilePage() {
     return {
       profile: {},
@@ -97,4 +124,14 @@
     };
   }
 </script>
-<%- include('../partials/pageEnd') %>
+
+      </div>
+      <%- include('../partials/footer') %>
+    </div>
+  </div>
+</div>
+<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<%- include('../partials/scripts') %>
+</body>
+</html>
+

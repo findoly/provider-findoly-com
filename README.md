@@ -1,41 +1,34 @@
 # Provider Lead Portal
 
-A separate Express service connected to the same MongoDB database as the CRM.
+A separate Express service connected to the same MongoDB database as the Service CRM Admin.
 
-## Code flow
+## Architecture
 
 ```text
-Browser page
-  -> EJS with Alpine.js
-  -> /api route
-  -> controller
+/frontend/* or normal browser URL
+  -> frontend controller renders an EJS shell only
+  -> Alpine.js in the page calls /api/*
+  -> JSON controller
   -> small service
   -> simple Mongoose model
-  -> shared MongoDB
+  -> shared MongoDB database
 ```
 
-No lead, provider, wallet, or profile data is rendered by the server into EJS.
+The frontend controller sends only page metadata such as title and subtitle. Provider, lead, wallet and transaction records are never rendered into EJS by Express.
 
-## Main structure
+Each page owns its body markup. Only these structural partials are shared:
 
 ```text
-app.js
-bin/www
-db/connection.js
-routes/frontend.js
-routes/main.js
-routes/lead.js
-routes/wallet.js
-controllers/frontendController.js
-controllers/leadController.js
-services/lead/lead-service.js
-models/LeadDistribution.js
-views/lead/*.ejs
+head.ejs
+navbar.ejs
+sidebar.ejs
+footer.ejs
+scripts.ejs
 ```
 
-All modules use `module.exports`.
+## Shared CRM collections
 
-## Shared collections
+The portal reads and writes the same collections used by the CRM:
 
 ```text
 providers
@@ -45,73 +38,156 @@ wallettransactions
 paymentorders
 ```
 
-Models explicitly use those collection names and the named IDs `providerId`, `leadDistributionId`, `enquiryId`, `walletTransactionId`, and `paymentOrderId`.
+The shared Mongoose model files match the CRM model fields. The application uses named 32-character UUID fields:
 
-Legacy documents without the named ID are still found through their existing `id` or `_id`. Run the CRM migration to permanently add the named fields.
+```text
+providers             providerId
+leaddistributions      leadDistributionId
+enquiries              enquiryId
+wallettransactions     walletTransactionId
+paymentorders          paymentOrderId
+```
 
-## Lead unlock
+MongoDB `_id` is left untouched. Compatibility reads still accept an existing legacy `id` where a migration has not yet added the named field.
 
-The provider sees a denormalized lead offer. Contact fields are removed from the API response until that provider unlocks its own offer.
+## Authentication
 
-Unlock uses:
+The browser stores only a signed HTTP-only provider session cookie. The provider object is not cached in application memory.
 
-1. an atomic `offered -> unlocking` claim
-2. a conditional wallet debit requiring sufficient balance
-3. an immutable wallet transaction
-4. an `unlocked` offer update
-5. compensation if a later step fails
+For every protected page and every protected `/api` request, the portal:
 
-This flow works with a normal local MongoDB server and does not require a replica set.
+1. verifies the signed cookie;
+2. reads the provider again from MongoDB;
+3. checks `status = active`;
+4. checks `portalAccessEnabled != false`;
+5. uses the current categories, profile and wallet balance from the database.
 
-## Run
+This means CRM changes such as disabling portal access or deactivating the provider apply on the next request without restarting the provider server.
+
+Production protections include:
+
+- HTTP-only signed authentication cookie;
+- CSRF token verification for write APIs;
+- OTP, wallet and unlock rate limits;
+- Helmet security headers and Content Security Policy;
+- request IDs in API errors;
+- graceful shutdown and MongoDB connection pooling;
+- no in-memory identity cache;
+- no direct wallet-credit endpoint.
+
+## Lead flow
+
+The CRM creates one `leaddistributions` record for each matching provider. The portal only queries records where `providerId` belongs to the logged-in provider.
+
+Locked responses remove customer contact fields. The portal also removes contact-like keys from `additionalDetails` before unlock.
+
+Unlocking uses a MongoDB transaction to:
+
+1. verify the offer is still available and matches the provider category;
+2. verify the provider is still active and portal-enabled;
+3. deduct the exact `leadPricePaise`;
+4. create the immutable wallet debit transaction;
+5. mark only that provider's distribution as unlocked;
+6. increment the lead's unlock count.
+
+Use MongoDB Atlas or a replica set because wallet credit and lead unlock require transactions.
+
+## Razorpay wallet flow
+
+```text
+POST /api/wallet/order
+  -> create Razorpay order
+  -> save paymentorders record
+  -> return Checkout data
+
+Razorpay Checkout handler
+  -> POST /api/wallet/verify
+  -> verify server-side HMAC signature
+  -> fetch the payment from Razorpay
+  -> validate order, amount and INR currency
+  -> credit only after captured status
+
+POST /api/webhooks/razorpay
+  -> verify signature from the raw request body
+  -> process payment.captured or order.paid
+  -> reuse the same idempotency key
+```
+
+Checkout confirmation and webhook delivery cannot credit the same order twice. An authorised but not-yet-captured payment remains pending until capture/webhook processing.
+
+Configure the webhook URL as:
+
+```text
+https://provider.example.com/api/webhooks/razorpay
+```
+
+Subscribe to:
+
+```text
+payment.captured
+order.paid
+```
+
+## Production configuration
 
 ```bash
 cp .env.example .env
-npm install
+npm ci --omit=dev
+npm run ensure:indexes
 npm start
 ```
 
-Both applications must use the same `MONGODB_URI`.
+Required in production:
 
-Development login:
-
-```text
-Mobile: a CRM provider mobile
-OTP: 123456
+```env
+NODE_ENV=production
+MONGODB_URI=mongodb+srv://.../service_crm_admin
+JWT_SECRET=<long-random-secret>
+OTP_API_URL=https://your-otp-service.example.com
+RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_KEY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...
+TRUST_PROXY=1
 ```
 
-## API examples
+Both CRM and provider services must use the same `MONGODB_URI` and database name.
 
-```text
-POST /api/auth/send-otp
-POST /api/auth/verify-otp
-GET  /api/profile
-GET  /api/dashboard
-GET  /api/lead
-GET  /api/lead/:leadDistributionId
-POST /api/lead/:leadDistributionId/unlock
-GET  /api/wallet
-POST /api/wallet/orders
-POST /api/wallet/verify
+Before starting the provider portal against an existing CRM database, run the CRM structure migration once:
+
+```bash
+cd service-crm-admin
+npm install
+npm run migrate:structure
 ```
 
-## Validation
+Then return to this provider project and create any missing indexes without deleting existing data:
+
+```bash
+npm run ensure:indexes
+```
+
+## Provider eligibility
+
+A provider can sign in and use APIs when:
+
+```text
+status = active
+portalAccessEnabled = true or missing
+providerId or legacy id is present
+```
+
+The onboarding stage is displayed but does not independently block login.
+
+To receive new locked leads, the provider must also have matching `categorySlugs` in the CRM.
+
+## Useful commands
 
 ```bash
 npm run check
 npm test
 npm run diagnose:provider -- 8693097982
+npm run ensure:indexes
+npm audit --omit=dev
 ```
 
-## Provider UI
-
-The provider portal keeps the Alpine.js + `/api` architecture while using the full provider workspace layout:
-
-- fixed top search bar and wallet balance
-- provider summary and vertical icon sidebar
-- dashboard statistic cards and recent lead table
-- compact lead marketplace filters and table
-- lead detail facts, requirement table and wallet unlock panel
-- responsive mobile sidebar
-
-EJS templates receive only page metadata and fetch provider data through `/api` with Alpine.js.
+The diagnosis command prints the configured database, provider eligibility, wallet balance, categories and current available/unlocked offer counts.

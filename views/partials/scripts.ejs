@@ -1,0 +1,182 @@
+<script nonce="<%= cspNonce %>">
+  function pathParts() {
+    return location.pathname.split('/').filter(Boolean);
+  }
+
+  function pathRecordId(editPage = false) {
+    const parts = pathParts();
+    return editPage ? (parts[parts.length - 2] || '') : (parts[parts.length - 1] || '');
+  }
+
+  function queryValue(name, fallback = '') {
+    return new URLSearchParams(location.search).get(name) || fallback;
+  }
+
+  function cookieValue(name) {
+    const prefix = encodeURIComponent(name) + '=';
+    const item = document.cookie.split('; ').find((value) => value.startsWith(prefix));
+    return item ? decodeURIComponent(item.slice(prefix.length)) : '';
+  }
+
+  function safeReturnTo(value, fallback = '/dashboard') {
+    const target = String(value || '');
+    if (!target.startsWith('/') || target.startsWith('//')) return fallback;
+    if (target.startsWith('/api') || target.startsWith('/login')) return fallback;
+    return target;
+  }
+
+  async function apiFetch(url, options = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    const headers = {
+      Accept: 'application/json',
+      ...(options.headers || {})
+    };
+
+    if (options.body !== undefined && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+      headers['X-CSRF-Token'] = cookieValue(<%- JSON.stringify(csrfCookieName || 'provider_csrf') %>);
+    }
+
+    const response = await fetch(url, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      ...options,
+      method,
+      headers
+    });
+
+    const body = await response.json().catch(() => ({
+      success: false,
+      message: 'The server returned an invalid response'
+    }));
+
+    const authCodes = [
+      'AUTHENTICATION_REQUIRED',
+      'SESSION_INVALID',
+      'PROVIDER_NOT_FOUND',
+      'PROVIDER_INACTIVE',
+      'PORTAL_ACCESS_DISABLED',
+      'PROVIDER_ID_MISSING'
+    ];
+
+    if ((response.status === 401 || response.status === 403) && authCodes.includes(body.code)) {
+      const returnTo = safeReturnTo(location.pathname + location.search);
+      location.href = '/login?returnTo=' + encodeURIComponent(returnTo) + '&reason=' + encodeURIComponent(body.code || 'SESSION_INVALID');
+      throw Object.assign(new Error(body.message || 'Authentication required'), { code: body.code, status: response.status });
+    }
+
+    if (!response.ok || body.success === false) {
+      throw Object.assign(new Error(body.message || 'Request failed'), {
+        code: body.code || 'REQUEST_FAILED',
+        status: response.status,
+        requestId: body.requestId || response.headers.get('x-request-id') || ''
+      });
+    }
+
+    return body;
+  }
+
+  function money(paise) {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Number(paise || 0) / 100);
+  }
+
+  function formatDate(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  }
+
+  function formatDateOnly(value) {
+    if (!value) return 'Flexible';
+    const date = new Date(String(value).length === 10 ? `${value}T00:00:00` : value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(date);
+  }
+
+  function humanize(value) {
+    return String(value || '—')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[_-]/g, ' ')
+      .replace(/\b\w/g, (character) => character.toUpperCase());
+  }
+
+  function initials(value) {
+    const parts = String(value || 'Provider').trim().split(/\s+/).filter(Boolean);
+    return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'P';
+  }
+
+  function providerShell(config = {}) {
+    return {
+      provider: {},
+      shellError: '',
+      shellSearch: new URLSearchParams(location.search).get('q') || '',
+      page: { title: config.title || '', subtitle: config.subtitle || '' },
+      queryStatus: new URLSearchParams(location.search).get('status') || '',
+      notice: { show: false, type: 'success', message: '' },
+      noticeTimer: null,
+
+      async initShell() {
+        await this.refreshProfile();
+      },
+
+      async refreshProfile() {
+        try {
+          this.provider = (await apiFetch('/api/profile')).data;
+          this.shellError = '';
+        } catch (error) {
+          this.shellError = error.message;
+        }
+      },
+
+      pathIs(path) {
+        return location.pathname === path || location.pathname.startsWith(path + '/');
+      },
+
+      setPage(detail = {}) {
+        if (detail.title) this.page.title = detail.title;
+        this.page.subtitle = detail.subtitle || '';
+        if (detail.documentTitle) document.title = detail.documentTitle;
+      },
+
+      notify(detail = {}) {
+        clearTimeout(this.noticeTimer);
+        this.notice = {
+          show: true,
+          type: detail.type || 'success',
+          message: detail.message || ''
+        };
+        this.noticeTimer = setTimeout(() => { this.notice.show = false; }, 4500);
+      },
+
+      runSearch() {
+        const query = String(this.shellSearch || '').trim();
+        location.href = query ? `/leads?q=${encodeURIComponent(query)}` : '/leads';
+      },
+
+      toggleSidebar() {
+        document.body.classList.toggle('portal-sidebar-open');
+      },
+
+      closeSidebar() {
+        document.body.classList.remove('portal-sidebar-open');
+      },
+
+      async logout() {
+        try {
+          await apiFetch('/api/auth/logout', { method: 'POST', body: '{}' });
+        } finally {
+          location.href = '/login';
+        }
+      }
+    };
+  }
+</script>

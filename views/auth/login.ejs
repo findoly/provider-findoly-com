@@ -1,69 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
 <%- include('../partials/head') %>
-<body class="portal-login-body" x-data='loginPage(<%- JSON.stringify(returnTo) %>)'>
-  <div class="portal-login-shell">
+<body class="portal-login-body" x-data="loginPage()" x-init="init()">
+  <main class="portal-login-shell">
     <div class="portal-login-brand">
       <span class="portal-brand-mark">L</span>
-      <div><strong>LeadPortal</strong><span>Provider access</span></div>
+      <div><strong>LeadPortal</strong><span>Secure provider access</span></div>
     </div>
 
-    <div class="card portal-login-card">
+    <section class="card portal-login-card" aria-labelledby="loginTitle">
       <div class="card-body">
         <div class="text-center mb-4">
-          <h3 class="mb-2">Provider login</h3>
-          <p class="text-muted mb-0">Use the mobile number registered in the CRM.</p>
+          <span class="portal-login-lock" aria-hidden="true">✓</span>
+          <h1 id="loginTitle" class="h3 mb-2">Provider login</h1>
+          <p class="text-muted mb-0">Use the mobile number approved in the CRM.</p>
         </div>
 
-        <div x-show="error" x-cloak class="alert alert-danger" x-text="error"></div>
-        <div x-show="message" x-cloak class="alert alert-success" x-text="message"></div>
+        <div x-show="error" x-cloak class="alert alert-danger" role="alert" x-text="error"></div>
+        <div x-show="message" x-cloak class="alert alert-success" role="status" x-text="message"></div>
 
-        <form @submit.prevent="step === 'mobile' ? sendOtp() : verifyOtp()">
+        <form @submit.prevent="step === 'mobile' ? sendOtp() : verifyOtp()" novalidate>
           <div class="mb-3">
             <label class="form-label" for="providerMobile">Mobile number</label>
-            <input id="providerMobile" class="form-control" inputmode="numeric" autocomplete="tel" maxlength="15" x-model="mobile" :disabled="step === 'otp'" placeholder="10-digit mobile number" required>
+            <div class="input-group">
+              <span class="input-group-text">+91</span>
+              <input
+                id="providerMobile"
+                class="form-control"
+                inputmode="numeric"
+                autocomplete="tel"
+                maxlength="10"
+                x-model="mobile"
+                :disabled="step === 'otp'"
+                placeholder="10-digit mobile number"
+                required
+              >
+            </div>
           </div>
 
           <div class="mb-3" x-show="step === 'otp'" x-cloak>
-            <label class="form-label" for="providerOtp">One-time password</label>
-            <input id="providerOtp" class="form-control portal-otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" x-model="otp" placeholder="000000">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label class="form-label mb-0" for="providerOtp">One-time password</label>
+              <button class="btn btn-link btn-sm p-0" type="button" :disabled="resendSeconds > 0 || loading" @click="sendOtp(true)">
+                <span x-text="resendSeconds > 0 ? `Resend in ${resendSeconds}s` : 'Resend OTP'"></span>
+              </button>
+            </div>
+            <input
+              id="providerOtp"
+              class="form-control portal-otp-input"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="8"
+              x-model="otp"
+              placeholder="Enter OTP"
+            >
           </div>
 
           <button class="btn btn-primary w-100" type="submit" :disabled="loading">
+            <span class="spinner-border spinner-border-sm me-2" x-show="loading" x-cloak></span>
             <span x-text="loading ? 'Please wait…' : (step === 'mobile' ? 'Send OTP' : 'Verify and login')"></span>
           </button>
 
-          <button type="button" class="btn btn-link w-100 mt-2" x-show="step === 'otp'" x-cloak @click="resetMobile()">Use another mobile</button>
+          <button type="button" class="btn btn-link w-100 mt-2" x-show="step === 'otp'" x-cloak @click="resetMobile()">Use another mobile number</button>
         </form>
       </div>
+    </section>
+
+    <div class="portal-login-help">
+      <strong>Unable to sign in?</strong>
+      <span>Ask the CRM administrator to confirm that your account is active and portal access is enabled.</span>
     </div>
+  </main>
 
-    <div class="text-center text-muted fs-sm mt-3">Only active providers with portal access can sign in.</div>
-  </div>
-
-<script>
-  function loginPage(returnTo) {
+<%- include('../partials/scripts') %>
+<script nonce="<%= cspNonce %>">
+  function loginPage() {
     return {
-      returnTo,
+      returnTo: safeReturnTo(new URLSearchParams(location.search).get('returnTo')),
       mobile: '',
       otp: '',
       step: 'mobile',
       loading: false,
       error: '',
       message: '',
+      resendSeconds: 0,
+      timer: null,
 
-      async sendOtp() {
+      init() {
+        const reason = new URLSearchParams(location.search).get('reason');
+        const messages = {
+          PROVIDER_INACTIVE: 'Your provider account is inactive. Contact the CRM administrator.',
+          PORTAL_ACCESS_DISABLED: 'Portal access has been disabled for this provider account.',
+          PROVIDER_NOT_FOUND: 'Your previous provider session is no longer valid.',
+          SESSION_INVALID: 'Your session expired. Please sign in again.',
+          PROVIDER_ID_MISSING: 'The provider record must be migrated before portal access can continue.'
+        };
+        if (messages[reason]) this.error = messages[reason];
+      },
+
+      startTimer(seconds = 30) {
+        clearInterval(this.timer);
+        this.resendSeconds = seconds;
+        this.timer = setInterval(() => {
+          this.resendSeconds = Math.max(0, this.resendSeconds - 1);
+          if (!this.resendSeconds) clearInterval(this.timer);
+        }, 1000);
+      },
+
+      async sendOtp(isResend = false) {
+        this.mobile = String(this.mobile || '').replace(/\D/g, '').slice(-10);
+        if (this.mobile.length !== 10) {
+          this.error = 'Enter a valid 10-digit mobile number.';
+          return;
+        }
+
         this.loading = true;
         this.error = '';
         this.message = '';
         try {
-          const response = await fetch('/api/auth/send-otp', {
+          const body = await apiFetch('/api/auth/send-otp', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mobile: this.mobile })
           });
-          const body = await response.json();
-          if (!response.ok || body.success === false) throw new Error(body.message || 'Unable to send OTP');
           this.step = 'otp';
-          this.message = body.data?.devOtp ? `Development OTP: ${body.data.devOtp}` : 'OTP sent successfully.';
+          this.otp = '';
+          this.startTimer(30);
+          this.message = body.data?.devOtp
+            ? `Development OTP: ${body.data.devOtp}`
+            : (isResend ? 'A new OTP was sent.' : 'OTP sent successfully.');
+          this.$nextTick(() => document.getElementById('providerOtp')?.focus());
         } catch (error) {
           this.error = error.message;
         } finally {
@@ -72,17 +137,19 @@
       },
 
       async verifyOtp() {
+        if (!/^\d{4,8}$/.test(String(this.otp || '').trim())) {
+          this.error = 'Enter the OTP sent to your mobile number.';
+          return;
+        }
+
         this.loading = true;
         this.error = '';
         try {
-          const response = await fetch('/api/auth/verify-otp', {
+          await apiFetch('/api/auth/verify-otp', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mobile: this.mobile, otp: this.otp })
           });
-          const body = await response.json();
-          if (!response.ok || body.success === false) throw new Error(body.message || 'Unable to verify OTP');
-          location.href = this.returnTo || '/dashboard';
+          location.href = this.returnTo;
         } catch (error) {
           this.error = error.message;
         } finally {
@@ -91,10 +158,13 @@
       },
 
       resetMobile() {
+        clearInterval(this.timer);
         this.step = 'mobile';
         this.otp = '';
         this.message = '';
         this.error = '';
+        this.resendSeconds = 0;
+        this.$nextTick(() => document.getElementById('providerMobile')?.focus());
       }
     };
   }

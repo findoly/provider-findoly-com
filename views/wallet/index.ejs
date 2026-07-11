@@ -1,90 +1,170 @@
-<%- include('../partials/pageStart') %>
-<div x-data="walletPage()" x-init="load()">
-  <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
-  <div x-show="success" x-cloak class="alert alert-success portal-flash" x-text="success"></div>
-
-  <div class="row g-4 align-items-start">
-    <div class="col-xl-4">
-      <div class="card portal-card portal-wallet-card mb-4">
-        <div class="card-body">
-          <span>Available wallet balance</span>
-          <strong x-text="money(data.provider?.walletBalancePaise)">₹0.00</strong>
-          <small>₹1 paid gives ₹1 wallet credit</small>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body
+  x-data='providerShell({ title: <%- JSON.stringify(title || "") %>, subtitle: <%- JSON.stringify(subtitle || "") %> })'
+  x-init="initShell()"
+  @wallet-updated.window="refreshProfile()"
+  @portal-notify.window="notify($event.detail)"
+>
+<%- include('../partials/navbar') %>
+<div class="page-content">
+  <%- include('../partials/sidebar') %>
+  <div class="content-wrapper">
+    <div class="content-inner">
+      <div class="page-header portal-page-header border-bottom">
+        <div class="page-header-content d-flex align-items-center">
+          <div class="flex-grow-1 min-w-0">
+            <h1 class="page-title mb-0"><%= title %></h1>
+            <div class="page-subtitle mt-1"><%= subtitle %></div>
+          </div>
         </div>
       </div>
 
-      <div class="card portal-card">
-        <div class="card-header border-bottom">
-          <h5 class="mb-1">Add wallet funds</h5>
-          <div class="text-muted fs-sm">Use this test top-up while Razorpay is not configured.</div>
+      <div class="content" x-data="walletPage()" x-init="load()">
+        <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
+        <div x-show="error" x-cloak class="alert alert-danger portal-flash" role="alert">
+          <span x-text="error"></span>
+          <small class="d-block mt-1" x-show="errorRequestId" x-text="`Reference: ${errorRequestId}`"></small>
         </div>
-        <div class="card-body">
-          <label class="form-label" for="walletAmount">Amount in rupees</label>
-          <div class="input-group mb-3">
-            <span class="input-group-text">₹</span>
-            <input id="walletAmount" type="number" class="form-control" min="1" step="1" x-model.number="rupees">
-          </div>
-          <div class="d-flex flex-wrap gap-2 mb-3">
-            <button class="btn btn-light btn-sm" type="button" @click="rupees = 500">₹500</button>
-            <button class="btn btn-light btn-sm" type="button" @click="rupees = 1000">₹1,000</button>
-            <button class="btn btn-light btn-sm" type="button" @click="rupees = 2000">₹2,000</button>
-          </div>
-          <button class="btn btn-primary w-100" type="button" @click="topup()" :disabled="submitting || Number(rupees) < 1">
-            <span x-text="submitting ? 'Adding funds…' : 'Add test wallet funds'"></span>
-          </button>
-        </div>
-      </div>
-    </div>
+        <div x-show="success" x-cloak class="alert alert-success portal-flash" x-text="success"></div>
 
-    <div class="col-xl-8">
-      <div class="card portal-card">
-        <div class="card-header border-bottom d-flex align-items-center">
-          <div>
-            <h5 class="mb-1">Wallet transactions</h5>
-            <div class="text-muted fs-sm">Every credit and lead deduction appears here.</div>
+        <div class="row g-4 align-items-start">
+          <div class="col-xl-4">
+            <div class="card portal-card portal-wallet-card mb-4">
+              <div class="card-body">
+                <span>Available wallet balance</span>
+                <strong x-text="money(data.provider?.walletBalancePaise)">₹0.00</strong>
+                <small>₹1 paid gives ₹1 wallet credit</small>
+              </div>
+            </div>
+
+            <div class="card portal-card mb-4">
+              <div class="card-header border-bottom">
+                <h5 class="mb-1">Add wallet funds</h5>
+                <div class="text-muted fs-sm">Secure payment through Razorpay Checkout.</div>
+              </div>
+              <div class="card-body">
+                <div x-show="data.razorpay && !data.razorpay.enabled" x-cloak class="alert alert-warning">
+                  Wallet top-up is temporarily unavailable because Razorpay is not configured.
+                </div>
+
+                <label class="form-label" for="walletAmount">Amount in rupees</label>
+                <div class="input-group mb-3">
+                  <span class="input-group-text">₹</span>
+                  <input
+                    id="walletAmount"
+                    type="number"
+                    class="form-control"
+                    :min="minimumRupees"
+                    :max="maximumRupees"
+                    step="1"
+                    x-model.number="rupees"
+                    @keydown.enter.prevent="pay()"
+                  >
+                </div>
+
+                <div class="portal-amount-options mb-3">
+                  <template x-for="amount in [500, 1000, 2000, 5000]" :key="amount">
+                    <button
+                      class="btn btn-light btn-sm"
+                      :class="Number(rupees) === amount ? 'active' : ''"
+                      type="button"
+                      @click="rupees = amount"
+                      x-text="money(amount * 100)"
+                    ></button>
+                  </template>
+                </div>
+
+                <button class="btn btn-primary w-100" type="button" @click="pay()" :disabled="submitting || !data.razorpay?.enabled || !validAmount">
+                  <span class="spinner-border spinner-border-sm me-2" x-show="submitting" x-cloak></span>
+                  <span x-text="submitting ? 'Opening secure checkout…' : 'Pay with Razorpay'"></span>
+                </button>
+                <div class="text-muted fs-sm mt-3">
+                  Your balance changes only after server-side signature, order, amount, currency and captured-payment verification.
+                </div>
+              </div>
+            </div>
+
+            <div class="card portal-card" x-show="pendingOrders.length" x-cloak>
+              <div class="card-header border-bottom"><h5 class="mb-0">Recent top-ups</h5></div>
+              <div class="list-group list-group-flush">
+                <template x-for="order in pendingOrders" :key="order.paymentOrderId">
+                  <div class="list-group-item d-flex align-items-center gap-3">
+                    <span class="portal-payment-state" :class="order.walletCredited ? 'is-paid' : 'is-pending'"></span>
+                    <div class="flex-grow-1 min-w-0">
+                      <div class="fw-semibold" x-text="money(order.amountPaise)"></div>
+                      <div class="text-muted fs-sm" x-text="formatDate(order.createdAt)"></div>
+                    </div>
+                    <span class="badge" :class="order.walletCredited ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'" x-text="order.walletCredited ? 'Credited' : humanize(order.status)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
           </div>
-          <span class="badge bg-light text-body border ms-auto" x-text="`${pagination.total || 0} records`"></span>
-        </div>
-        <div class="table-responsive">
-          <table class="table portal-table mb-0">
-            <thead>
-              <tr>
-                <th>Transaction</th>
-                <th>Description</th>
-                <th>Amount</th>
-                <th>Balance</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="transaction in transactions" :key="transaction.walletTransactionId || transaction.id">
-                <tr>
-                  <td><span class="badge" :class="transaction.type === 'debit' ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'" x-text="humanize(transaction.type)"></span></td>
-                  <td>
-                    <div class="fw-semibold" x-text="transaction.description || humanize(transaction.source)"></div>
-                    <div class="text-muted fs-sm portal-id" x-text="transaction.referenceId || transaction.walletTransactionId"></div>
-                  </td>
-                  <td class="fw-semibold" :class="transaction.type === 'debit' ? 'text-danger' : 'text-success'" x-text="`${transaction.type === 'debit' ? '-' : '+'}${money(transaction.amountPaise)}`"></td>
-                  <td x-text="money(transaction.balanceAfterPaise)"></td>
-                  <td x-text="formatDate(transaction.createdAt)"></td>
-                </tr>
-              </template>
-              <tr x-show="loading"><td colspan="5" class="text-center text-muted py-5">Loading transactions…</td></tr>
-              <tr x-show="!loading && !transactions.length"><td colspan="5" class="text-center text-muted py-5">No wallet transactions yet</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="card-footer portal-pagination" x-show="pagination.pages > 1">
-          <button class="btn btn-light btn-sm" :disabled="pagination.page <= 1" @click="go(pagination.page - 1)">Previous</button>
-          <span class="mx-auto fs-sm" x-text="`${pagination.page} of ${pagination.pages}`"></span>
-          <button class="btn btn-light btn-sm" :disabled="pagination.page >= pagination.pages" @click="go(pagination.page + 1)">Next</button>
+
+          <div class="col-xl-8">
+            <div class="card portal-card">
+              <div class="card-header border-bottom d-flex align-items-center">
+                <div>
+                  <h5 class="mb-1">Wallet transactions</h5>
+                  <div class="text-muted fs-sm">Every verified credit and lead deduction appears here.</div>
+                </div>
+                <span class="badge bg-light text-body border ms-auto" x-text="`${pagination.total || 0} records`"></span>
+              </div>
+              <div class="table-responsive">
+                <table class="table portal-table mb-0">
+                  <thead>
+                    <tr>
+                      <th>Transaction</th>
+                      <th>Description</th>
+                      <th>Amount</th>
+                      <th>Balance</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="transaction in transactions" :key="transaction.walletTransactionId">
+                      <tr>
+                        <td><span class="badge" :class="transaction.type === 'debit' ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'" x-text="humanize(transaction.type)"></span></td>
+                        <td>
+                          <div class="fw-semibold" x-text="transaction.description || humanize(transaction.source)"></div>
+                          <div class="text-muted fs-sm portal-id" x-text="transaction.referenceId || transaction.walletTransactionId"></div>
+                        </td>
+                        <td class="fw-semibold" :class="transaction.type === 'debit' ? 'text-danger' : 'text-success'" x-text="`${transaction.type === 'debit' ? '-' : '+'}${money(transaction.amountPaise)}`"></td>
+                        <td x-text="money(transaction.balanceAfterPaise)"></td>
+                        <td x-text="formatDate(transaction.createdAt)"></td>
+                      </tr>
+                    </template>
+                    <tr x-show="loading"><td colspan="5" class="text-center text-muted py-5">Loading transactions…</td></tr>
+                    <tr x-show="!loading && !transactions.length">
+                      <td colspan="5" class="text-center py-5">
+                        <div class="portal-empty-icon"><svg class="icon"><use href="#i-wallet"></use></svg></div>
+                        <div class="fw-semibold mt-2">No wallet transactions yet</div>
+                        <div class="text-muted fs-sm mt-1">Your verified top-ups and lead deductions will appear here.</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="card-footer portal-pagination" x-show="pagination.pages > 1">
+                <button class="btn btn-light btn-sm" :disabled="pagination.page <= 1 || loading" @click="go(pagination.page - 1)">Previous</button>
+                <span class="mx-auto fs-sm" x-text="`${pagination.page} of ${pagination.pages}`"></span>
+                <button class="btn btn-light btn-sm" :disabled="pagination.page >= pagination.pages || loading" @click="go(pagination.page + 1)">Next</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      <%- include('../partials/footer') %>
     </div>
   </div>
 </div>
-
-<script>
+<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<script nonce="<%= cspNonce %>" src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<%- include('../partials/scripts') %>
+<script nonce="<%= cspNonce %>">
   function walletPage() {
     return {
       data: {},
@@ -94,39 +174,115 @@
       loading: true,
       submitting: false,
       error: '',
+      errorRequestId: '',
       success: '',
+
+      get minimumRupees() {
+        return Number(this.data.razorpay?.minimumPaise || 10000) / 100;
+      },
+
+      get maximumRupees() {
+        return Number(this.data.razorpay?.maximumPaise || 10000000) / 100;
+      },
+
+      get validAmount() {
+        const value = Number(this.rupees || 0);
+        return Number.isFinite(value) && value >= this.minimumRupees && value <= this.maximumRupees;
+      },
+
+      get pendingOrders() {
+        return (this.data.paymentOrders || []).filter((order) => order.walletCredited || ['created', 'verified', 'authorized'].includes(order.status)).slice(0, 5);
+      },
 
       async load(page = this.pagination.page) {
         this.loading = true;
         this.error = '';
+        this.errorRequestId = '';
         try {
           this.data = (await apiFetch(`/api/wallet?page=${page}&limit=20`)).data;
           this.transactions = this.data.data || [];
           this.pagination = this.data.pagination || { page: 1, pages: 1, total: this.transactions.length };
+          if (!this.rupees || this.rupees < this.minimumRupees) this.rupees = this.minimumRupees;
         } catch (error) {
           this.error = error.message;
+          this.errorRequestId = error.requestId || '';
         } finally {
           this.loading = false;
         }
       },
 
-      async topup() {
-        const amountPaise = Math.round(Number(this.rupees || 0) * 100);
-        if (amountPaise < 100) return;
+      async pay() {
+        if (!this.validAmount || this.submitting) {
+          this.error = `Enter an amount between ${money(this.minimumRupees * 100)} and ${money(this.maximumRupees * 100)}.`;
+          return;
+        }
+
+        const amountPaise = Math.round(Number(this.rupees) * 100);
         this.submitting = true;
         this.error = '';
+        this.errorRequestId = '';
         this.success = '';
+
         try {
-          await apiFetch('/api/wallet/demo-topup', {
+          if (typeof Razorpay !== 'function') throw new Error('Razorpay Checkout could not be loaded. Check your connection and try again.');
+
+          const order = (await apiFetch('/api/wallet/order', {
             method: 'POST',
             body: JSON.stringify({ amountPaise })
+          })).data;
+
+          const checkout = new Razorpay({
+            key: order.keyId,
+            amount: order.amountPaise,
+            currency: order.currency,
+            name: 'LeadPortal',
+            description: 'Provider wallet top-up',
+            order_id: order.razorpayOrderId,
+            retry: { enabled: true },
+            remember_customer: false,
+            prefill: {
+              name: order.provider?.name || '',
+              email: order.provider?.email || '',
+              contact: order.provider?.mobile || ''
+            },
+            notes: { paymentOrderId: order.paymentOrderId },
+            theme: { color: '#2563eb' },
+            handler: async (payment) => {
+              try {
+                const verification = (await apiFetch('/api/wallet/verify', {
+                  method: 'POST',
+                  body: JSON.stringify(payment)
+                })).data;
+
+                if (verification.status === 'pending') {
+                  this.success = verification.message || 'Payment is authorised and will be credited after capture.';
+                } else {
+                  this.success = `${money(order.amountPaise)} was added to your wallet.`;
+                  this.$dispatch('wallet-updated');
+                }
+                await this.load(1);
+              } catch (error) {
+                this.error = error.message;
+                this.errorRequestId = error.requestId || '';
+              } finally {
+                this.submitting = false;
+              }
+            },
+            modal: {
+              confirm_close: true,
+              ondismiss: () => { this.submitting = false; }
+            }
           });
-          this.success = `${money(amountPaise)} added to your wallet.`;
-          await this.load(1);
-          this.$dispatch('wallet-updated');
+
+          checkout.on('payment.failed', (response) => {
+            this.error = response.error?.description || 'Razorpay payment failed';
+            this.submitting = false;
+          });
+
+          checkout.open();
         } catch (error) {
           this.error = error.message;
-        } finally {
+          this.errorRequestId = error.requestId || '';
           this.submitting = false;
         }
       },
@@ -138,4 +294,5 @@
     };
   }
 </script>
-<%- include('../partials/pageEnd') %>
+</body>
+</html>

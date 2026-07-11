@@ -1,1 +1,18 @@
-<%- include('partials/head') %><body><div class="container py-5 text-center"><h1>Something went wrong</h1><p><%= message %></p><a href="/dashboard" class="btn btn-primary">Dashboard</a></div></body></html>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('partials/head') %>
+<body class="portal-error-body">
+  <main class="portal-error-card">
+    <span class="portal-error-mark">!</span>
+    <h1>Something went wrong</h1>
+    <p><%= (typeof message !== 'undefined' && message) ? message : 'The request could not be completed.' %></p>
+    <% if (typeof requestId !== 'undefined' && requestId) { %>
+      <small>Reference: <%= requestId %></small>
+    <% } %>
+    <div class="d-flex justify-content-center gap-2 mt-4">
+      <a href="" class="btn btn-light">Try again</a>
+      <a href="/dashboard" class="btn btn-primary">Dashboard</a>
+    </div>
+  </main>
+</body>
+</html>

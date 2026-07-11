@@ -1,4 +1,30 @@
-<%- include('../partials/pageStart') %>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body
+  x-data='providerShell({ title: <%- JSON.stringify(title || "") %>, subtitle: <%- JSON.stringify(subtitle || "") %> })'
+  x-init="initShell()"
+  @wallet-updated.window="refreshProfile()"
+  @profile-updated.window="refreshProfile()"
+  @portal-page.window="setPage($event.detail)"
+  @portal-notify.window="notify($event.detail)"
+>
+<%- include('../partials/navbar') %>
+<div class="page-content">
+  <%- include('../partials/sidebar') %>
+  <div class="content-wrapper">
+    <div class="content-inner">
+      <div class="page-header portal-page-header border-bottom">
+        <div class="page-header-content d-flex align-items-center">
+          <div class="flex-grow-1 min-w-0">
+            <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
+            <div class="page-subtitle mt-1" x-show="page.subtitle" x-text="page.subtitle"><%= subtitle || '' %></div>
+          </div>
+        </div>
+      </div>
+      <div class="content">
+        <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
+
 <div x-data="leadList()" x-init="init()">
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
@@ -13,6 +39,13 @@
         <option value="">All leads</option>
         <option value="offered">Available</option>
         <option value="unlocked">Unlocked</option>
+      </select>
+
+      <select class="form-select" x-model="filters.categorySlug" aria-label="Category">
+        <option value="">All categories</option>
+        <template x-for="category in categories" :key="category">
+          <option :value="category" x-text="humanize(category)"></option>
+        </template>
       </select>
 
       <input class="form-control" type="text" x-model="filters.city" @keydown.enter.prevent="apply()" placeholder="City">
@@ -46,10 +79,10 @@
           </tr>
         </thead>
         <tbody>
-          <template x-for="lead in rows" :key="lead.leadDistributionId || lead.id">
+          <template x-for="lead in rows" :key="lead.leadDistributionId">
             <tr>
               <td class="portal-lead-id-cell">
-                <a class="portal-lead-id" :href="'/leads/' + (lead.leadDistributionId || lead.id)" x-text="lead.requirementId || lead.leadDistributionId || lead.id"></a>
+                <a class="portal-lead-id" :href="'/leads/' + lead.leadDistributionId" x-text="lead.enquiryId || lead.leadDistributionId"></a>
                 <div class="text-muted fs-sm" x-text="formatDate(lead.distributedAt || lead.createdAt)"></div>
               </td>
               <td>
@@ -66,7 +99,7 @@
               </td>
               <td class="fw-semibold" x-text="money(lead.leadPricePaise)"></td>
               <td><span class="badge" :class="statusClass(lead)" x-text="lead.contactUnlocked ? 'Unlocked' : humanize(lead.status)"></span></td>
-              <td class="text-end"><a class="btn btn-outline-primary btn-sm" :href="'/leads/' + (lead.leadDistributionId || lead.id)">Open</a></td>
+              <td class="text-end"><a class="btn btn-outline-primary btn-sm" :href="'/leads/' + lead.leadDistributionId">Open</a></td>
             </tr>
           </template>
 
@@ -95,17 +128,19 @@
   </div>
 </div>
 
-<script>
+<script nonce="<%= cspNonce %>">
   function leadList() {
     const query = new URLSearchParams(location.search);
     return {
       rows: [],
+      categories: [],
       loading: true,
       error: '',
       pagination: { page: Number(query.get('page') || 1), pages: 1, total: 0 },
       filters: {
         q: query.get('q') || '',
         status: query.get('status') || '',
+        categorySlug: query.get('categorySlug') || '',
         city: query.get('city') || '',
         startDate: query.get('startDate') || '',
         endDate: query.get('endDate') || '',
@@ -143,6 +178,7 @@
         try {
           const body = await apiFetch('/api/lead?' + this.params().toString());
           this.rows = body.data || [];
+          this.categories = body.filters?.categories || [];
           this.pagination = body.pagination || { page: 1, pages: 1, total: this.rows.length };
         } catch (error) {
           this.error = error.message;
@@ -158,7 +194,7 @@
       },
 
       clear() {
-        this.filters = { q: '', status: '', city: '', startDate: '', endDate: '', limit: 20 };
+        this.filters = { q: '', status: '', categorySlug: '', city: '', startDate: '', endDate: '', limit: 20 };
         this.pagination.page = 1;
         history.replaceState({}, '', '/leads');
         this.$dispatch('portal-page', {
@@ -177,4 +213,14 @@
     };
   }
 </script>
-<%- include('../partials/pageEnd') %>
+
+      </div>
+      <%- include('../partials/footer') %>
+    </div>
+  </div>
+</div>
+<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<%- include('../partials/scripts') %>
+</body>
+</html>
+

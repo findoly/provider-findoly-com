@@ -1,0 +1,47 @@
+<div class="sidebar sidebar-main sidebar-expand-lg portal-sidebar">
+  <div class="sidebar-content">
+    <div class="sidebar-section portal-provider-summary">
+      <div class="sidebar-section-body d-flex align-items-center">
+        <div class="flex-grow-1 min-w-0">
+          <div class="fw-semibold text-truncate" x-text="provider.businessName || provider.name || 'Provider'">Provider</div>
+          <div class="text-muted fs-sm text-truncate" x-text="provider.city || 'Service provider'">Service provider</div>
+        </div>
+        <button type="button" class="btn btn-light btn-icon d-lg-none portal-sidebar-toggle" aria-label="Close navigation" @click="closeSidebar()">×</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <ul class="nav nav-sidebar">
+        <li class="nav-item-header"><div class="text-uppercase fs-sm">Workspace</div></li>
+        <li class="nav-item">
+          <a href="/dashboard" class="nav-link" :class="{ active: pathIs('/dashboard') }">
+            <svg class="icon"><use href="#i-home"></use></svg><span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/leads" class="nav-link" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }">
+            <svg class="icon"><use href="#i-lead"></use></svg><span>Lead marketplace</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/leads?status=unlocked" class="nav-link" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' }">
+            <svg class="icon"><use href="#i-unlock"></use></svg><span>Unlocked leads</span>
+          </a>
+        </li>
+
+        <li class="nav-item-header"><div class="text-uppercase fs-sm">Account</div></li>
+        <li class="nav-item">
+          <a href="/wallet" class="nav-link" :class="{ active: pathIs('/wallet') }">
+            <svg class="icon"><use href="#i-wallet"></use></svg><span>Wallet</span>
+            <span class="badge bg-light text-body border ms-auto" x-text="money(provider.walletBalancePaise)">₹0.00</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/profile" class="nav-link" :class="{ active: pathIs('/profile') }">
+            <svg class="icon"><use href="#i-user"></use></svg><span>My profile</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

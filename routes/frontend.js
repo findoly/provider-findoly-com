@@ -1,1 +1,17 @@
-const router=require('express').Router();const page=require('../controllers/frontendController');const{pageAuth}=require('../middleware/auth');router.get('/login',page.login);router.get('/',(req,res)=>res.redirect(req.provider?'/dashboard':'/login'));router.get('/dashboard',pageAuth,page.dashboard);router.get('/leads',pageAuth,page.leads);router.get('/leads/:leadDistributionId',pageAuth,page.lead);router.get('/wallet',pageAuth,page.wallet);router.get('/profile',pageAuth,page.profile);module.exports=router;
+const express = require("express");
+const frontendController = require("../controllers/frontendController");
+const { pageAuth, guestOnly } = require("../middleware/auth");
+
+const router = express.Router();
+
+router.get("/login", guestOnly, frontendController.login);
+router.get("/", (req, res) =>
+  res.redirect(req.provider ? "/dashboard" : "/login"),
+);
+router.get("/dashboard", pageAuth, frontendController.dashboard);
+router.get("/leads", pageAuth, frontendController.leads);
+router.get("/leads/:leadDistributionId", pageAuth, frontendController.lead);
+router.get("/wallet", pageAuth, frontendController.wallet);
+router.get("/profile", pageAuth, frontendController.profile);
+
+module.exports = router;

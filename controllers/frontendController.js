@@ -1,39 +1,30 @@
-function render(view, title, subtitle = '', extra = () => ({})) {
-  return (req, res) => res.render(view, {
-    title,
-    subtitle,
-    currentPath: req.path,
-    currentStatus: String(req.query.status || ''),
-    searchQuery: String(req.query.q || ''),
-    ...extra(req)
-  });
+function render(view, title, subtitle = "") {
+  return (req, res) => res.render(view, { title, subtitle });
 }
 
-module.exports = {
-  login: render('auth/login', 'Provider login', '', (req) => ({
-    returnTo: req.query.returnTo || '/dashboard'
-  })),
+const frontendController = {
+  login: render("auth/login", "Provider login"),
   dashboard: render(
-    'dashboard/index',
-    'Dashboard',
-    'Category-matched leads and wallet activity'
+    "dashboard/index",
+    "Dashboard",
+    "Category-matched leads and wallet activity",
   ),
   leads: render(
-    'lead/index',
-    'Lead marketplace',
-    'Leads approved by CRM and matched to your categories'
+    "lead/index",
+    "Lead marketplace",
+    "Leads approved by CRM and matched to your categories",
   ),
-  lead: render('lead/show', 'Lead details', '', (req) => ({
-    recordId: req.params.leadDistributionId
-  })),
+  lead: render("lead/show", "Lead details"),
   wallet: render(
-    'wallet/index',
-    'Wallet',
-    'Add funds and review every wallet credit and deduction'
+    "wallet/index",
+    "Wallet",
+    "Add funds through Razorpay and review every wallet entry",
   ),
   profile: render(
-    'profile/index',
-    'My profile',
-    'Provider details managed from the CRM'
-  )
+    "profile/index",
+    "My profile",
+    "Provider details managed from the CRM",
+  ),
 };
+
+module.exports = frontendController;

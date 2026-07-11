@@ -1,38 +1,289 @@
-const Provider=require('../../models/Provider');
-const LeadDistribution=require('../../models/LeadDistribution');
-const WalletTransaction=require('../../models/WalletTransaction');
-const Enquiry=require('../../models/Enquiry');
-const {createId}=require('../../utils/id');
-const {getPagination,pageResult}=require('../../utils/pagination');
+const Provider = require("../../models/Provider");
+const LeadDistribution = require("../../models/LeadDistribution");
+const WalletTransaction = require("../../models/WalletTransaction");
+const Enquiry = require("../../models/Enquiry");
+const uuid = require("../../utils/uuid");
+const { getPagination, pageResult } = require("../../utils/pagination");
+const { providerIdentity, providerQuery } = require("../../utils/provider");
+const { presentLead } = require("../../utils/lead");
+const { withTransaction } = require("../../utils/transaction");
 
-function mask(distribution){const unlocked=distribution.contactUnlocked===true||distribution.status==='unlocked';const data={...distribution,leadDistributionId:distribution.leadDistributionId||distribution.id||String(distribution._id)};if(!unlocked){delete data.customerMobile;delete data.customerEmail;delete data.customerAddress;if(data.contactSnapshot)data.contactSnapshot=null;}return data;}
-async function list(providerId,filters={}){const{page,limit,skip}=getPagination(filters);const q={providerId};if(filters.status==='unlocked')q.contactUnlocked=true;else if(filters.status)q.status=filters.status;else q.status={$in:['offered','unlocked']};if(filters.categorySlug)q.categorySlug=filters.categorySlug;if(filters.city)q.city=new RegExp(String(filters.city),'i');if(filters.q){const r=new RegExp(String(filters.q),'i');q.$or=[{leadTitle:r},{serviceType:r},{category:r},{city:r},{categorySlug:r},{requirementId:r},{leadDistributionId:r}];}if(filters.startDate||filters.endDate){q.distributedAt={};if(filters.startDate)q.distributedAt.$gte=new Date(`${filters.startDate}T00:00:00.000+05:30`);if(filters.endDate)q.distributedAt.$lte=new Date(`${filters.endDate}T23:59:59.999+05:30`);}const[data,total]=await Promise.all([LeadDistribution.find(q).sort({distributedAt:-1}).skip(skip).limit(limit).lean(),LeadDistribution.countDocuments(q)]);return pageResult(data.map(mask),total,page,limit);}
-async function get(providerId,distributionId){const doc=await LeadDistribution.findOne({providerId,$or:[{leadDistributionId:distributionId},{id:distributionId},{_id:distributionId}]}).lean();if(!doc)throw Object.assign(new Error('Lead offer not found'),{status:404});return mask(doc);}
-async function unlock(providerId,distributionId){
-  const query={providerId,$or:[{leadDistributionId:distributionId},{id:distributionId},{_id:distributionId}]};
-  const existing=await LeadDistribution.findOne(query).lean();
-  if(!existing)throw Object.assign(new Error('Lead offer not found'),{status:404});
-  if(existing.contactUnlocked||existing.status==='unlocked')return mask(existing);
-  if(existing.status!=='offered')throw Object.assign(new Error(`Lead is ${existing.status}`),{status:409});
+function escapeRegex(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
-  const claimed=await LeadDistribution.findOneAndUpdate({...query,status:'offered',contactUnlocked:{$ne:true}},{$set:{status:'unlocking',updatedAt:new Date()}},{new:true});
-  if(!claimed){const latest=await LeadDistribution.findOne(query).lean();if(latest?.contactUnlocked)return mask(latest);throw Object.assign(new Error('Lead is being unlocked in another request'),{status:409});}
+function dateAt(value, endOfDay = false) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return null;
+  const suffix = endOfDay ? "T23:59:59.999+05:30" : "T00:00:00.000+05:30";
+  const date = new Date(`${value}${suffix}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
-  const price=Number(claimed.leadPricePaise||0);
-  const provider=await Provider.findOneAndUpdate({$and:[{$or:[{providerId},{id:providerId},{_id:providerId}]},{walletBalancePaise:{$gte:price}}]},{$inc:{walletBalancePaise:-price},$set:{walletUpdatedAt:new Date(),updatedAt:new Date()}},{new:true});
-  if(!provider){await LeadDistribution.updateOne({leadDistributionId:claimed.leadDistributionId,status:'unlocking'},{$set:{status:'offered',updatedAt:new Date()}});throw Object.assign(new Error('Insufficient wallet balance'),{status:402});}
 
-  const before=provider.walletBalancePaise+price;
-  try{
-    const transaction=await WalletTransaction.create({walletTransactionId:createId('wallet_txn'),providerId,type:'debit',amountPaise:price,currency:'INR',balanceBeforePaise:before,balanceAfterPaise:provider.walletBalancePaise,status:'posted',source:'lead_unlock',referenceId:claimed.leadDistributionId,idempotencyKey:`lead-unlock:${providerId}:${claimed.leadDistributionId}`,description:`Unlocked ${claimed.leadTitle||'lead'}`});
-    const unlocked=await LeadDistribution.findOneAndUpdate({leadDistributionId:claimed.leadDistributionId,status:'unlocking'},{$set:{contactUnlocked:true,status:'unlocked',unlockedAt:new Date(),walletTransactionId:transaction.walletTransactionId,updatedAt:new Date()}},{new:true});
-    await Enquiry.updateOne({$or:[{enquiryId:claimed.requirementId},{id:claimed.requirementId},{_id:claimed.requirementId}]},{$inc:{unlockedCount:1},$set:{updatedAt:new Date()}});
-    return mask(unlocked.toObject());
-  }catch(error){
-    await Provider.updateOne({$or:[{providerId},{id:providerId},{_id:providerId}]},{$inc:{walletBalancePaise:price},$set:{walletUpdatedAt:new Date(),updatedAt:new Date()}}).catch(()=>{});
-    await LeadDistribution.updateOne({leadDistributionId:claimed.leadDistributionId,status:'unlocking'},{$set:{status:'offered',updatedAt:new Date()}}).catch(()=>{});
-    if(error?.code===11000){const latest=await LeadDistribution.findOne(query).lean();if(latest?.contactUnlocked)return mask(latest);}
+function distributionQuery(leadDistributionId) {
+  return {
+    $or: [
+      { leadDistributionId },
+      { id: leadDistributionId },
+    ],
+  };
+}
+
+function enquiryQuery(enquiryId) {
+  return { $or: [{ enquiryId }, { id: enquiryId }] };
+}
+
+function providerCategories(provider) {
+  return Array.isArray(provider.categorySlugs)
+    ? provider.categorySlugs.filter(Boolean)
+    : [];
+}
+
+async function list(provider, filters = {}) {
+  const providerId = providerIdentity(provider);
+  const categories = providerCategories(provider);
+  const { page, limit, skip } = getPagination(filters);
+  const query = { providerId };
+
+  const status = String(filters.status || "").trim();
+  if (status && !["offered", "unlocked"].includes(status)) {
+    throw Object.assign(new Error("Invalid lead status filter"), {
+      status: 400,
+      code: "FILTER_INVALID",
+    });
+  }
+
+  if (status === "unlocked") {
+    query.contactUnlocked = true;
+  } else if (status === "offered") {
+    query.status = "offered";
+    query.contactUnlocked = { $ne: true };
+    query.categorySlug = { $in: categories };
+  } else {
+    query.$or = [
+      { contactUnlocked: true },
+      {
+        status: "offered",
+        contactUnlocked: { $ne: true },
+        categorySlug: { $in: categories },
+      },
+    ];
+  }
+
+  const categorySlug = String(filters.categorySlug || "").trim();
+  if (categorySlug) query.categorySlug = categorySlug;
+
+  const city = String(filters.city || "").trim();
+  if (city) query.city = new RegExp(escapeRegex(city), "i");
+
+  const searchValue = String(filters.q || "").trim();
+  if (searchValue) {
+    const search = new RegExp(escapeRegex(searchValue), "i");
+    const searchQuery = [
+      { leadTitle: search },
+      { serviceType: search },
+      { category: search },
+      { city: search },
+      { categorySlug: search },
+      { enquiryId: search },
+      { leadDistributionId: search },
+    ];
+    if (query.$or) {
+      query.$and = [{ $or: query.$or }, { $or: searchQuery }];
+      delete query.$or;
+    } else {
+      query.$or = searchQuery;
+    }
+  }
+
+  const start = dateAt(filters.startDate);
+  const end = dateAt(filters.endDate, true);
+  if (start || end) {
+    query.distributedAt = {};
+    if (start) query.distributedAt.$gte = start;
+    if (end) query.distributedAt.$lte = end;
+  }
+
+  const [rows, total] = await Promise.all([
+    LeadDistribution.find(query)
+      .sort({ distributedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    LeadDistribution.countDocuments(query),
+  ]);
+
+  return {
+    ...pageResult(rows.map(presentLead), total, page, limit),
+    filters: {
+      categories,
+    },
+  };
+}
+
+async function get(provider, leadDistributionId) {
+  const providerId = providerIdentity(provider);
+  const lead = await LeadDistribution.findOne({
+    providerId,
+    ...distributionQuery(leadDistributionId),
+  }).lean();
+
+  if (!lead) {
+    throw Object.assign(new Error("Lead offer not found"), {
+      status: 404,
+      code: "LEAD_NOT_FOUND",
+    });
+  }
+
+  if (!lead.contactUnlocked && lead.status === "withdrawn") {
+    throw Object.assign(new Error("This lead offer is no longer available"), {
+      status: 410,
+      code: "LEAD_WITHDRAWN",
+    });
+  }
+
+  return presentLead(lead);
+}
+
+async function unlock(provider, leadDistributionId) {
+  const providerId = providerIdentity(provider);
+  const categories = providerCategories(provider);
+
+  try {
+    const result = await withTransaction(async (session) => {
+      const lead = await LeadDistribution.findOne({
+        providerId,
+        ...distributionQuery(leadDistributionId),
+      }).session(session);
+
+      if (!lead) {
+        throw Object.assign(new Error("Lead offer not found"), {
+          status: 404,
+          code: "LEAD_NOT_FOUND",
+        });
+      }
+
+      if (lead.contactUnlocked || lead.status === "unlocked") {
+        return presentLead(lead.toObject());
+      }
+
+      if (lead.status !== "offered") {
+        throw Object.assign(
+          new Error(`This lead is ${String(lead.status || "unavailable")}`),
+          { status: 409, code: "LEAD_NOT_AVAILABLE" },
+        );
+      }
+
+      if (!categories.includes(lead.categorySlug)) {
+        throw Object.assign(
+          new Error("This lead no longer matches your provider categories"),
+          { status: 409, code: "CATEGORY_MISMATCH" },
+        );
+      }
+
+      const amountPaise = Math.max(0, Number(lead.leadPricePaise || 0));
+      const currentProvider = await Provider.findOneAndUpdate(
+        {
+          ...providerQuery(providerId),
+          status: "active",
+          portalAccessEnabled: { $ne: false },
+          ...(amountPaise
+            ? { walletBalancePaise: { $gte: amountPaise } }
+            : {}),
+        },
+        {
+          ...(amountPaise ? { $inc: { walletBalancePaise: -amountPaise } } : {}),
+          $set: { walletUpdatedAt: new Date(), updatedAt: new Date() },
+        },
+        { new: true, session },
+      );
+
+      if (!currentProvider) {
+        throw Object.assign(
+          new Error(
+            amountPaise
+              ? "Insufficient wallet balance"
+              : "Provider account is not eligible",
+          ),
+          {
+            status: amountPaise ? 402 : 403,
+            code: amountPaise ? "INSUFFICIENT_BALANCE" : "PROVIDER_INELIGIBLE",
+          },
+        );
+      }
+
+      let walletTransactionId = "";
+      if (amountPaise > 0) {
+        walletTransactionId = uuid();
+        const balanceAfterPaise = Number(currentProvider.walletBalancePaise || 0);
+        await WalletTransaction.create(
+          [
+            {
+              walletTransactionId,
+              providerId,
+              type: "debit",
+              amountPaise,
+              currency: lead.currency || "INR",
+              balanceBeforePaise: balanceAfterPaise + amountPaise,
+              balanceAfterPaise,
+              status: "posted",
+              source: "lead_unlock",
+              referenceId: leadDistributionId,
+              idempotencyKey: `lead-unlock:${providerId}:${leadDistributionId}`,
+              description: `Unlocked ${lead.leadTitle || "lead"}`,
+              metadata: { enquiryId: lead.enquiryId },
+            },
+          ],
+          { session },
+        );
+      }
+
+      const unlocked = await LeadDistribution.findOneAndUpdate(
+        {
+          providerId,
+          ...distributionQuery(leadDistributionId),
+          status: "offered",
+          contactUnlocked: { $ne: true },
+        },
+        {
+          $set: {
+            contactUnlocked: true,
+            status: "unlocked",
+            unlockedAt: new Date(),
+            walletTransactionId,
+            updatedAt: new Date(),
+          },
+        },
+        { new: true, session },
+      );
+
+      if (!unlocked) {
+        throw Object.assign(new Error("Lead unlock could not be completed"), {
+          status: 409,
+          code: "UNLOCK_CONFLICT",
+        });
+      }
+
+      await Enquiry.updateOne(
+        enquiryQuery(lead.enquiryId || lead.requirementId),
+        { $inc: { unlockedCount: 1 }, $set: { updatedAt: new Date() } },
+        { session },
+      );
+
+      return presentLead(unlocked.toObject());
+    });
+
+    return result;
+  } catch (error) {
+    if (error?.code === 11000) {
+      const latest = await LeadDistribution.findOne({
+        providerId,
+        ...distributionQuery(leadDistributionId),
+      }).lean();
+      if (latest?.contactUnlocked) return presentLead(latest);
+    }
     throw error;
   }
 }
-module.exports={mask,list,get,unlock};
+
+module.exports = { list, get, unlock };

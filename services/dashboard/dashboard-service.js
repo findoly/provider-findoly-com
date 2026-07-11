@@ -1,70 +1,37 @@
-const LeadDistribution = require('../../models/LeadDistribution');
-const Provider = require('../../models/Provider');
+const LeadDistribution = require("../../models/LeadDistribution");
+const { providerIdentity, presentProvider } = require("../../utils/provider");
+const { presentLead } = require("../../utils/lead");
 
-function providerQuery(providerId) {
-  return {
-    $or: [
-      { providerId },
-      { id: providerId },
-      { _id: providerId }
-    ]
-  };
-}
+async function get(provider) {
+  const providerId = providerIdentity(provider);
+  const categorySlugs = Array.isArray(provider.categorySlugs)
+    ? provider.categorySlugs
+    : [];
 
-function maskLead(distribution) {
-  const lead = {
-    ...distribution,
-    leadDistributionId:
-      distribution.leadDistributionId ||
-      distribution.id ||
-      String(distribution._id)
-  };
-
-  const unlocked = lead.contactUnlocked === true || lead.status === 'unlocked';
-  if (!unlocked) {
-    delete lead.customerName;
-    delete lead.customerMobile;
-    delete lead.customerEmail;
-    delete lead.customerAddress;
-    lead.contactSnapshot = null;
-  }
-
-  return lead;
-}
-
-async function get(providerId) {
-  const activeOfferQuery = {
+  const availableQuery = {
     providerId,
-    status: { $in: ['offered', 'unlocked'] }
+    status: "offered",
+    contactUnlocked: { $ne: true },
   };
+  availableQuery.categorySlug = { $in: categorySlugs };
 
-  const [provider, offered, unlocked, withdrawn, recent] = await Promise.all([
-    Provider.findOne(providerQuery(providerId)).lean(),
-    LeadDistribution.countDocuments({ providerId, status: 'offered' }),
-    LeadDistribution.countDocuments({
+  const [offered, unlocked, recent] = await Promise.all([
+    LeadDistribution.countDocuments(availableQuery),
+    LeadDistribution.countDocuments({ providerId, contactUnlocked: true }),
+    LeadDistribution.find({
       providerId,
-      $or: [{ contactUnlocked: true }, { status: 'unlocked' }]
-    }),
-    LeadDistribution.countDocuments({ providerId, status: 'withdrawn' }),
-    LeadDistribution.find(activeOfferQuery)
+      $or: [availableQuery, { contactUnlocked: true }],
+    })
       .sort({ distributedAt: -1, createdAt: -1 })
       .limit(8)
-      .lean()
+      .lean(),
   ]);
 
-  if (!provider) {
-    throw Object.assign(new Error('Provider not found'), { status: 404 });
-  }
-
   return {
-    provider: {
-      ...provider,
-      providerId: provider.providerId || provider.id || String(provider._id)
-    },
+    provider: presentProvider(provider),
     offered,
     unlocked,
-    withdrawn,
-    recent: recent.map(maskLead)
+    recent: recent.map(presentLead),
   };
 }
 
