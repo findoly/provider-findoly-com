@@ -19,15 +19,15 @@ const apiRoutes = require("./routes/main");
 const app = express();
 
 
-app.disable("x-powered-by");
+// app.disable("x-powered-by");
 
-const trustProxyValue = process.env.TRUST_PROXY || "1";
+// const trustProxyValue = process.env.TRUST_PROXY || "1";
 
-if (!/^\d+$/.test(trustProxyValue)) {
-  throw new Error("TRUST_PROXY must be a number such as 1");
-}
+// if (!/^\d+$/.test(trustProxyValue)) {
+//   throw new Error("TRUST_PROXY must be a number such as 1");
+// }
 
-app.set("trust proxy", Number(trustProxyValue));
+// app.set("trust proxy", Number(trustProxyValue));
 
 app.locals.appName = process.env.APP_NAME || "Provider Lead Portal";
 app.locals.apiBase = "/api";
