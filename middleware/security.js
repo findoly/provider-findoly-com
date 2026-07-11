@@ -49,6 +49,8 @@ function verifyCsrf(req, res, next) {
     } catch (error) {
       expected = "";
     }
+    console.log("orgin", origin)
+    console.log("expected", expected);
     if (origin !== expected) {
       return res.status(403).json({
         success: false,
