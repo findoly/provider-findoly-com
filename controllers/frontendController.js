@@ -7,7 +7,7 @@ const frontendController = {
   dashboard: render(
     "dashboard/index",
     "Dashboard",
-    "Category-matched leads and wallet activity",
+    "Category-matched leads and credit activity",
   ),
   leads: render(
     "lead/index",
@@ -17,8 +17,8 @@ const frontendController = {
   lead: render("lead/show", "Lead details"),
   wallet: render(
     "wallet/index",
-    "Wallet",
-    "Add funds through Razorpay and review every wallet entry",
+    "Credits",
+    "Buy credits through Razorpay and review every credit entry",
   ),
   profile: render(
     "profile/index",

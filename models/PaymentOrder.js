@@ -13,6 +13,7 @@ const paymentOrderSchema = new mongoose.Schema(
     },
     razorpayPaymentId: { type: String, default: "", index: true },
     amountPaise: { type: Number, required: true, min: 100 },
+    creditAmount: { type: Number, min: 0, default: undefined },
     currency: { type: String, default: "INR" },
     status: { type: String, default: "created", index: true },
     signatureVerified: { type: Boolean, default: false },

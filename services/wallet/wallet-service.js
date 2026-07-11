@@ -11,10 +11,11 @@ const {
   presentProvider,
 } = require("../../utils/provider");
 const { withTransaction } = require("../../utils/transaction");
+const { creditsFromPaise } = require("../../utils/credits");
 
 function getGateway() {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    throw Object.assign(new Error("Razorpay wallet top-up is not configured"), {
+    throw Object.assign(new Error("Razorpay credit purchase is not configured"), {
       status: 503,
       code: "RAZORPAY_NOT_CONFIGURED",
     });
@@ -34,7 +35,7 @@ function validateAmount(amountPaise) {
   if (!Number.isSafeInteger(amount) || amount < minimum || amount > maximum) {
     throw Object.assign(
       new Error(
-        `Wallet top-up must be between ₹${minimum / 100} and ₹${maximum / 100}`,
+        `Credit purchase must be between ₹${minimum / 100} and ₹${maximum / 100}`,
       ),
       { status: 400, code: "TOPUP_AMOUNT_INVALID" },
     );
@@ -66,9 +67,12 @@ function presentTransaction(transaction = {}) {
       transaction.walletTransactionId || transaction.id || "",
     type: transaction.type || "",
     amountPaise: Number(transaction.amountPaise || 0),
+    amountCredits: creditsFromPaise(transaction.amountPaise),
     currency: transaction.currency || "INR",
     balanceBeforePaise: Number(transaction.balanceBeforePaise || 0),
     balanceAfterPaise: Number(transaction.balanceAfterPaise || 0),
+    balanceBeforeCredits: creditsFromPaise(transaction.balanceBeforePaise),
+    balanceAfterCredits: creditsFromPaise(transaction.balanceAfterPaise),
     status: transaction.status || "posted",
     source: transaction.source || "",
     referenceId: transaction.referenceId || "",
@@ -81,6 +85,7 @@ function presentPaymentOrder(order = {}) {
   return {
     paymentOrderId: order.paymentOrderId || order.id || "",
     amountPaise: Number(order.amountPaise || 0),
+    creditAmount: creditsFromPaise(order.amountPaise),
     currency: order.currency || "INR",
     status: order.status || "created",
     walletCredited: order.walletCredited === true,
@@ -156,6 +161,7 @@ async function createOrder(provider, amountInput) {
     providerId,
     razorpayOrderId: order.id,
     amountPaise,
+    creditAmount: creditsFromPaise(amountPaise),
     currency: "INR",
     status: "created",
     receipt,
@@ -166,6 +172,7 @@ async function createOrder(provider, amountInput) {
     paymentOrderId,
     razorpayOrderId: order.id,
     amountPaise,
+    creditAmount: creditsFromPaise(amountPaise),
     currency: "INR",
     provider: {
       name: provider.name || provider.businessName || "Provider",
@@ -277,8 +284,11 @@ async function creditOrder(paymentOrder, paymentId) {
             source: "razorpay",
             referenceId: order.razorpayOrderId,
             idempotencyKey,
-            description: `Razorpay wallet top-up ₹${order.amountPaise / 100}`,
-            metadata: { razorpayPaymentId: paymentId },
+            description: `Added ${creditsFromPaise(order.amountPaise)} credits via Razorpay`,
+            metadata: {
+              razorpayPaymentId: paymentId,
+              creditAmount: creditsFromPaise(order.amountPaise),
+            },
           },
         ],
         { session },
@@ -378,7 +388,7 @@ async function verify(provider, input = {}) {
   if (payment.status === "authorized") {
     return {
       status: "pending",
-      message: "Payment is authorised and will be credited after capture",
+      message: "Payment is authorised and credits will be added after capture",
       provider: presentProvider(provider),
     };
   }

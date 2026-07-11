@@ -21,6 +21,7 @@ const enquirySchema = new mongoose.Schema(
     preferredDate: { type: String, default: "" },
     preferredSlot: { type: String, default: "" },
     leadPricePaise: { type: Number, default: 10000, min: 0 },
+    leadCostCredits: { type: Number, min: 0, default: undefined },
     currency: { type: String, default: "INR" },
     sourceWebsite: { type: String, default: "manual-admin", index: true },
     sourceChannel: { type: String, default: "admin" },

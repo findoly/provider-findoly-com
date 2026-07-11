@@ -88,6 +88,15 @@
     }).format(Number(paise || 0) / 100);
   }
 
+  function credits(value) {
+    const amount = Number(value || 0);
+    const formatted = new Intl.NumberFormat('en-IN', {
+      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+    return `${formatted} ${amount === 1 ? 'Credit' : 'Credits'}`;
+  }
+
   function formatDate(value) {
     if (!value) return '—';
     const date = new Date(value);

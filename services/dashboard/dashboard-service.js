@@ -1,12 +1,14 @@
 const LeadDistribution = require("../../models/LeadDistribution");
-const { providerIdentity, presentProvider } = require("../../utils/provider");
+const {
+  providerIdentity,
+  providerCategories,
+  presentProvider,
+} = require("../../utils/provider");
 const { presentLead } = require("../../utils/lead");
 
 async function get(provider) {
   const providerId = providerIdentity(provider);
-  const categorySlugs = Array.isArray(provider.categorySlugs)
-    ? provider.categorySlugs
-    : [];
+  const categorySlugs = providerCategories(provider);
 
   const availableQuery = {
     providerId,

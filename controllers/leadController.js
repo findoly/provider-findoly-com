@@ -37,4 +37,19 @@ async function unlock(req, res, next) {
   }
 }
 
-module.exports = { list, get, unlock };
+async function updateStatus(req, res, next) {
+  try {
+    return res.json({
+      success: true,
+      data: await service.updateStatus(
+        req.provider,
+        req.params.leadDistributionId,
+        req.body,
+      ),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { list, get, unlock, updateStatus };

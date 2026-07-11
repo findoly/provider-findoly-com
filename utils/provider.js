@@ -1,5 +1,15 @@
+const { creditsFromPaise } = require("./credits");
+
 function providerIdentity(provider = {}) {
   return String(provider.providerId || provider.id || "").trim();
+}
+
+function providerCategories(provider = {}) {
+  return [...new Set(
+    (Array.isArray(provider.categorySlugs) ? provider.categorySlugs : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  )];
 }
 
 function providerQuery(providerId) {
@@ -17,9 +27,7 @@ function presentProvider(provider = {}) {
     email: provider.email || "",
     status: provider.status || "",
     onboardingStage: provider.onboardingStage || "new",
-    categorySlugs: Array.isArray(provider.categorySlugs)
-      ? provider.categorySlugs
-      : [],
+    categorySlugs: providerCategories(provider),
     skills: Array.isArray(provider.skills) ? provider.skills : [],
     city: provider.city || "",
     state: provider.state || "",
@@ -31,6 +39,7 @@ function presentProvider(provider = {}) {
     documentsVerified: provider.documentsVerified === true,
     portalAccessEnabled: provider.portalAccessEnabled !== false,
     walletBalancePaise: Number(provider.walletBalancePaise || 0),
+    walletCredits: creditsFromPaise(provider.walletBalancePaise),
     walletCurrency: provider.walletCurrency || "INR",
     walletUpdatedAt: provider.walletUpdatedAt || null,
     lastLoginAt: provider.lastLoginAt || null,
@@ -73,6 +82,7 @@ function ensureProviderEligible(provider) {
 
 module.exports = {
   providerIdentity,
+  providerCategories,
   providerQuery,
   presentProvider,
   ensureProviderEligible,

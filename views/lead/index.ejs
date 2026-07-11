@@ -73,7 +73,7 @@
             <th>Requirement</th>
             <th>Location</th>
             <th>Preferred</th>
-            <th>Unlock price</th>
+            <th>Credit cost</th>
             <th>Status</th>
             <th class="text-end"></th>
           </tr>
@@ -97,8 +97,8 @@
                 <div x-text="formatDateOnly(lead.preferredDate)"></div>
                 <div class="text-muted fs-sm" x-text="lead.preferredSlot || 'Flexible' "></div>
               </td>
-              <td class="fw-semibold" x-text="money(lead.leadPricePaise)"></td>
-              <td><span class="badge" :class="statusClass(lead)" x-text="lead.contactUnlocked ? 'Unlocked' : humanize(lead.status)"></span></td>
+              <td class="fw-semibold" x-text="credits(lead.leadCostCredits)"></td>
+              <td><span class="badge" :class="statusClass(lead)" x-text="lead.providerLeadStatus ? humanize(lead.providerLeadStatus) : (lead.contactUnlocked ? 'Unlocked' : humanize(lead.status))"></span></td>
               <td class="text-end"><a class="btn btn-outline-primary btn-sm" :href="'/leads/' + lead.leadDistributionId">Open</a></td>
             </tr>
           </template>
@@ -151,7 +151,7 @@
         if (this.filters.status === 'unlocked') {
           this.$dispatch('portal-page', {
             title: 'Unlocked leads',
-            subtitle: 'Customer contacts purchased using your wallet'
+            subtitle: 'Customer contacts unlocked using your credits'
           });
         }
         this.load();
@@ -167,6 +167,10 @@
       },
 
       statusClass(lead) {
+        if (lead.providerLeadStatus === 'confirmed') return 'bg-success text-white';
+        if (['rejected', 'invalid'].includes(lead.providerLeadStatus)) return 'bg-danger text-white';
+        if (lead.providerLeadStatus === 'on_hold') return 'bg-warning text-dark';
+        if (lead.providerLeadStatus === 'not_interested') return 'bg-secondary text-white';
         if (lead.contactUnlocked || lead.status === 'unlocked') return 'bg-success text-white';
         if (lead.status === 'withdrawn') return 'bg-light text-muted border';
         return 'bg-primary text-white';

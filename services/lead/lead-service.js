@@ -4,8 +4,14 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const Enquiry = require("../../models/Enquiry");
 const uuid = require("../../utils/uuid");
 const { getPagination, pageResult } = require("../../utils/pagination");
-const { providerIdentity, providerQuery } = require("../../utils/provider");
+const {
+  providerIdentity,
+  providerCategories,
+  providerQuery,
+} = require("../../utils/provider");
 const { presentLead } = require("../../utils/lead");
+const { leadCostCredits, paiseFromCredits } = require("../../utils/credits");
+const { validateLeadStatus } = require("../../utils/lead-status");
 const { withTransaction } = require("../../utils/transaction");
 
 function escapeRegex(value) {
@@ -31,12 +37,6 @@ function distributionQuery(leadDistributionId) {
 
 function enquiryQuery(enquiryId) {
   return { $or: [{ enquiryId }, { id: enquiryId }] };
-}
-
-function providerCategories(provider) {
-  return Array.isArray(provider.categorySlugs)
-    ? provider.categorySlugs.filter(Boolean)
-    : [];
 }
 
 async function list(provider, filters = {}) {
@@ -71,7 +71,15 @@ async function list(provider, filters = {}) {
   }
 
   const categorySlug = String(filters.categorySlug || "").trim();
-  if (categorySlug) query.categorySlug = categorySlug;
+  if (categorySlug) {
+    if (status !== "unlocked" && !categories.includes(categorySlug)) {
+      throw Object.assign(new Error("This category is not assigned to your provider account"), {
+        status: 403,
+        code: "CATEGORY_NOT_ASSIGNED",
+      });
+    }
+    query.categorySlug = categorySlug;
+  }
 
   const city = String(filters.city || "").trim();
   if (city) query.city = new RegExp(escapeRegex(city), "i");
@@ -135,6 +143,17 @@ async function get(provider, leadDistributionId) {
     });
   }
 
+  if (
+    !lead.contactUnlocked &&
+    lead.status !== "unlocked" &&
+    !providerCategories(provider).includes(lead.categorySlug)
+  ) {
+    throw Object.assign(new Error("Lead offer not found"), {
+      status: 404,
+      code: "LEAD_NOT_FOUND",
+    });
+  }
+
   if (!lead.contactUnlocked && lead.status === "withdrawn") {
     throw Object.assign(new Error("This lead offer is no longer available"), {
       status: 410,
@@ -181,7 +200,8 @@ async function unlock(provider, leadDistributionId) {
         );
       }
 
-      const amountPaise = Math.max(0, Number(lead.leadPricePaise || 0));
+      const costCredits = leadCostCredits(lead);
+      const amountPaise = paiseFromCredits(costCredits);
       const currentProvider = await Provider.findOneAndUpdate(
         {
           ...providerQuery(providerId),
@@ -202,7 +222,7 @@ async function unlock(provider, leadDistributionId) {
         throw Object.assign(
           new Error(
             amountPaise
-              ? "Insufficient wallet balance"
+              ? "Insufficient credits"
               : "Provider account is not eligible",
           ),
           {
@@ -231,7 +251,7 @@ async function unlock(provider, leadDistributionId) {
               referenceId: leadDistributionId,
               idempotencyKey: `lead-unlock:${providerId}:${leadDistributionId}`,
               description: `Unlocked ${lead.leadTitle || "lead"}`,
-              metadata: { enquiryId: lead.enquiryId },
+              metadata: { enquiryId: lead.enquiryId, costCredits },
             },
           ],
           { session },
@@ -286,4 +306,52 @@ async function unlock(provider, leadDistributionId) {
   }
 }
 
-module.exports = { list, get, unlock };
+async function updateStatus(provider, leadDistributionId, input = {}) {
+  const providerId = providerIdentity(provider);
+  const update = validateLeadStatus(input);
+  const now = new Date();
+
+  const lead = await LeadDistribution.findOneAndUpdate(
+    {
+      providerId,
+      ...distributionQuery(leadDistributionId),
+      contactUnlocked: true,
+    },
+    {
+      $set: {
+        providerLeadStatus: update.status,
+        providerLeadReason: update.reason,
+        providerLeadNote: update.note,
+        providerLeadStatusUpdatedAt: now,
+        providerLeadStatusUpdatedBy: providerId,
+        updatedAt: now,
+      },
+    },
+    { new: true },
+  );
+
+  if (!lead) {
+    const existing = await LeadDistribution.findOne({
+      providerId,
+      ...distributionQuery(leadDistributionId),
+    })
+      .select({ contactUnlocked: 1, status: 1 })
+      .lean();
+
+    if (!existing) {
+      throw Object.assign(new Error("Lead offer not found"), {
+        status: 404,
+        code: "LEAD_NOT_FOUND",
+      });
+    }
+
+    throw Object.assign(
+      new Error("Unlock this lead before updating its status"),
+      { status: 409, code: "LEAD_NOT_UNLOCKED" },
+    );
+  }
+
+  return presentLead(lead.toObject());
+}
+
+module.exports = { list, get, unlock, updateStatus };

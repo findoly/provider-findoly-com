@@ -35,7 +35,7 @@
           <div class="flex-grow-1 min-w-0">
             <div class="d-flex flex-wrap align-items-center gap-2">
               <h3 class="mb-0" x-text="lead.leadTitle || lead.serviceType || 'Service requirement'">Service requirement</h3>
-              <span class="badge" :class="statusClass" x-text="isUnlocked ? 'Unlocked' : humanize(lead.status)"></span>
+              <span class="badge" :class="statusClass" x-text="displayStatus"></span>
             </div>
             <div class="text-muted mt-2">
               <span x-text="lead.category || humanize(lead.categorySlug)"></span>
@@ -44,8 +44,8 @@
             </div>
           </div>
           <div class="portal-price-box">
-            <span>Unlock price</span>
-            <strong x-text="money(lead.leadPricePaise)">₹0.00</strong>
+            <span>Credit cost</span>
+            <strong x-text="credits(lead.leadCostCredits)">0 Credits</strong>
           </div>
         </div>
 
@@ -90,7 +90,7 @@
         </div>
       </div>
 
-      <div class="card portal-card" x-show="isUnlocked" x-cloak>
+      <div class="card portal-card mb-4" x-show="isUnlocked" x-cloak>
         <div class="card-header border-bottom d-flex align-items-center">
           <div>
             <h5 class="mb-1">Customer contact</h5>
@@ -107,6 +107,59 @@
           </div>
         </div>
       </div>
+
+      <div class="card portal-card" x-show="isUnlocked" x-cloak>
+        <div class="card-header border-bottom d-flex align-items-center">
+          <div>
+            <h5 class="mb-1">Lead status</h5>
+            <div class="text-muted fs-sm">Record your current result and the reason for it.</div>
+          </div>
+          <span class="badge ms-auto" :class="statusClass" x-text="lead.providerLeadStatus ? humanize(lead.providerLeadStatus) : 'Not updated'"></span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="providerLeadStatus">Status</label>
+              <select id="providerLeadStatus" class="form-select" x-model="statusForm.status" @change="statusForm.reason = ''; statusForm.note = ''">
+                <option value="">Select status</option>
+                <template x-for="option in leadStatusOptions" :key="option.value">
+                  <option :value="option.value" x-text="option.label"></option>
+                </template>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="providerLeadReason">Reason</label>
+              <select id="providerLeadReason" class="form-select" x-model="statusForm.reason" :disabled="!statusForm.status">
+                <option value="">Select reason</option>
+                <template x-for="reason in currentReasonOptions" :key="reason.value">
+                  <option :value="reason.value" x-text="reason.label"></option>
+                </template>
+              </select>
+            </div>
+            <div class="col-12" x-show="statusForm.reason" x-cloak>
+              <label class="form-label" for="providerLeadNote">
+                <span x-text="statusForm.reason === 'other' ? 'Reason details' : 'Additional note (optional)'"></span>
+              </label>
+              <textarea
+                id="providerLeadNote"
+                class="form-control"
+                rows="3"
+                maxlength="1000"
+                x-model="statusForm.note"
+                :placeholder="statusForm.reason === 'other' ? 'Add a short reason for this status' : 'Add a short note, if needed'"
+              ></textarea>
+              <div class="form-text" x-show="statusForm.reason === 'other'">Required when Other is selected.</div>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
+            <button class="btn btn-primary" type="button" @click="saveStatus()" :disabled="savingStatus || !canSaveStatus">
+              <span x-text="savingStatus ? 'Saving…' : 'Save lead status'"></span>
+            </button>
+            <div class="text-muted fs-sm" x-show="lead.providerLeadStatusUpdatedAt" x-text="`Last updated ${formatDate(lead.providerLeadStatusUpdatedAt)}`"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="col-xl-4">
@@ -116,23 +169,23 @@
         </div>
         <div class="card-body">
           <div class="portal-wallet-summary mb-3">
-            <span>Wallet balance</span>
-            <strong x-text="money(provider.walletBalancePaise)">₹0.00</strong>
+            <span>Credit balance</span>
+            <strong x-text="credits(provider.walletCredits)">0 Credits</strong>
           </div>
 
           <template x-if="!isUnlocked">
             <div>
               <div class="d-flex align-items-center mb-3">
-                <span class="text-muted">Lead price</span>
-                <strong class="ms-auto" x-text="money(lead.leadPricePaise)"></strong>
+                <span class="text-muted">Lead cost</span>
+                <strong class="ms-auto" x-text="credits(lead.leadCostCredits)"></strong>
               </div>
               <div class="alert alert-warning py-2" x-show="!hasEnoughBalance" x-cloak>
-                Add <strong x-text="money(Math.max(0, Number(lead.leadPricePaise || 0) - Number(provider.walletBalancePaise || 0)))"></strong> to unlock this lead.
+                Add <strong x-text="credits(Math.max(0, Number(lead.leadCostCredits || 0) - Number(provider.walletCredits || 0)))"></strong> to unlock this lead.
               </div>
               <button class="btn btn-primary w-100" type="button" @click="unlock()" :disabled="unlocking || !hasEnoughBalance || loading">
                 <span x-text="unlocking ? 'Unlocking…' : 'Unlock customer contact'"></span>
               </button>
-              <a href="/wallet" class="btn btn-light w-100 mt-2">Add wallet funds</a>
+              <a href="/wallet" class="btn btn-light w-100 mt-2">Buy credits</a>
               <p class="text-muted fs-sm mt-3 mb-0">This charge applies only to your account. Other matching providers unlock independently.</p>
             </div>
           </template>
@@ -141,7 +194,7 @@
             <div>
               <a class="btn btn-light w-100" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon me-2"><use href="#i-phone"></use></svg>Call customer</a>
               <a class="btn btn-outline-primary w-100 mt-2" href="/leads?status=unlocked">All unlocked leads</a>
-              <p class="text-muted fs-sm mt-3 mb-0">Wallet deductions are recorded in your immutable transaction history.</p>
+              <p class="text-muted fs-sm mt-3 mb-0">Credit deductions are recorded in your immutable transaction history.</p>
             </div>
           </template>
         </div>
@@ -157,17 +210,79 @@
       lead: {},
       loading: true,
       unlocking: false,
+      savingStatus: false,
       error: '',
+      statusForm: { status: '', reason: '', note: '' },
+      leadStatusOptions: [
+        { value: 'contacted', label: 'Contacted', reasons: [
+          { value: 'first_contact_completed', label: 'First contact completed' },
+          { value: 'follow_up_required', label: 'Follow-up required' },
+          { value: 'appointment_scheduled', label: 'Appointment scheduled' },
+          { value: 'other', label: 'Other' }
+        ] },
+        { value: 'confirmed', label: 'Confirmed', reasons: [
+          { value: 'customer_confirmed', label: 'Customer confirmed' },
+          { value: 'service_booked', label: 'Service booked' },
+          { value: 'payment_agreed', label: 'Payment agreed' },
+          { value: 'other', label: 'Other' }
+        ] },
+        { value: 'on_hold', label: 'On hold', reasons: [
+          { value: 'customer_requested_callback', label: 'Customer requested callback' },
+          { value: 'awaiting_customer_response', label: 'Awaiting customer response' },
+          { value: 'schedule_pending', label: 'Schedule pending' },
+          { value: 'price_discussion', label: 'Price discussion' },
+          { value: 'other', label: 'Other' }
+        ] },
+        { value: 'rejected', label: 'Rejected', reasons: [
+          { value: 'outside_service_area', label: 'Outside service area' },
+          { value: 'provider_unavailable', label: 'Provider unavailable' },
+          { value: 'price_not_suitable', label: 'Price not suitable' },
+          { value: 'duplicate_lead', label: 'Duplicate lead' },
+          { value: 'other', label: 'Other' }
+        ] },
+        { value: 'invalid', label: 'Invalid', reasons: [
+          { value: 'invalid_contact', label: 'Invalid contact' },
+          { value: 'wrong_requirement', label: 'Wrong requirement' },
+          { value: 'fake_or_spam', label: 'Fake or spam' },
+          { value: 'duplicate_lead', label: 'Duplicate lead' },
+          { value: 'other', label: 'Other' }
+        ] },
+        { value: 'not_interested', label: 'Not interested', reasons: [
+          { value: 'customer_not_interested', label: 'Customer not interested' },
+          { value: 'already_hired_another_provider', label: 'Already hired another provider' },
+          { value: 'budget_issue', label: 'Budget issue' },
+          { value: 'no_response', label: 'No response' },
+          { value: 'other', label: 'Other' }
+        ] }
+      ],
 
       get isUnlocked() {
         return this.lead.contactUnlocked === true || this.lead.status === 'unlocked';
       },
 
       get hasEnoughBalance() {
-        return Number(this.provider?.walletBalancePaise || 0) >= Number(this.lead.leadPricePaise || 0);
+        return Number(this.provider?.walletCredits || 0) >= Number(this.lead.leadCostCredits || 0);
+      },
+
+      get displayStatus() {
+        if (this.lead.providerLeadStatus) return humanize(this.lead.providerLeadStatus);
+        return this.isUnlocked ? 'Unlocked' : humanize(this.lead.status);
+      },
+
+      get currentReasonOptions() {
+        return this.leadStatusOptions.find((option) => option.value === this.statusForm.status)?.reasons || [];
+      },
+
+      get canSaveStatus() {
+        if (!this.statusForm.status || !this.statusForm.reason) return false;
+        return this.statusForm.reason !== 'other' || Boolean(String(this.statusForm.note || '').trim());
       },
 
       get statusClass() {
+        if (this.lead.providerLeadStatus === 'confirmed') return 'bg-success text-white';
+        if (['rejected', 'invalid'].includes(this.lead.providerLeadStatus)) return 'bg-danger text-white';
+        if (this.lead.providerLeadStatus === 'on_hold') return 'bg-warning text-dark';
+        if (this.lead.providerLeadStatus === 'not_interested') return 'bg-secondary text-white';
         if (this.isUnlocked) return 'bg-success text-white';
         if (this.lead.status === 'withdrawn') return 'bg-light text-muted border';
         return 'bg-primary text-white';
@@ -196,11 +311,20 @@
         return String(value || '—');
       },
 
+      syncStatusForm() {
+        this.statusForm = {
+          status: this.lead.providerLeadStatus || '',
+          reason: this.lead.providerLeadReason || '',
+          note: this.lead.providerLeadNote || ''
+        };
+      },
+
       async load() {
         this.loading = true;
         this.error = '';
         try {
           this.lead = (await apiFetch('/api/lead/' + encodeURIComponent(this.recordId))).data;
+          this.syncStatusForm();
           const enquiryId = this.lead.enquiryId || this.recordId;
           this.$dispatch('portal-page', {
             title: `Lead ${enquiryId}`,
@@ -216,7 +340,7 @@
 
       async unlock() {
         if (!this.hasEnoughBalance || this.unlocking) return;
-        if (!confirm(`Deduct ${money(this.lead.leadPricePaise)} from your wallet and reveal the customer contact?`)) return;
+        if (!confirm(`Deduct ${credits(this.lead.leadCostCredits)} and reveal the customer contact?`)) return;
 
         this.unlocking = true;
         this.error = '';
@@ -225,12 +349,31 @@
             method: 'POST',
             body: '{}'
           })).data;
+          this.syncStatusForm();
           this.$dispatch('wallet-updated');
           this.$dispatch('portal-notify', { type: 'success', message: 'Customer contact unlocked successfully.' });
         } catch (error) {
           this.error = error.message;
         } finally {
           this.unlocking = false;
+        }
+      },
+
+      async saveStatus() {
+        if (!this.isUnlocked || !this.canSaveStatus || this.savingStatus) return;
+        this.savingStatus = true;
+        this.error = '';
+        try {
+          this.lead = (await apiFetch('/api/lead/' + encodeURIComponent(this.recordId) + '/status', {
+            method: 'PATCH',
+            body: JSON.stringify(this.statusForm)
+          })).data;
+          this.syncStatusForm();
+          this.$dispatch('portal-notify', { type: 'success', message: 'Lead status updated successfully.' });
+        } catch (error) {
+          this.error = error.message;
+        } finally {
+          this.savingStatus = false;
         }
       }
     };

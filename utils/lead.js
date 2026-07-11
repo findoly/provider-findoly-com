@@ -1,3 +1,5 @@
+const { leadCostCredits } = require("./credits");
+
 const SENSITIVE_KEY =
   /(name|mobile|phone|email|address|contact|whatsapp|customer|latitude|longitude|locationlink)/i;
 
@@ -24,6 +26,7 @@ function presentLead(row = {}) {
     categorySlug: row.categorySlug || "",
     status: row.status || "",
     leadPricePaise: Number(row.leadPricePaise || 0),
+    leadCostCredits: leadCostCredits(row),
     currency: row.currency || "INR",
     contactUnlocked: unlocked,
     leadTitle: row.leadTitle || "",
@@ -49,6 +52,11 @@ function presentLead(row = {}) {
     lead.customerMobile = row.customerMobile || "";
     lead.customerEmail = row.customerEmail || "";
     lead.customerAddress = row.customerAddress || "";
+    lead.providerLeadStatus = row.providerLeadStatus || "";
+    lead.providerLeadReason = row.providerLeadReason || "";
+    lead.providerLeadNote = row.providerLeadNote || "";
+    lead.providerLeadStatusUpdatedAt =
+      row.providerLeadStatusUpdatedAt || null;
   }
 
   return lead;
