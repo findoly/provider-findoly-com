@@ -2,9 +2,27 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="theme-color" content="#172033">
+  <meta id="portal-theme-color" name="theme-color" content="#172033">
   <meta name="robots" content="noindex,nofollow">
   <title><%= title ? title + ' · ' : '' %><%= appName %></title>
+  <script nonce="<%= cspNonce %>">
+    (() => {
+      const allowedThemes = new Set(['professional-blue', 'teal-professional', 'navy-premium']);
+      let savedTheme = 'professional-blue';
+      try {
+        const candidate = localStorage.getItem('providerPortalTheme');
+        if (allowedThemes.has(candidate)) savedTheme = candidate;
+      } catch (_) {}
+      document.documentElement.dataset.portalTheme = savedTheme;
+      const themeColors = {
+        'professional-blue': '#172033',
+        'teal-professional': '#123c3a',
+        'navy-premium': '#101a30'
+      };
+      const meta = document.getElementById('portal-theme-color');
+      if (meta) meta.setAttribute('content', themeColors[savedTheme]);
+    })();
+  </script>
   <link href="/css/inter.css" rel="stylesheet" type="text/css">
   <link href="/css/styles.min.css" rel="stylesheet" type="text/css">
   <link href="/css/app.css" rel="stylesheet" type="text/css">

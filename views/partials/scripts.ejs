@@ -123,9 +123,16 @@
     return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'P';
   }
 
+  const portalThemes = Object.freeze({
+    'professional-blue': { label: 'Professional Blue', themeColor: '#172033' },
+    'teal-professional': { label: 'Teal Professional', themeColor: '#123c3a' },
+    'navy-premium': { label: 'Navy Premium', themeColor: '#101a30' }
+  });
+
   function providerShell(config = {}) {
     return {
       provider: {},
+      theme: portalThemes[document.documentElement.dataset.portalTheme] ? document.documentElement.dataset.portalTheme : 'professional-blue',
       shellError: '',
       shellSearch: new URLSearchParams(location.search).get('q') || '',
       page: { title: config.title || '', subtitle: config.subtitle || '' },
@@ -144,6 +151,19 @@
         } catch (error) {
           this.shellError = error.message;
         }
+      },
+
+      themeLabel(theme) {
+        return portalThemes[theme]?.label || portalThemes['professional-blue'].label;
+      },
+
+      setTheme(theme) {
+        if (!portalThemes[theme]) return;
+        this.theme = theme;
+        document.documentElement.dataset.portalTheme = theme;
+        try { localStorage.setItem('providerPortalTheme', theme); } catch (_) {}
+        const meta = document.getElementById('portal-theme-color');
+        if (meta) meta.setAttribute('content', portalThemes[theme].themeColor);
       },
 
       pathIs(path) {
