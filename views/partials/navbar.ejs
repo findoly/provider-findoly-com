@@ -46,7 +46,7 @@
         </a>
       </li>
       <li class="nav-item dropdown portal-profile-dropdown">
-        <button class="portal-user-button" data-bs-toggle="dropdown" data-bs-display="static" type="button" aria-expanded="false" aria-label="Open account menu">
+        <button class="portal-user-button" data-bs-toggle="dropdown" data-bs-display="static" data-bs-auto-close="outside" type="button" aria-expanded="false" aria-label="Open account menu">
           <span x-text="initials(provider.name || provider.businessName || 'Provider')">P</span>
           <span class="d-none d-sm-inline" x-text="provider.businessName || provider.name || 'Provider'">Provider</span>
         </button>
@@ -61,10 +61,43 @@
           <div class="portal-profile-menu-links">
             <a class="dropdown-item" href="/profile"><svg class="icon"><use href="#i-user"></use></svg><span>My profile</span></a>
             <a class="dropdown-item" href="/plans"><svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span></a>
-            <button class="dropdown-item d-flex align-items-center justify-content-between" type="button" data-bs-toggle="modal" data-bs-target="#portalAppearanceModal">
+            <button
+              class="dropdown-item d-flex align-items-center justify-content-between portal-appearance-toggle"
+              type="button"
+              :aria-expanded="appearanceOpen.toString()"
+              aria-controls="portalThemeChoices"
+              @click.stop="appearanceOpen = !appearanceOpen"
+            >
               <span class="portal-menu-item-main"><svg class="icon"><use href="#i-palette"></use></svg><span>Appearance</span></span>
-              <small x-text="themeLabel(theme)">Professional Blue</small>
+              <span class="portal-appearance-current">
+                <small x-text="themeLabel(theme)">Professional Blue</small>
+                <span class="portal-appearance-chevron" :class="{ 'is-open': appearanceOpen }" aria-hidden="true">⌄</span>
+              </span>
             </button>
+            <div
+              id="portalThemeChoices"
+              class="portal-inline-themes"
+              x-cloak
+              x-show="appearanceOpen"
+              x-transition.opacity.duration.120ms
+              @click.stop
+            >
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'professional-blue' }" @click="setTheme('professional-blue')">
+                <span class="portal-inline-theme-preview portal-theme-preview-blue" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                <span><strong>Professional Blue</strong><small>Clean and business-focused</small></span>
+                <svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg>
+              </button>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'teal-professional' }" @click="setTheme('teal-professional')">
+                <span class="portal-inline-theme-preview portal-theme-preview-teal" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                <span><strong>Teal Professional</strong><small>Modern and service-oriented</small></span>
+                <svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg>
+              </button>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'navy-premium' }" @click="setTheme('navy-premium')">
+                <span class="portal-inline-theme-preview portal-theme-preview-navy" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                <span><strong>Navy Premium</strong><small>Rich navigation and bright content</small></span>
+                <svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg>
+              </button>
+            </div>
           </div>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item text-danger" type="button" @click="logout()">Sign out</button>
@@ -74,42 +107,6 @@
   </div>
 </div>
 
-
-<div class="modal fade portal-appearance-modal" id="portalAppearanceModal" tabindex="-1" aria-labelledby="portalAppearanceTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div>
-          <h5 class="modal-title" id="portalAppearanceTitle">Choose your portal theme</h5>
-          <p class="mb-0">Select a professional colour style. Your choice is saved on this device.</p>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="portal-theme-grid">
-          <button type="button" class="portal-theme-option" :class="{ active: theme === 'professional-blue' }" @click="setTheme('professional-blue')">
-            <span class="portal-theme-preview portal-theme-preview-blue" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-            <span class="portal-theme-copy"><strong>Professional Blue</strong><small>Clean, familiar and business-focused</small></span>
-            <svg class="icon portal-theme-check"><use href="#i-check"></use></svg>
-          </button>
-          <button type="button" class="portal-theme-option" :class="{ active: theme === 'teal-professional' }" @click="setTheme('teal-professional')">
-            <span class="portal-theme-preview portal-theme-preview-teal" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-            <span class="portal-theme-copy"><strong>Teal Professional</strong><small>Modern, calm and service-oriented</small></span>
-            <svg class="icon portal-theme-check"><use href="#i-check"></use></svg>
-          </button>
-          <button type="button" class="portal-theme-option" :class="{ active: theme === 'navy-premium' }" @click="setTheme('navy-premium')">
-            <span class="portal-theme-preview portal-theme-preview-navy" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-            <span class="portal-theme-copy"><strong>Navy Premium</strong><small>Rich navigation with a bright workspace</small></span>
-            <svg class="icon portal-theme-check"><use href="#i-check"></use></svg>
-          </button>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary px-4" data-bs-dismiss="modal">Done</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <div class="portal-toast" x-cloak x-show="notice.show" x-transition :class="'portal-toast-' + notice.type" role="status" aria-live="polite">
   <span class="portal-toast-dot"></span>

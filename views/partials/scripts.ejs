@@ -139,6 +139,7 @@
       queryStatus: new URLSearchParams(location.search).get('status') || '',
       notice: { show: false, type: 'success', message: '' },
       noticeTimer: null,
+      appearanceOpen: false,
 
       async initShell() {
         await this.refreshProfile();
@@ -164,6 +165,7 @@
         try { localStorage.setItem('providerPortalTheme', theme); } catch (_) {}
         const meta = document.getElementById('portal-theme-color');
         if (meta) meta.setAttribute('content', portalThemes[theme].themeColor);
+        this.appearanceOpen = false;
       },
 
       pathIs(path) {
