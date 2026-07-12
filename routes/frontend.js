@@ -11,6 +11,7 @@ router.get("/", (req, res) =>
 router.get("/dashboard", pageAuth, frontendController.dashboard);
 router.get("/leads", pageAuth, frontendController.leads);
 router.get("/leads/:leadDistributionId", pageAuth, frontendController.lead);
+router.get("/plans", pageAuth, frontendController.plans);
 router.get("/wallet", pageAuth, frontendController.wallet);
 router.get("/profile", pageAuth, frontendController.profile);
 

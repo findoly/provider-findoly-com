@@ -1,4 +1,5 @@
 const service = require("../services/lead/lead-service");
+const billingService = require("../services/wallet/wallet-service");
 
 async function list(req, res, next) {
   try {
@@ -37,6 +38,50 @@ async function unlock(req, res, next) {
   }
 }
 
+async function createDirectOrder(req, res, next) {
+  try {
+    return res.status(201).json({
+      success: true,
+      data: await billingService.createLeadOrder(
+        req.provider,
+        req.params.leadDistributionId,
+      ),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function cancelDirectPayment(req, res, next) {
+  try {
+    return res.json({
+      success: true,
+      data: await billingService.cancelLeadOrder(
+        req.provider,
+        req.params.leadDistributionId,
+        req.body,
+      ),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function verifyDirectPayment(req, res, next) {
+  try {
+    return res.json({
+      success: true,
+      data: await billingService.verifyLead(
+        req.provider,
+        req.params.leadDistributionId,
+        req.body,
+      ),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function updateStatus(req, res, next) {
   try {
     return res.json({
@@ -52,4 +97,12 @@ async function updateStatus(req, res, next) {
   }
 }
 
-module.exports = { list, get, unlock, updateStatus };
+module.exports = {
+  list,
+  get,
+  unlock,
+  createDirectOrder,
+  cancelDirectPayment,
+  verifyDirectPayment,
+  updateStatus,
+};

@@ -14,6 +14,8 @@ const app = require("../app");
 const Provider = require("../models/Provider");
 const Enquiry = require("../models/Enquiry");
 const LeadDistribution = require("../models/LeadDistribution");
+const CreditAllocation = require("../models/CreditAllocation");
+const ProviderSubscription = require("../models/ProviderSubscription");
 
 function source(relativePath) {
   return fs.readFileSync(path.join(__dirname, "..", relativePath), "utf8");
@@ -82,11 +84,36 @@ test("models keep MongoDB _id and add plain 32-character collection IDs", () => 
     providerId: provider.providerId,
     leadPricePaise: 10000,
   });
+  const allocation = new CreditAllocation({
+    providerId: provider.providerId,
+    source: "plan_purchase",
+    referenceId: "test-plan",
+    amountMinorCredits: 100000,
+    remainingMinorCredits: 100000,
+  });
+  const subscription = new ProviderSubscription({
+    providerId: provider.providerId,
+    paymentOrderId: "payment-order-test",
+    planCode: "starter",
+    planName: "Starter",
+    billingCycle: "monthly",
+    startsAt: new Date(),
+    expiresAt: new Date(Date.now() + 86400000),
+    listedPricePaise: 99900,
+    subtotalPaise: 99900,
+    gstAmountPaise: 17982,
+    totalAmountPaise: 117882,
+    baseCredits: 1000,
+    bonusCredits: 0,
+    totalCredits: 1000,
+  });
 
   for (const value of [
     provider.providerId,
     enquiry.enquiryId,
     distribution.leadDistributionId,
+    allocation.creditAllocationId,
+    subscription.providerSubscriptionId,
   ]) {
     assert.match(value, /^[a-f0-9]{32}$/);
   }
@@ -95,23 +122,33 @@ test("models keep MongoDB _id and add plain 32-character collection IDs", () => 
   assert.equal(Provider.schema.path("id"), undefined);
   assert.equal(Enquiry.schema.path("id"), undefined);
   assert.equal(LeadDistribution.schema.path("id"), undefined);
+  assert.equal(CreditAllocation.schema.path("id"), undefined);
+  assert.equal(ProviderSubscription.schema.path("id"), undefined);
 });
 
-test("wallet top-up uses Razorpay order and verification APIs with no direct-credit endpoint", async () => {
+test("plan and direct-unlock payments use verified Razorpay orders without arbitrary top-ups", async () => {
   const walletRoutes = source("routes/wallet.js");
+  const leadRoutes = source("routes/lead.js");
   const walletService = source("services/wallet/wallet-service.js");
   const walletView = source("views/wallet/index.ejs");
+  const leadView = source("views/lead/show.ejs");
 
-  assert.match(walletRoutes, /post\([\"']\/order[\"']/);
-  assert.match(walletRoutes, /post\([\"']\/verify[\"']/);
-  assert.doesNotMatch(walletRoutes, /demo|topup/i);
+  assert.match(walletRoutes, /["']\/plan\/order["']/);
+  assert.match(walletRoutes, /["']\/verify["']/);
+  assert.doesNotMatch(walletRoutes, /post\(\s*["']\/order["']/);
+  assert.match(leadRoutes, /direct-order/);
+  assert.match(leadRoutes, /direct-verify/);
   assert.match(walletService, /orders\.create/);
   assert.match(walletService, /payments\.fetch/);
-  assert.match(walletService, /createHmac\([\"']sha256[\"']/);
+  assert.match(walletService, /createHmac\(["']sha256["']/);
+  assert.match(walletService, /purpose:\s*["']plan_purchase["']/);
+  assert.match(walletService, /purpose:\s*["']lead_unlock["']/);
   assert.match(walletView, /checkout\.razorpay\.com\/v1\/checkout\.js/);
-  assert.match(walletView, /\/api\/wallet\/order/);
+  assert.match(walletView, /\/api\/wallet\/plan\/order/);
   assert.match(walletView, /\/api\/wallet\/verify/);
-  assert.doesNotMatch(walletView, /demo-topup/);
+  assert.match(leadView, /\/direct-order/);
+  assert.match(leadView, /\/direct-verify/);
+  assert.doesNotMatch(walletView, /Amount in rupees|Buy credits|demo-topup/);
 
   const providerId = "a".repeat(32);
   const originalFindOne = Provider.findOne;
@@ -133,27 +170,53 @@ test("wallet top-up uses Razorpay order and verification APIs with no direct-cre
   try {
     const token = createSessionToken(providerId);
     const response = await request(app)
-      .get("/wallet")
+      .get("/plans")
       .set("Cookie", [`provider_auth=${token}`]);
 
     assert.equal(response.status, 200);
     assert.equal(lookupCount, 1);
-    assert.match(response.text, /Pay with Razorpay/);
+    assert.match(response.text, /Choose your plan/);
+    assert.match(response.text, /Monthly prices add 18% GST/);
     assert.doesNotMatch(response.text, /provider data|walletBalancePaise\s*:/);
   } finally {
     Provider.findOne = originalFindOne;
   }
 });
 
-test("cookie authentication re-reads the provider from MongoDB and CSRF protects writes", async () => {
+test("cookie authentication re-reads the provider and payment writes require CSRF", async () => {
   const authMiddleware = source("middleware/auth.js");
+  const walletRoutes = source("routes/wallet.js");
+  const leadRoutes = source("routes/lead.js");
   assert.match(authMiddleware, /Provider\.findOne/);
   assert.match(authMiddleware, /ensureProviderEligible/);
   assert.doesNotMatch(authMiddleware, /new Map|cache|sessionStore/i);
+  assert.match(walletRoutes, /verifyCsrf/);
+  assert.match(leadRoutes, /verifyCsrf/);
 
-  const response = await request(app).post("/api/auth/logout");
-  assert.equal(response.status, 403);
-  assert.equal(response.body.code, "CSRF_INVALID");
+  const providerId = "d".repeat(32);
+  const originalFindOne = Provider.findOne;
+  Provider.findOne = () => ({
+    lean: async () => ({
+      providerId,
+      name: "Test Provider",
+      status: "active",
+      portalAccessEnabled: true,
+      categorySlugs: ["painting"],
+      walletBalancePaise: 0,
+    }),
+  });
+
+  try {
+    const token = createSessionToken(providerId);
+    const response = await request(app)
+      .post("/api/lead/example/unlock")
+      .set("Cookie", [`provider_auth=${token}`])
+      .send({});
+    assert.equal(response.status, 403);
+    assert.equal(response.body.code, "CSRF_INVALID");
+  } finally {
+    Provider.findOne = originalFindOne;
+  }
 });
 
 

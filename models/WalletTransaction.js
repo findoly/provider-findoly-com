@@ -11,6 +11,7 @@ const walletTransactionSchema = new mongoose.Schema(
     },
     providerId: { type: String, required: true, index: true },
     type: { type: String, required: true, index: true },
+    // Stored in credit minor units for compatibility: 100 = 1 credit.
     amountPaise: { type: Number, required: true, min: 1 },
     currency: { type: String, default: "INR" },
     balanceBeforePaise: { type: Number, required: true, min: 0 },
@@ -20,6 +21,7 @@ const walletTransactionSchema = new mongoose.Schema(
     referenceId: { type: String, default: "", index: true },
     idempotencyKey: { type: String, required: true, unique: true, index: true },
     description: { type: String, default: "" },
+    expiresAt: { type: Date, default: null, index: true },
     metadata: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
   },
   {

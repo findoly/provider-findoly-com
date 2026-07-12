@@ -5,6 +5,7 @@ const ejs = require("ejs");
 const roots = [
   "app.js",
   "bin",
+  "config",
   "controllers",
   "db",
   "middleware",

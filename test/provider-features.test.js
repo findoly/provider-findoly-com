@@ -9,6 +9,7 @@ const {
 const { validateLeadStatus } = require("../utils/lead-status");
 const { presentProvider, providerCategories } = require("../utils/provider");
 const { presentLead } = require("../utils/lead");
+const { getPlan, directPaymentQuote } = require("../config/plans");
 
 test("rupee-backed balances and lead prices are exposed as 1:1 credits", () => {
   assert.equal(creditsFromPaise(10000), 100);
@@ -73,4 +74,37 @@ test("saved provider lead status is returned only after contact unlock", () => {
 
   const locked = presentLead({ ...source, status: "offered", contactUnlocked: false });
   assert.equal(locked.providerLeadStatus, undefined);
+});
+
+
+test("plan pricing applies monthly GST and includes yearly GST", () => {
+  const starterMonthly = getPlan("starter", "monthly");
+  assert.equal(starterMonthly.baseCredits, 1000);
+  assert.equal(starterMonthly.bonusCredits, 0);
+  assert.equal(starterMonthly.totalCredits, 1000);
+  assert.equal(starterMonthly.gstIncluded, false);
+  assert.equal(starterMonthly.gstAmountPaise, 17982);
+  assert.equal(starterMonthly.totalAmountPaise, 117882);
+
+  const growthYearly = getPlan("growth", "yearly");
+  assert.equal(growthYearly.baseCredits, 36000);
+  assert.equal(growthYearly.bonusCredits, 10800);
+  assert.equal(growthYearly.totalCredits, 46800);
+  assert.equal(growthYearly.gstIncluded, true);
+  assert.equal(growthYearly.totalAmountPaise, 3599900);
+
+  const scaleMonthly = getPlan("scale", "monthly");
+  assert.equal(scaleMonthly.baseCredits, 10000);
+  assert.equal(scaleMonthly.bonusCredits, 1000);
+  assert.equal(scaleMonthly.totalCredits, 11000);
+});
+
+test("direct lead payment adds 18 percent GST without creating credits", () => {
+  assert.deepEqual(directPaymentQuote(100000), {
+    subtotalPaise: 100000,
+    gstAmountPaise: 18000,
+    totalAmountPaise: 118000,
+    gstRatePercent: 18,
+    gstIncluded: false,
+  });
 });

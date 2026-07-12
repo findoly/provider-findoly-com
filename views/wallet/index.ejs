@@ -5,6 +5,7 @@
   x-data='providerShell({ title: <%- JSON.stringify(title || "") %>, subtitle: <%- JSON.stringify(subtitle || "") %> })'
   x-init="initShell()"
   @wallet-updated.window="refreshProfile()"
+  @credits-updated.window="refreshProfile()"
   @portal-notify.window="notify($event.detail)"
 >
 <%- include('../partials/navbar') %>
@@ -21,7 +22,7 @@
         </div>
       </div>
 
-      <div class="content" x-data="walletPage()" x-init="load()">
+      <div class="content" x-data="plansPage()" x-init="load()">
         <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
         <div x-show="error" x-cloak class="alert alert-danger portal-flash" role="alert">
           <span x-text="error"></span>
@@ -29,90 +30,127 @@
         </div>
         <div x-show="success" x-cloak class="alert alert-success portal-flash" x-text="success"></div>
 
-        <div class="row g-4 align-items-start">
-          <div class="col-xl-4">
-            <div class="card portal-card portal-wallet-card mb-4">
+        <div class="row g-4 mb-4">
+          <div class="col-lg-5">
+            <div class="card portal-card portal-credit-balance-card h-100">
               <div class="card-body">
-                <span>Available credit balance</span>
-                <strong x-text="credits(data.provider?.walletCredits)">0 Credits</strong>
-                <small>₹1 paid gives 1 credit</small>
-              </div>
-            </div>
-
-            <div class="card portal-card mb-4">
-              <div class="card-header border-bottom">
-                <h5 class="mb-1">Buy credits</h5>
-                <div class="text-muted fs-sm">Secure payment through Razorpay Checkout.</div>
-              </div>
-              <div class="card-body">
-                <div x-show="data.razorpay && !data.razorpay.enabled" x-cloak class="alert alert-warning">
-                  Credit purchase is temporarily unavailable because Razorpay is not configured.
+                <div class="portal-summary-label">Available credits</div>
+                <strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong>
+                <div class="portal-summary-meta">
+                  <span>Use credits to unlock matched leads</span>
+                  <span x-show="data.provider?.currentPlanExpiresAt" x-text="`Valid through ${formatDateOnly(data.provider.currentPlanExpiresAt)}`"></span>
                 </div>
-
-                <div class="alert alert-light border py-2 mb-3">
-                  You will receive <strong x-text="credits(rupees)"></strong> after successful payment.
-                </div>
-
-                <label class="form-label" for="walletAmount">Amount in rupees</label>
-                <div class="input-group mb-3">
-                  <span class="input-group-text">₹</span>
-                  <input
-                    id="walletAmount"
-                    type="number"
-                    class="form-control"
-                    :min="minimumRupees"
-                    :max="maximumRupees"
-                    step="1"
-                    x-model.number="rupees"
-                    @keydown.enter.prevent="pay()"
-                  >
-                </div>
-
-                <div class="portal-amount-options mb-3">
-                  <template x-for="amount in [500, 1000, 2000, 5000]" :key="amount">
-                    <button
-                      class="btn btn-light btn-sm"
-                      :class="Number(rupees) === amount ? 'active' : ''"
-                      type="button"
-                      @click="rupees = amount"
-                      x-text="money(amount * 100)"
-                    ></button>
-                  </template>
-                </div>
-
-                <button class="btn btn-primary w-100" type="button" @click="pay()" :disabled="submitting || !data.razorpay?.enabled || !validAmount">
-                  <span class="spinner-border spinner-border-sm me-2" x-show="submitting" x-cloak></span>
-                  <span x-text="submitting ? 'Opening secure checkout…' : 'Pay with Razorpay'"></span>
-                </button>
-                <div class="text-muted fs-sm mt-3">
-                  Credits are added only after server-side signature, order, amount, currency and captured-payment verification.
-                </div>
-              </div>
-            </div>
-
-            <div class="card portal-card" x-show="pendingOrders.length" x-cloak>
-              <div class="card-header border-bottom"><h5 class="mb-0">Recent credit purchases</h5></div>
-              <div class="list-group list-group-flush">
-                <template x-for="order in pendingOrders" :key="order.paymentOrderId">
-                  <div class="list-group-item d-flex align-items-center gap-3">
-                    <span class="portal-payment-state" :class="order.walletCredited ? 'is-paid' : 'is-pending'"></span>
-                    <div class="flex-grow-1 min-w-0">
-                      <div class="fw-semibold"><span x-text="money(order.amountPaise)"></span> · <span x-text="credits(order.creditAmount)"></span></div>
-                      <div class="text-muted fs-sm" x-text="formatDate(order.createdAt)"></div>
-                    </div>
-                    <span class="badge" :class="order.walletCredited ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'" x-text="order.walletCredited ? 'Credited' : humanize(order.status)"></span>
-                  </div>
-                </template>
               </div>
             </div>
           </div>
+          <div class="col-lg-7">
+            <div class="card portal-card h-100">
+              <div class="card-body portal-current-plan">
+                <div class="d-flex align-items-start gap-3">
+                  <div class="portal-current-plan-icon"><svg class="icon"><use href="#i-plan"></use></svg></div>
+                  <div class="flex-grow-1 min-w-0">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                      <h5 class="mb-0" x-text="currentPlanTitle"></h5>
+                      <span class="badge bg-success-subtle text-success" x-show="data.currentSubscription" x-cloak>Active</span>
+                      <span class="badge bg-primary-subtle text-primary" x-show="data.upcomingSubscription" x-cloak>Renewal scheduled</span>
+                    </div>
+                    <div class="text-muted" x-text="currentPlanDescription"></div>
+                    <div class="portal-plan-dates mt-3" x-show="data.currentSubscription || data.upcomingSubscription" x-cloak>
+                      <div x-show="data.currentSubscription">
+                        <span>Current validity</span>
+                        <strong x-text="`${formatDateOnly(data.currentSubscription?.startsAt)} – ${formatDateOnly(data.currentSubscription?.expiresAt)}`"></strong>
+                      </div>
+                      <div x-show="data.upcomingSubscription">
+                        <span>Next plan starts</span>
+                        <strong x-text="formatDateOnly(data.upcomingSubscription?.startsAt)"></strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <div class="col-xl-8">
+        <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-3">
+          <div>
+            <h4 class="mb-1">Choose your plan</h4>
+            <p class="text-muted mb-0">Monthly prices add 18% GST at checkout. Yearly prices already include GST.</p>
+          </div>
+          <div class="portal-billing-toggle" role="group" aria-label="Billing period">
+            <button type="button" :class="billingCycle === 'monthly' ? 'active' : ''" @click="billingCycle = 'monthly'">Monthly</button>
+            <button type="button" :class="billingCycle === 'yearly' ? 'active' : ''" @click="billingCycle = 'yearly'">
+              Yearly
+              <span>More bonus credits</span>
+            </button>
+          </div>
+        </div>
+
+        <div x-show="data.razorpay && !data.razorpay.enabled" x-cloak class="alert alert-warning mb-4">
+          Plan checkout is temporarily unavailable because Razorpay is not configured.
+        </div>
+
+        <div class="row g-4 portal-plan-grid mb-4" :class="loading ? 'portal-loading' : ''">
+          <template x-for="plan in plans" :key="plan.code">
+            <div class="col-lg-4">
+              <div class="card portal-card portal-plan-card h-100" :class="plan.recommended ? 'is-recommended' : ''">
+                <div class="portal-plan-ribbon" x-show="plan.recommended">Most Popular</div>
+                <div class="card-body d-flex flex-column">
+                  <div class="mb-3">
+                    <h4 class="mb-1" x-text="plan.name"></h4>
+                    <p class="text-muted mb-0" x-text="plan.tagline"></p>
+                  </div>
+
+                  <div class="portal-plan-price">
+                    <strong x-text="money(cycleFor(plan).listedPricePaise)"></strong>
+                    <span x-text="billingCycle === 'monthly' ? '/ month' : '/ year'"></span>
+                  </div>
+                  <div class="portal-tax-label" :class="cycleFor(plan).gstIncluded ? 'is-included' : ''">
+                    <span x-text="cycleFor(plan).gstIncluded ? 'GST included' : '+ 18% GST at checkout'"></span>
+                    <strong x-show="!cycleFor(plan).gstIncluded" x-text="`Total ${money(cycleFor(plan).totalAmountPaise)}`"></strong>
+                  </div>
+
+                  <div class="portal-credit-total my-4">
+                    <span>Total plan credits</span>
+                    <strong x-text="credits(cycleFor(plan).totalCredits)"></strong>
+                    <small x-show="cycleFor(plan).bonusCredits > 0" x-text="`${credits(cycleFor(plan).bonusCredits)} bonus (${cycleFor(plan).bonusPercent}%)`"></small>
+                    <small x-show="cycleFor(plan).bonusCredits === 0" x-text="`${credits(cycleFor(plan).baseCredits)} base credits`"></small>
+                  </div>
+
+                  <ul class="portal-plan-features">
+                    <template x-for="feature in plan.features" :key="feature">
+                      <li><svg class="icon"><use href="#i-check"></use></svg><span x-text="feature"></span></li>
+                    </template>
+                  </ul>
+
+                  <div class="portal-plan-value mt-auto pt-3">
+                    <span x-text="`${money(Math.round(cycleFor(plan).totalAmountPaise / cycleFor(plan).totalCredits))} per credit`"></span>
+                    <span x-text="`${cycleFor(plan).durationDays} days validity`"></span>
+                  </div>
+
+                  <button
+                    class="btn w-100 mt-3"
+                    :class="plan.recommended ? 'btn-primary' : 'btn-outline-primary'"
+                    type="button"
+                    @click="purchase(plan)"
+                    :disabled="submitting || loading || !data.razorpay?.enabled"
+                  >
+                    <span class="spinner-border spinner-border-sm me-2" x-show="submittingPlan === plan.code" x-cloak></span>
+                    <span x-text="buttonLabel(plan)"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <div class="row g-4 align-items-start">
+          <div class="col-xl-7">
             <div class="card portal-card">
               <div class="card-header border-bottom d-flex align-items-center">
                 <div>
-                  <h5 class="mb-1">Credit transactions</h5>
-                  <div class="text-muted fs-sm">Every verified credit and lead deduction appears here.</div>
+                  <h5 class="mb-1">Credit activity</h5>
+                  <div class="text-muted fs-sm">Plan credits, lead deductions and expired credits remain visible here.</div>
                 </div>
                 <span class="badge bg-light text-body border ms-auto" x-text="`${pagination.total || 0} records`"></span>
               </div>
@@ -120,9 +158,9 @@
                 <table class="table portal-table mb-0">
                   <thead>
                     <tr>
-                      <th>Transaction</th>
+                      <th>Activity</th>
                       <th>Description</th>
-                      <th>Amount</th>
+                      <th>Credits</th>
                       <th>Balance</th>
                       <th>Date</th>
                     </tr>
@@ -130,22 +168,22 @@
                   <tbody>
                     <template x-for="transaction in transactions" :key="transaction.walletTransactionId">
                       <tr>
-                        <td><span class="badge" :class="transaction.type === 'debit' ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'" x-text="humanize(transaction.type)"></span></td>
+                        <td><span class="badge" :class="transactionBadgeClass(transaction)" x-text="humanize(transaction.type)"></span></td>
                         <td>
                           <div class="fw-semibold" x-text="transaction.description || humanize(transaction.source)"></div>
-                          <div class="text-muted fs-sm portal-id" x-text="transaction.referenceId || transaction.walletTransactionId"></div>
+                          <div class="text-muted fs-sm" x-show="transaction.expiresAt" x-text="`Validity: ${formatDateOnly(transaction.expiresAt)}`"></div>
                         </td>
-                        <td class="fw-semibold" :class="transaction.type === 'debit' ? 'text-danger' : 'text-success'" x-text="`${transaction.type === 'debit' ? '-' : '+'}${credits(transaction.amountCredits)}`"></td>
+                        <td class="fw-semibold" :class="transaction.type === 'credit' ? 'text-success' : (transaction.type === 'debit' ? 'text-danger' : 'text-muted')" x-text="transactionAmount(transaction)"></td>
                         <td x-text="credits(transaction.balanceAfterCredits)"></td>
                         <td x-text="formatDate(transaction.createdAt)"></td>
                       </tr>
                     </template>
-                    <tr x-show="loading"><td colspan="5" class="text-center text-muted py-5">Loading transactions…</td></tr>
+                    <tr x-show="loading"><td colspan="5" class="text-center text-muted py-5">Loading credit activity…</td></tr>
                     <tr x-show="!loading && !transactions.length">
                       <td colspan="5" class="text-center py-5">
-                        <div class="portal-empty-icon"><svg class="icon"><use href="#i-wallet"></use></svg></div>
-                        <div class="fw-semibold mt-2">No credit transactions yet</div>
-                        <div class="text-muted fs-sm mt-1">Your verified credit purchases and lead deductions will appear here.</div>
+                        <div class="portal-empty-icon"><svg class="icon"><use href="#i-credit"></use></svg></div>
+                        <div class="fw-semibold mt-2">No credit activity yet</div>
+                        <div class="text-muted fs-sm mt-1">Purchased plan credits and lead deductions will appear here.</div>
                       </td>
                     </tr>
                   </tbody>
@@ -155,6 +193,38 @@
                 <button class="btn btn-light btn-sm" :disabled="pagination.page <= 1 || loading" @click="go(pagination.page - 1)">Previous</button>
                 <span class="mx-auto fs-sm" x-text="`${pagination.page} of ${pagination.pages}`"></span>
                 <button class="btn btn-light btn-sm" :disabled="pagination.page >= pagination.pages || loading" @click="go(pagination.page + 1)">Next</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-5">
+            <div class="card portal-card">
+              <div class="card-header border-bottom">
+                <h5 class="mb-1">Payment history</h5>
+                <div class="text-muted fs-sm">Plan purchases and direct lead payments.</div>
+              </div>
+              <div class="list-group list-group-flush">
+                <template x-for="order in paymentOrders" :key="order.paymentOrderId">
+                  <div class="list-group-item portal-payment-row">
+                    <span class="portal-payment-state" :class="order.fulfilled ? 'is-paid' : (order.fulfillmentStatus === 'manual_review' ? 'is-review' : 'is-pending')"></span>
+                    <div class="flex-grow-1 min-w-0">
+                      <div class="fw-semibold" x-text="order.description"></div>
+                      <div class="text-muted fs-sm">
+                        <span x-text="money(order.totalAmountPaise)"></span>
+                        <span> · </span>
+                        <span x-text="formatDate(order.createdAt)"></span>
+                      </div>
+                      <div class="text-muted fs-sm" x-show="order.gstAmountPaise > 0">
+                        GST <span x-text="money(order.gstAmountPaise)"></span>
+                        <span x-text="order.gstIncluded ? ' included' : ' added'"></span>
+                      </div>
+                    </div>
+                    <span class="badge" :class="paymentBadgeClass(order)" x-text="paymentStatus(order)"></span>
+                  </div>
+                </template>
+                <div class="list-group-item text-center py-5" x-show="!loading && !paymentOrders.length">
+                  <div class="text-muted">No payments yet.</div>
+                </div>
               </div>
             </div>
           </div>
@@ -169,33 +239,70 @@
 <script nonce="<%= cspNonce %>" src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <%- include('../partials/scripts') %>
 <script nonce="<%= cspNonce %>">
-  function walletPage() {
+  function plansPage() {
     return {
       data: {},
+      plans: [],
       transactions: [],
+      paymentOrders: [],
       pagination: { page: 1, pages: 1, total: 0 },
-      rupees: 1000,
+      billingCycle: 'monthly',
       loading: true,
       submitting: false,
+      submittingPlan: '',
       error: '',
       errorRequestId: '',
       success: '',
 
-      get minimumRupees() {
-        return Number(this.data.razorpay?.minimumPaise || 10000) / 100;
+      get currentPlanTitle() {
+        const current = this.data.currentSubscription;
+        const upcoming = this.data.upcomingSubscription;
+        if (current) return `${current.planName} · ${humanize(current.billingCycle)}`;
+        if (upcoming) return `${upcoming.planName} renewal scheduled`;
+        return 'No active plan';
       },
 
-      get maximumRupees() {
-        return Number(this.data.razorpay?.maximumPaise || 10000000) / 100;
+      get currentPlanDescription() {
+        if (this.data.currentSubscription) {
+          return `${credits(this.data.currentSubscription.totalCredits)} were allocated when this plan was purchased.`;
+        }
+        if (this.data.upcomingSubscription) {
+          return 'Your next plan is scheduled after the current validity period.';
+        }
+        return 'Choose a plan to receive credits immediately after verified payment.';
       },
 
-      get validAmount() {
-        const value = Number(this.rupees || 0);
-        return Number.isFinite(value) && value >= this.minimumRupees && value <= this.maximumRupees;
+      cycleFor(plan) {
+        return plan?.[this.billingCycle] || {};
       },
 
-      get pendingOrders() {
-        return (this.data.paymentOrders || []).filter((order) => order.walletCredited || ['created', 'verified', 'authorized'].includes(order.status)).slice(0, 5);
+      buttonLabel(plan) {
+        if (this.submittingPlan === plan.code) return 'Opening secure checkout…';
+        if (this.data.provider?.currentPlanCode === plan.code) return `Renew ${plan.name}`;
+        return `Choose ${plan.name}`;
+      },
+
+      transactionBadgeClass(transaction) {
+        if (transaction.type === 'credit') return 'bg-success-subtle text-success';
+        if (transaction.type === 'debit') return 'bg-danger-subtle text-danger';
+        return 'bg-light text-muted border';
+      },
+
+      transactionAmount(transaction) {
+        if (transaction.type === 'credit') return `+${credits(transaction.amountCredits)}`;
+        return `-${credits(transaction.amountCredits)}`;
+      },
+
+      paymentStatus(order) {
+        if (order.fulfillmentStatus === 'manual_review') return 'Review';
+        if (order.fulfilled) return 'Completed';
+        return humanize(order.status || 'pending');
+      },
+
+      paymentBadgeClass(order) {
+        if (order.fulfillmentStatus === 'manual_review') return 'bg-warning-subtle text-warning';
+        if (order.fulfilled) return 'bg-success-subtle text-success';
+        return 'bg-light text-muted border';
       },
 
       async load(page = this.pagination.page) {
@@ -204,9 +311,10 @@
         this.errorRequestId = '';
         try {
           this.data = (await apiFetch(`/api/wallet?page=${page}&limit=20`)).data;
+          this.plans = this.data.plans || [];
           this.transactions = this.data.data || [];
+          this.paymentOrders = this.data.paymentOrders || [];
           this.pagination = this.data.pagination || { page: 1, pages: 1, total: this.transactions.length };
-          if (!this.rupees || this.rupees < this.minimumRupees) this.rupees = this.minimumRupees;
         } catch (error) {
           this.error = error.message;
           this.errorRequestId = error.requestId || '';
@@ -215,32 +323,34 @@
         }
       },
 
-      async pay() {
-        if (!this.validAmount || this.submitting) {
-          this.error = `Enter an amount between ${money(this.minimumRupees * 100)} and ${money(this.maximumRupees * 100)}.`;
-          return;
-        }
-
-        const amountPaise = Math.round(Number(this.rupees) * 100);
+      async purchase(plan) {
+        if (this.submitting || !this.data.razorpay?.enabled) return;
         this.submitting = true;
+        this.submittingPlan = plan.code;
         this.error = '';
         this.errorRequestId = '';
         this.success = '';
 
         try {
           if (typeof Razorpay !== 'function') throw new Error('Razorpay Checkout could not be loaded. Check your connection and try again.');
-
-          const order = (await apiFetch('/api/wallet/order', {
+          const order = (await apiFetch('/api/wallet/plan/order', {
             method: 'POST',
-            body: JSON.stringify({ amountPaise })
+            body: JSON.stringify({ planCode: plan.code, billingCycle: this.billingCycle })
           })).data;
+
+          const cancelPendingOrder = async () => {
+            await apiFetch('/api/wallet/plan/cancel', {
+              method: 'POST',
+              body: JSON.stringify({ paymentOrderId: order.paymentOrderId })
+            }).catch(() => {});
+          };
 
           const checkout = new Razorpay({
             key: order.keyId,
             amount: order.amountPaise,
             currency: order.currency,
             name: 'LeadPortal',
-            description: 'Provider credit purchase',
+            description: `${order.plan.name} ${humanize(order.plan.billingCycle)} plan`,
             order_id: order.razorpayOrderId,
             retry: { enabled: true },
             remember_customer: false,
@@ -249,7 +359,11 @@
               email: order.provider?.email || '',
               contact: order.provider?.mobile || ''
             },
-            notes: { paymentOrderId: order.paymentOrderId },
+            notes: {
+              paymentOrderId: order.paymentOrderId,
+              purpose: 'plan_purchase',
+              planCode: order.plan.code
+            },
             theme: { color: '#2563eb' },
             handler: async (payment) => {
               try {
@@ -257,12 +371,11 @@
                   method: 'POST',
                   body: JSON.stringify(payment)
                 })).data;
-
                 if (verification.status === 'pending') {
-                  this.success = verification.message || 'Payment is authorised and credits will be added after capture.';
+                  this.success = verification.message || 'Payment is authorised and will complete after capture.';
                 } else {
-                  this.success = `${credits(order.creditAmount)} added successfully.`;
-                  this.$dispatch('wallet-updated');
+                  this.success = `${credits(order.plan.totalCredits)} added successfully with the ${order.plan.name} plan.`;
+                  this.$dispatch('credits-updated');
                 }
                 await this.load(1);
               } catch (error) {
@@ -270,24 +383,33 @@
                 this.errorRequestId = error.requestId || '';
               } finally {
                 this.submitting = false;
+                this.submittingPlan = '';
               }
             },
             modal: {
               confirm_close: true,
-              ondismiss: () => { this.submitting = false; }
+              ondismiss: async () => {
+                await cancelPendingOrder();
+                this.submitting = false;
+                this.submittingPlan = '';
+                await this.load(this.pagination.page);
+              }
             }
           });
 
-          checkout.on('payment.failed', (response) => {
+          checkout.on('payment.failed', async (response) => {
             this.error = response.error?.description || 'Razorpay payment failed';
+            await cancelPendingOrder();
             this.submitting = false;
+            this.submittingPlan = '';
+            await this.load(this.pagination.page);
           });
-
           checkout.open();
         } catch (error) {
           this.error = error.message;
           this.errorRequestId = error.requestId || '';
           this.submitting = false;
+          this.submittingPlan = '';
         }
       },
 

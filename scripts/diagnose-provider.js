@@ -5,6 +5,7 @@ const connectDatabase = require("../db/connection");
 const Provider = require("../models/Provider");
 const LeadDistribution = require("../models/LeadDistribution");
 const { normalizeMobile } = require("../utils/mobile");
+const { creditsFromPaise } = require("../utils/credits");
 const {
   ensureProviderEligible,
   providerIdentity,
@@ -63,7 +64,10 @@ async function run() {
     status: provider.status,
     portalAccessEnabled: provider.portalAccessEnabled,
     onboardingStage: provider.onboardingStage,
-    walletBalancePaise: provider.walletBalancePaise,
+    availableCredits: creditsFromPaise(provider.walletBalancePaise),
+    currentPlanCode: provider.currentPlanCode || "",
+    currentBillingCycle: provider.currentBillingCycle || "",
+    currentPlanExpiresAt: provider.currentPlanExpiresAt || null,
     categorySlugs: provider.categorySlugs,
     availableLeads,
     unlockedLeads,

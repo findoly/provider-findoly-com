@@ -50,13 +50,13 @@
       </a>
     </div>
     <div class="col-6 col-xl-3">
-      <a href="/wallet" class="portal-stat-card">
+      <a href="/plans" class="portal-stat-card">
         <div>
           <span>Credit balance</span>
-          <strong x-text="credits(data.provider?.walletCredits)">0 Credits</strong>
-          <small>₹1 paid = 1 credit</small>
+          <strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong>
+          <small>Plan credits available</small>
         </div>
-        <span class="portal-stat-icon"><svg class="icon"><use href="#i-wallet"></use></svg></span>
+        <span class="portal-stat-icon"><svg class="icon"><use href="#i-plan"></use></svg></span>
       </a>
     </div>
     <div class="col-6 col-xl-3">

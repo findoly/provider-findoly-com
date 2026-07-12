@@ -2,6 +2,12 @@ function render(view, title, subtitle = "") {
   return (req, res) => res.render(view, { title, subtitle });
 }
 
+const plansPage = render(
+  "wallet/index",
+  "Plans & credits",
+  "Choose a plan, manage credits and review payment activity",
+);
+
 const frontendController = {
   login: render("auth/login", "Provider login"),
   dashboard: render(
@@ -15,11 +21,8 @@ const frontendController = {
     "Leads approved by CRM and matched to your categories",
   ),
   lead: render("lead/show", "Lead details"),
-  wallet: render(
-    "wallet/index",
-    "Credits",
-    "Buy credits through Razorpay and review every credit entry",
-  ),
+  plans: plansPage,
+  wallet: plansPage,
   profile: render(
     "profile/index",
     "My profile",

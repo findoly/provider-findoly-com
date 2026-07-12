@@ -31,7 +31,7 @@ async function withTransaction(work) {
     if (transactionUnavailable(error)) {
       throw Object.assign(
         new Error(
-          "Wallet operations require MongoDB Atlas or a replica set with transactions enabled",
+          "Credit and payment operations require MongoDB Atlas or a replica set with transactions enabled",
         ),
         { status: 503, code: "MONGODB_TRANSACTIONS_REQUIRED" },
       );

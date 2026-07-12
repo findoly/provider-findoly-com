@@ -519,3 +519,104 @@ a { text-decoration: none; }
 .portal-error-card h1 { margin: 1rem 0 .5rem; font-size: 1.55rem; }
 .portal-error-card p, .portal-error-card small { color: var(--portal-muted); }
 .portal-error-mark { display: inline-flex; align-items: center; justify-content: center; min-width: 3.4rem; height: 3.4rem; padding: 0 .8rem; border-radius: .9rem; background: var(--portal-accent-soft); color: var(--portal-accent); font-weight: 800; }
+
+/* Plans, credits and direct payment */
+.portal-credit-balance-card {
+  overflow: hidden;
+  border-color: #172033;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, .13), transparent 42%),
+    #172033;
+  color: #fff;
+}
+.portal-credit-balance-card .card-body { padding: 1.65rem; }
+.portal-summary-label { color: rgba(255, 255, 255, .68); font-size: .8rem; font-weight: 650; }
+.portal-credit-balance-card strong { display: block; margin: .35rem 0 .9rem; color: #fff; font-size: clamp(1.8rem, 4vw, 2.45rem); line-height: 1.1; }
+.portal-summary-meta { display: flex; flex-wrap: wrap; gap: .45rem 1rem; color: rgba(255, 255, 255, .7); font-size: .76rem; }
+.portal-current-plan { padding: 1.45rem; }
+.portal-current-plan-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  min-width: 3rem;
+  height: 3rem;
+  border-radius: .8rem;
+  background: var(--portal-accent-soft);
+  color: var(--portal-accent);
+}
+.portal-current-plan-icon .icon { width: 1.35rem; height: 1.35rem; }
+.portal-plan-dates { display: flex; flex-wrap: wrap; gap: .85rem 2rem; }
+.portal-plan-dates span { display: block; color: var(--portal-muted); font-size: .72rem; }
+.portal-plan-dates strong { display: block; margin-top: .18rem; font-size: .84rem; }
+.portal-billing-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  gap: .25rem;
+  padding: .28rem;
+  border: 1px solid var(--portal-border);
+  border-radius: .75rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
+}
+.portal-billing-toggle button {
+  min-width: 7.2rem;
+  border: 0;
+  border-radius: .52rem;
+  padding: .55rem .85rem;
+  background: transparent;
+  color: var(--portal-muted);
+  font-weight: 700;
+  line-height: 1.15;
+}
+.portal-billing-toggle button span { display: block; margin-top: .2rem; font-size: .62rem; font-weight: 550; opacity: .82; }
+.portal-billing-toggle button.active { background: var(--portal-accent); color: #fff; box-shadow: 0 5px 12px rgba(37, 99, 235, .18); }
+.portal-plan-card { position: relative; overflow: hidden; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.portal-plan-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(15, 23, 42, .08); }
+.portal-plan-card.is-recommended { border-color: rgba(37, 99, 235, .62); box-shadow: 0 9px 24px rgba(37, 99, 235, .09); }
+.portal-plan-card .card-body { padding: 1.45rem; }
+.portal-plan-ribbon {
+  position: absolute;
+  top: 0;
+  right: 1.15rem;
+  padding: .38rem .7rem;
+  border-radius: 0 0 .52rem .52rem;
+  background: var(--portal-accent);
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.portal-plan-price { display: flex; align-items: baseline; gap: .4rem; }
+.portal-plan-price strong { color: var(--portal-text); font-size: 1.85rem; line-height: 1; letter-spacing: -.03em; }
+.portal-plan-price span { color: var(--portal-muted); font-size: .78rem; }
+.portal-tax-label { min-height: 2.25rem; display: flex; flex-direction: column; margin-top: .45rem; color: #a15c00; font-size: .72rem; }
+.portal-tax-label.is-included { color: #15803d; }
+.portal-tax-label strong { margin-top: .15rem; color: var(--portal-text); font-size: .72rem; }
+.portal-credit-total { padding: 1rem; border: 1px solid #dce5f0; border-radius: .75rem; background: #f8fafc; }
+.portal-credit-total > span { display: block; color: var(--portal-muted); font-size: .72rem; }
+.portal-credit-total > strong { display: block; margin: .25rem 0; color: var(--portal-accent-dark); font-size: 1.35rem; }
+.portal-credit-total small { display: block; color: #3d4a5f; }
+.portal-plan-features { display: grid; gap: .72rem; margin: 0; padding: 0; list-style: none; }
+.portal-plan-features li { display: flex; align-items: flex-start; gap: .55rem; color: #445066; font-size: .82rem; line-height: 1.4; }
+.portal-plan-features .icon { width: 1rem; min-width: 1rem; height: 1rem; margin-top: .08rem; color: #16a34a; stroke-width: 2.2; }
+.portal-plan-value { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem 1rem; color: var(--portal-muted); font-size: .7rem; border-top: 1px solid var(--portal-border-soft); }
+.portal-payment-row { display: flex; align-items: flex-start; gap: .75rem; padding: .95rem 1.1rem; }
+.portal-payment-state.is-review { background: #dc2626; }
+.portal-direct-payment-breakdown { display: grid; gap: .55rem; padding: .9rem 1rem; border: 1px solid var(--portal-border); border-radius: .68rem; background: #f8fafc; }
+.portal-direct-payment-breakdown > div { display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--portal-muted); font-size: .79rem; }
+.portal-direct-payment-breakdown strong { color: var(--portal-text); }
+.portal-direct-payment-breakdown .is-total { margin-top: .15rem; padding-top: .65rem; border-top: 1px solid var(--portal-border); color: var(--portal-text); font-weight: 700; }
+.portal-direct-payment-breakdown .is-total strong { color: var(--portal-accent-dark); font-size: 1rem; }
+
+@media (max-width: 991.98px) {
+  .portal-plan-card:hover { transform: none; }
+}
+
+@media (max-width: 575.98px) {
+  .portal-billing-toggle { width: 100%; }
+  .portal-billing-toggle button { flex: 1 1 0; min-width: 0; }
+  .portal-current-plan { padding: 1.15rem; }
+  .portal-plan-ribbon { right: .85rem; }
+}

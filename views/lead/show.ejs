@@ -169,8 +169,8 @@
         </div>
         <div class="card-body">
           <div class="portal-wallet-summary mb-3">
-            <span>Credit balance</span>
-            <strong x-text="credits(provider.walletCredits)">0 Credits</strong>
+            <span>Available credits</span>
+            <strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong>
           </div>
 
           <template x-if="!isUnlocked">
@@ -179,14 +179,37 @@
                 <span class="text-muted">Lead cost</span>
                 <strong class="ms-auto" x-text="credits(lead.leadCostCredits)"></strong>
               </div>
-              <div class="alert alert-warning py-2" x-show="!hasEnoughBalance" x-cloak>
-                Add <strong x-text="credits(Math.max(0, Number(lead.leadCostCredits || 0) - Number(provider.walletCredits || 0)))"></strong> to unlock this lead.
-              </div>
-              <button class="btn btn-primary w-100" type="button" @click="unlock()" :disabled="unlocking || !hasEnoughBalance || loading">
-                <span x-text="unlocking ? 'Unlocking…' : 'Unlock customer contact'"></span>
-              </button>
-              <a href="/wallet" class="btn btn-light w-100 mt-2">Buy credits</a>
-              <p class="text-muted fs-sm mt-3 mb-0">This charge applies only to your account. Other matching providers unlock independently.</p>
+
+              <template x-if="hasEnoughBalance">
+                <div>
+                  <button class="btn btn-primary w-100" type="button" @click="unlock()" :disabled="unlocking || payingDirect || loading">
+                    <span x-text="unlocking ? 'Unlocking…' : 'Unlock with credits'"></span>
+                  </button>
+                  <a href="/plans" class="btn btn-light w-100 mt-2">View plans &amp; credits</a>
+                  <p class="text-muted fs-sm mt-3 mb-0">The exact credit cost is deducted only after the unlock completes.</p>
+                </div>
+              </template>
+
+              <template x-if="!hasEnoughBalance">
+                <div>
+                  <div class="alert alert-warning py-2 mb-3">
+                    You need <strong x-text="credits(creditShortfall)"></strong> more to unlock with credits.
+                  </div>
+
+                  <div class="portal-direct-payment-breakdown mb-3">
+                    <div><span>Lead price</span><strong x-text="money(directBasePaise)"></strong></div>
+                    <div><span>GST (18%)</span><strong x-text="money(directGstPaise)"></strong></div>
+                    <div class="is-total"><span>Pay now</span><strong x-text="money(directTotalPaise)"></strong></div>
+                  </div>
+
+                  <button class="btn btn-primary w-100" type="button" @click="payAndUnlock()" :disabled="payingDirect || unlocking || loading">
+                    <span class="spinner-border spinner-border-sm me-2" x-show="payingDirect" x-cloak></span>
+                    <span x-text="payingDirect ? 'Opening secure checkout…' : `Pay ${money(directTotalPaise)} & unlock`"></span>
+                  </button>
+                  <a href="/plans" class="btn btn-light w-100 mt-2">Choose a credit plan</a>
+                  <p class="text-muted fs-sm mt-3 mb-0">Direct payment unlocks only this lead. It does not add credits to your account.</p>
+                </div>
+              </template>
             </div>
           </template>
 
@@ -194,7 +217,7 @@
             <div>
               <a class="btn btn-light w-100" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon me-2"><use href="#i-phone"></use></svg>Call customer</a>
               <a class="btn btn-outline-primary w-100 mt-2" href="/leads?status=unlocked">All unlocked leads</a>
-              <p class="text-muted fs-sm mt-3 mb-0">Credit deductions are recorded in your immutable transaction history.</p>
+              <p class="text-muted fs-sm mt-3 mb-0" x-text="lead.unlockMethod === 'direct_payment' ? 'Unlocked with a verified direct payment.' : 'The credit deduction is recorded in your transaction history.'"></p>
             </div>
           </template>
         </div>
@@ -210,6 +233,7 @@
       lead: {},
       loading: true,
       unlocking: false,
+      payingDirect: false,
       savingStatus: false,
       error: '',
       statusForm: { status: '', reason: '', note: '' },
@@ -261,7 +285,24 @@
       },
 
       get hasEnoughBalance() {
-        return Number(this.provider?.walletCredits || 0) >= Number(this.lead.leadCostCredits || 0);
+        return Number(this.provider?.availableCredits ?? this.provider?.walletCredits ?? 0) >= Number(this.lead.leadCostCredits || 0);
+      },
+
+      get creditShortfall() {
+        return Math.max(0, Number(this.lead.leadCostCredits || 0) - Number(this.provider?.availableCredits ?? this.provider?.walletCredits ?? 0));
+      },
+
+      get directBasePaise() {
+        const storedPrice = Number(this.lead.leadPricePaise || 0);
+        return storedPrice > 0 ? storedPrice : Math.round(Number(this.lead.leadCostCredits || 0) * 100);
+      },
+
+      get directGstPaise() {
+        return Math.round(this.directBasePaise * 0.18);
+      },
+
+      get directTotalPaise() {
+        return this.directBasePaise + this.directGstPaise;
       },
 
       get displayStatus() {
@@ -359,6 +400,86 @@
         }
       },
 
+      async payAndUnlock() {
+        if (this.hasEnoughBalance || this.payingDirect || this.isUnlocked) return;
+        this.payingDirect = true;
+        this.error = '';
+
+        try {
+          if (typeof Razorpay !== 'function') throw new Error('Razorpay Checkout could not be loaded. Check your connection and try again.');
+          const order = (await apiFetch('/api/lead/' + encodeURIComponent(this.recordId) + '/direct-order', {
+            method: 'POST',
+            body: '{}'
+          })).data;
+
+          const cancelPendingOrder = async () => {
+            await apiFetch('/api/lead/' + encodeURIComponent(this.recordId) + '/direct-cancel', {
+              method: 'POST',
+              body: JSON.stringify({ paymentOrderId: order.paymentOrderId })
+            }).catch(() => {});
+          };
+
+          const checkout = new Razorpay({
+            key: order.keyId,
+            amount: order.amountPaise,
+            currency: order.currency,
+            name: 'LeadPortal',
+            description: `Direct unlock · ${order.lead?.title || 'Lead'}`,
+            order_id: order.razorpayOrderId,
+            retry: { enabled: true },
+            remember_customer: false,
+            prefill: {
+              name: order.provider?.name || '',
+              email: order.provider?.email || '',
+              contact: order.provider?.mobile || ''
+            },
+            notes: {
+              paymentOrderId: order.paymentOrderId,
+              purpose: 'lead_unlock',
+              leadDistributionId: this.recordId
+            },
+            theme: { color: '#2563eb' },
+            handler: async (payment) => {
+              try {
+                const verification = (await apiFetch('/api/lead/' + encodeURIComponent(this.recordId) + '/direct-verify', {
+                  method: 'POST',
+                  body: JSON.stringify(payment)
+                })).data;
+
+                if (verification.status === 'pending') {
+                  this.$dispatch('portal-notify', { type: 'warning', message: verification.message || 'Payment is authorised and the lead will unlock after capture.' });
+                } else if (verification.lead) {
+                  this.lead = verification.lead;
+                  this.syncStatusForm();
+                  this.$dispatch('portal-notify', { type: 'success', message: 'Payment verified and customer contact unlocked.' });
+                }
+              } catch (error) {
+                this.error = error.message;
+              } finally {
+                this.payingDirect = false;
+              }
+            },
+            modal: {
+              confirm_close: true,
+              ondismiss: async () => {
+                await cancelPendingOrder();
+                this.payingDirect = false;
+              }
+            }
+          });
+
+          checkout.on('payment.failed', async (response) => {
+            this.error = response.error?.description || 'Razorpay payment failed';
+            await cancelPendingOrder();
+            this.payingDirect = false;
+          });
+          checkout.open();
+        } catch (error) {
+          this.error = error.message;
+          this.payingDirect = false;
+        }
+      },
+
       async saveStatus() {
         if (!this.isUnlocked || !this.canSaveStatus || this.savingStatus) return;
         this.savingStatus = true;
@@ -386,6 +507,7 @@
   </div>
 </div>
 <div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<script nonce="<%= cspNonce %>" src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <%- include('../partials/scripts') %>
 </body>
 </html>

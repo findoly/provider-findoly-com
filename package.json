@@ -1,7 +1,7 @@
 {
   "name": "provider-lead-portal",
-  "version": "1.1.0",
-  "description": "Production-ready Alpine.js provider lead portal using cookie authentication, JSON APIs, shared CRM models, MongoDB wallet transactions and Razorpay.",
+  "version": "1.2.0",
+  "description": "Production-ready provider lead portal with category matching, subscription credits, Razorpay plan checkout and direct Pay & Unlock.",
   "private": true,
   "type": "commonjs",
   "scripts": {

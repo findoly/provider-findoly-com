@@ -31,9 +31,9 @@
 
         <li class="nav-item-header"><div class="text-uppercase fs-sm">Account</div></li>
         <li class="nav-item">
-          <a href="/wallet" class="nav-link" :class="{ active: pathIs('/wallet') }">
-            <svg class="icon"><use href="#i-wallet"></use></svg><span>Credits</span>
-            <span class="badge bg-light text-body border ms-auto" x-text="credits(provider.walletCredits)">0 Credits</span>
+          <a href="/plans" class="nav-link" :class="{ active: pathIs('/plans') || pathIs('/wallet') }">
+            <svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span>
+            <span class="badge bg-light text-body border ms-auto" x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</span>
           </a>
         </li>
         <li class="nav-item">

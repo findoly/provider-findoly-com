@@ -21,9 +21,20 @@ const providerSchema = new mongoose.Schema(
     notes: { type: String, default: "" },
     documentsVerified: { type: Boolean, default: false },
     portalAccessEnabled: { type: Boolean, default: true, index: true },
+
+    // Kept for shared-CRM compatibility. Internally this stores credit minor units:
+    // 100 minor units = 1 provider credit.
     walletBalancePaise: { type: Number, default: 0, min: 0 },
     walletCurrency: { type: String, default: "INR" },
     walletUpdatedAt: { type: Date, default: null },
+
+    currentPlanCode: { type: String, default: "", index: true },
+    currentPlanName: { type: String, default: "" },
+    currentBillingCycle: { type: String, default: "" },
+    currentPlanStartedAt: { type: Date, default: null },
+    currentPlanExpiresAt: { type: Date, default: null, index: true },
+    currentSubscriptionId: { type: String, default: "", index: true },
+
     lastLoginAt: { type: Date, default: null },
   },
   {

@@ -5,10 +5,12 @@ const {
   presentProvider,
 } = require("../../utils/provider");
 const { presentLead } = require("../../utils/lead");
+const creditService = require("../billing/credit-service");
 
 async function get(provider) {
   const providerId = providerIdentity(provider);
   const categorySlugs = providerCategories(provider);
+  const syncedProvider = await creditService.syncCredits(providerId);
 
   const availableQuery = {
     providerId,
@@ -30,7 +32,7 @@ async function get(provider) {
   ]);
 
   return {
-    provider: presentProvider(provider),
+    provider: presentProvider(syncedProvider),
     offered,
     unlocked,
     recent: recent.map(presentLead),

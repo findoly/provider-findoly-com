@@ -7,6 +7,8 @@ const Enquiry = require("../models/Enquiry");
 const LeadDistribution = require("../models/LeadDistribution");
 const WalletTransaction = require("../models/WalletTransaction");
 const PaymentOrder = require("../models/PaymentOrder");
+const CreditAllocation = require("../models/CreditAllocation");
+const ProviderSubscription = require("../models/ProviderSubscription");
 
 async function run() {
   await connectDatabase();
@@ -16,6 +18,8 @@ async function run() {
     LeadDistribution,
     WalletTransaction,
     PaymentOrder,
+    CreditAllocation,
+    ProviderSubscription,
   ];
 
   for (const model of models) {

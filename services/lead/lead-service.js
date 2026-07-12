@@ -1,4 +1,3 @@
-const Provider = require("../../models/Provider");
 const LeadDistribution = require("../../models/LeadDistribution");
 const WalletTransaction = require("../../models/WalletTransaction");
 const Enquiry = require("../../models/Enquiry");
@@ -7,12 +6,12 @@ const { getPagination, pageResult } = require("../../utils/pagination");
 const {
   providerIdentity,
   providerCategories,
-  providerQuery,
 } = require("../../utils/provider");
 const { presentLead } = require("../../utils/lead");
 const { leadCostCredits, paiseFromCredits } = require("../../utils/credits");
 const { validateLeadStatus } = require("../../utils/lead-status");
 const { withTransaction } = require("../../utils/transaction");
+const creditService = require("../billing/credit-service");
 
 function escapeRegex(value) {
   return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -200,42 +199,28 @@ async function unlock(provider, leadDistributionId) {
         );
       }
 
-      const costCredits = leadCostCredits(lead);
-      const amountPaise = paiseFromCredits(costCredits);
-      const currentProvider = await Provider.findOneAndUpdate(
-        {
-          ...providerQuery(providerId),
-          status: "active",
-          portalAccessEnabled: { $ne: false },
-          ...(amountPaise
-            ? { walletBalancePaise: { $gte: amountPaise } }
-            : {}),
-        },
-        {
-          ...(amountPaise ? { $inc: { walletBalancePaise: -amountPaise } } : {}),
-          $set: { walletUpdatedAt: new Date(), updatedAt: new Date() },
-        },
-        { new: true, session },
-      );
-
-      if (!currentProvider) {
+      if (
+        lead.directPaymentPendingOrderId &&
+        lead.directPaymentPendingUntil &&
+        new Date(lead.directPaymentPendingUntil) > new Date()
+      ) {
         throw Object.assign(
-          new Error(
-            amountPaise
-              ? "Insufficient credits"
-              : "Provider account is not eligible",
-          ),
-          {
-            status: amountPaise ? 402 : 403,
-            code: amountPaise ? "INSUFFICIENT_BALANCE" : "PROVIDER_INELIGIBLE",
-          },
+          new Error("A direct payment checkout is already in progress for this lead"),
+          { status: 409, code: "DIRECT_PAYMENT_PENDING" },
         );
       }
+
+      const costCredits = leadCostCredits(lead);
+      const amountPaise = paiseFromCredits(costCredits);
+      const creditResult = await creditService.consumeCredits(
+        providerId,
+        amountPaise,
+        session,
+      );
 
       let walletTransactionId = "";
       if (amountPaise > 0) {
         walletTransactionId = uuid();
-        const balanceAfterPaise = Number(currentProvider.walletBalancePaise || 0);
         await WalletTransaction.create(
           [
             {
@@ -244,14 +229,18 @@ async function unlock(provider, leadDistributionId) {
               type: "debit",
               amountPaise,
               currency: lead.currency || "INR",
-              balanceBeforePaise: balanceAfterPaise + amountPaise,
-              balanceAfterPaise,
+              balanceBeforePaise: creditResult.balanceBeforePaise,
+              balanceAfterPaise: creditResult.balanceAfterPaise,
               status: "posted",
               source: "lead_unlock",
               referenceId: leadDistributionId,
               idempotencyKey: `lead-unlock:${providerId}:${leadDistributionId}`,
-              description: `Unlocked ${lead.leadTitle || "lead"}`,
-              metadata: { enquiryId: lead.enquiryId, costCredits },
+              description: `Unlocked ${lead.leadTitle || "lead"} using credits`,
+              metadata: {
+                enquiryId: lead.enquiryId,
+                costCredits,
+                allocationConsumption: creditResult.consumption,
+              },
             },
           ],
           { session },
@@ -271,6 +260,10 @@ async function unlock(provider, leadDistributionId) {
             status: "unlocked",
             unlockedAt: new Date(),
             walletTransactionId,
+            unlockMethod: "credits",
+            paymentOrderId: "",
+            directPaymentPendingOrderId: "",
+            directPaymentPendingUntil: null,
             updatedAt: new Date(),
           },
         },

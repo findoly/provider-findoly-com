@@ -38,7 +38,7 @@ const walletLimiter = rateLimit({
   limit: Number(process.env.WALLET_RATE_LIMIT_PER_MINUTE || 20),
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  handler: jsonHandler("Too many wallet requests. Please wait a moment."),
+  handler: jsonHandler("Too many payment requests. Please wait a moment."),
 });
 
 const unlockLimiter = rateLimit({

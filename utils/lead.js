@@ -43,6 +43,7 @@ function presentLead(row = {}) {
       : sanitizeDetails(row.additionalDetails || {}),
     distributedAt: row.distributedAt || row.createdAt || null,
     unlockedAt: row.unlockedAt || null,
+    unlockMethod: unlocked ? (row.unlockMethod || (row.walletTransactionId ? "credits" : "")) : "",
     createdAt: row.createdAt || null,
     updatedAt: row.updatedAt || null,
   };

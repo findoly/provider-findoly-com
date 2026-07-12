@@ -95,7 +95,7 @@
           <div><span>Onboarding</span><strong x-text="humanize(profile.onboardingStage)"></strong></div>
           <div><span>Documents</span><strong x-text="profile.documentsVerified ? 'Verified' : 'Pending'"></strong></div>
           <div><span>Rating</span><strong x-text="profile.rating || '—'"></strong></div>
-          <div><span>Credits</span><strong x-text="credits(profile.walletCredits)"></strong></div>
+          <div><span>Credits</span><strong x-text="credits(profile.availableCredits ?? profile.walletCredits)"></strong></div>
           <div><span>CRM last updated</span><strong x-text="formatDate(profile.updatedAt)"></strong></div>
         </div>
         <div class="card-footer bg-white border-top">

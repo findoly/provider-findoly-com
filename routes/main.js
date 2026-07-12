@@ -12,5 +12,6 @@ router.get("/profile", profileController.get);
 router.use("/lead", require("./lead"));
 router.use("/leads", require("./lead"));
 router.use("/wallet", require("./wallet"));
+router.use("/billing", require("./wallet"));
 
 module.exports = router;

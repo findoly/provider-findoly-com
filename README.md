@@ -14,7 +14,7 @@ A separate Express service connected to the same MongoDB database as the Service
   -> shared MongoDB database
 ```
 
-The frontend controller sends only page metadata such as title and subtitle. Provider, lead, wallet and transaction records are never rendered into EJS by Express.
+The frontend controller sends only page metadata such as title and subtitle. Provider, lead, plan, credit and payment records are never rendered into EJS by Express.
 
 Each page owns its body markup. Only these structural partials are shared:
 
@@ -28,7 +28,7 @@ scripts.ejs
 
 ## Shared CRM collections
 
-The portal reads and writes the same collections used by the CRM:
+The portal reads and writes the same core collections used by the CRM:
 
 ```text
 providers
@@ -38,17 +38,14 @@ wallettransactions
 paymentorders
 ```
 
-The shared Mongoose model files match the CRM model fields. The application uses named 32-character UUID fields:
+The plan system also uses:
 
 ```text
-providers             providerId
-leaddistributions      leadDistributionId
-enquiries              enquiryId
-wallettransactions     walletTransactionId
-paymentorders          paymentOrderId
+creditallocations
+providersubscriptions
 ```
 
-MongoDB `_id` is left untouched. Compatibility reads still accept an existing legacy `id` where a migration has not yet added the named field.
+`walletBalancePaise` and the existing `wallettransactions` collection are retained for CRM/database compatibility. In the provider UI they are treated only as credits: 100 stored minor units equal 1 credit. Arbitrary wallet top-ups are disabled.
 
 ## Authentication
 
@@ -60,60 +57,93 @@ For every protected page and every protected `/api` request, the portal:
 2. reads the provider again from MongoDB;
 3. checks `status = active`;
 4. checks `portalAccessEnabled != false`;
-5. uses the current categories, profile and wallet balance from the database.
-
-This means CRM changes such as disabling portal access or deactivating the provider apply on the next request without restarting the provider server.
+5. uses the current categories, profile and credit balance from the database.
 
 Production protections include:
 
 - HTTP-only signed authentication cookie;
-- CSRF token verification for write APIs;
-- OTP, wallet and unlock rate limits;
+- CSRF verification for plan purchases, payment verification, unlocks and status writes;
+- OTP, payment and unlock rate limits;
 - Helmet security headers and Content Security Policy;
 - request IDs in API errors;
 - graceful shutdown and MongoDB connection pooling;
 - no in-memory identity cache;
-- no direct wallet-credit endpoint.
+- no arbitrary credit or wallet top-up endpoint.
 
-## Lead flow
+## Plans and credits
 
-The CRM creates one `leaddistributions` record for each matching provider. The portal only queries records where `providerId` belongs to the logged-in provider.
+The portal provides three plans with manual purchase/renewal:
 
-Locked responses remove customer contact fields. The portal also removes contact-like keys from `additionalDetails` before unlock.
+| Plan | Monthly | Monthly credits | Yearly (GST included) | Yearly credits |
+|---|---:|---:|---:|---:|
+| Starter | ₹999 + 18% GST | 1,000 | ₹11,999 | 14,400 |
+| Growth | ₹2,999 + 18% GST | 3,000 | ₹35,999 | 46,800 |
+| Scale | ₹9,999 + 18% GST | 11,000 | ₹89,999 | 126,000 |
 
-Unlocking uses a MongoDB transaction to:
+Credit calculation follows the approved rule: a listed rupee price ending in `99` rounds up by one for base credits, then the plan bonus is applied.
 
-1. verify the offer is still available and matches the provider category;
-2. verify the provider is still active and portal-enabled;
-3. deduct the exact `leadPricePaise`;
-4. create the immutable wallet debit transaction;
-5. mark only that provider's distribution as unlocked;
-6. increment the lead's unlock count.
+- Monthly plans last 30 days.
+- Yearly plans last 365 days.
+- Credits are allocated immediately after verified captured payment.
+- Yearly credits are allocated in full immediately.
+- Unused plan credits carry forward while the combined subscription remains active.
+- Early renewal adds credits immediately and extends validity after the existing expiry.
+- Expired credits are deducted and retained in history as `expiry` transactions.
+- Existing legacy credit balances are preserved as non-expiring legacy allocations.
+- Plans do not auto-renew.
 
-Use MongoDB Atlas or a replica set because wallet credit and lead unlock require transactions.
+## Lead unlock flow
 
-## Razorpay wallet flow
+The CRM creates one `leaddistributions` record for each matching provider. The portal only queries records belonging to the logged-in provider, and locked responses remove customer contact data.
+
+### Unlock with credits
+
+A MongoDB transaction:
+
+1. verifies the offer is available and still matches the provider category;
+2. expires any plan credits whose validity ended;
+3. consumes the earliest-expiring active credit allocations;
+4. updates the provider credit balance;
+5. creates the immutable credit debit transaction;
+6. unlocks only that provider's distribution;
+7. increments the enquiry unlock count.
+
+### Direct Pay & Unlock
+
+When available credits are insufficient, the provider can pay for that specific lead:
+
+1. the lead price is read from the existing pricing data;
+2. 18% GST is added at checkout;
+3. Razorpay order, signature, amount, currency and captured status are verified server-side;
+4. the lead is unlocked once after verification;
+5. the payment is recorded in payment history;
+6. no credits are created or added.
+
+## Razorpay flow
 
 ```text
-POST /api/wallet/order
-  -> create Razorpay order
+POST /api/wallet/plan/order
+  -> create plan purchase order
   -> save paymentorders record
   -> return Checkout data
 
+POST /api/lead/:leadDistributionId/direct-order
+  -> create direct lead-unlock order with 18% GST
+
 Razorpay Checkout handler
-  -> POST /api/wallet/verify
+  -> POST /api/wallet/verify for a plan
+  -> POST /api/lead/:leadDistributionId/direct-verify for a lead
   -> verify server-side HMAC signature
-  -> fetch the payment from Razorpay
-  -> validate order, amount and INR currency
-  -> credit only after captured status
+  -> fetch and validate payment from Razorpay
+  -> fulfil only after captured status
 
 POST /api/webhooks/razorpay
-  -> verify signature from the raw request body
+  -> verify raw-body webhook signature
   -> process payment.captured or order.paid
-  -> reuse the same idempotency key
+  -> reuse the same idempotent fulfilment path
 ```
 
-Checkout confirmation and webhook delivery cannot credit the same order twice. An authorised but not-yet-captured payment remains pending until capture/webhook processing.
+Checkout confirmation and webhook delivery cannot fulfil the same order twice.
 
 Configure the webhook URL as:
 
@@ -150,35 +180,13 @@ RAZORPAY_WEBHOOK_SECRET=...
 TRUST_PROXY=1
 ```
 
-Both CRM and provider services must use the same `MONGODB_URI` and database name.
+Both CRM and provider services must use the same `MONGODB_URI` and database name. MongoDB Atlas or another replica set is required because credit allocation, plan fulfilment and lead unlock use transactions.
 
-Before starting the provider portal against an existing CRM database, run the CRM structure migration once:
-
-```bash
-cd service-crm-admin
-npm install
-npm run migrate:structure
-```
-
-Then return to this provider project and create any missing indexes without deleting existing data:
+Create the new indexes without deleting existing data:
 
 ```bash
 npm run ensure:indexes
 ```
-
-## Provider eligibility
-
-A provider can sign in and use APIs when:
-
-```text
-status = active
-portalAccessEnabled = true or missing
-providerId or legacy id is present
-```
-
-The onboarding stage is displayed but does not independently block login.
-
-To receive new locked leads, the provider must also have matching `categorySlugs` in the CRM.
 
 ## Useful commands
 
@@ -189,5 +197,3 @@ npm run diagnose:provider -- 8693097982
 npm run ensure:indexes
 npm audit --omit=dev
 ```
-
-The diagnosis command prints the configured database, provider eligibility, wallet balance, categories and current available/unlocked offer counts.
