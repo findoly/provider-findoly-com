@@ -170,8 +170,9 @@
             <th>Lead</th>
             <th>Requirement</th>
             <th>Location</th>
+            <th>Marketplace insight</th>
             <th>Preferred</th>
-            <th>Credit cost</th>
+            <th>Unlock price</th>
             <th>Status</th>
             <th class="text-end"></th>
           </tr>
@@ -192,20 +193,30 @@
                 <div class="text-muted fs-sm" x-text="lead.state || ''"></div>
               </td>
               <td>
+                <div class="portal-marketplace-mini">
+                  <span :class="'is-' + lead.leadIntent" x-text="lead.leadIntent === 'not_assessed' ? 'Intent not assessed' : humanize(lead.leadIntent) + ' intent'"></span>
+                  <span :class="'is-' + lead.competitionLevel" x-text="humanize(lead.competitionLevel) + ' competition'"></span>
+                </div>
+                <div class="text-muted fs-sm mt-1"><span x-text="lead.unlockedCount || 0"></span> providers unlocked · <span x-text="lead.currentlyConfirmed ? lead.providerConfirmedCount + ' confirmed' : 'not confirmed yet'"></span></div>
+              </td>
+              <td>
                 <div x-text="formatDateOnly(lead.preferredDate)"></div>
                 <div class="text-muted fs-sm" x-text="lead.preferredSlot || 'Flexible' "></div>
               </td>
-              <td class="fw-semibold" x-text="credits(lead.leadCostCredits)"></td>
-              <td><span class="badge" :class="statusClass(lead)" x-text="lead.providerLeadStatus ? humanize(lead.providerLeadStatus) : (lead.contactUnlocked ? 'Unlocked' : humanize(lead.status))"></span></td>
+              <td>
+                <div class="fw-semibold" x-text="credits(lead.leadCostCredits)"></div>
+                <div class="text-muted fs-sm" x-show="lead.unlockDiscountPercent > 0"><del x-text="credits(lead.baseLeadCostCredits)"></del> · <span class="text-success" x-text="lead.unlockDiscountPercent + '% off'"></span></div>
+              </td>
+              <td><span class="badge" :class="statusClass(lead)" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : (lead.contactUnlocked ? 'Outcome pending' : humanize(lead.status))"></span></td>
               <td class="text-end"><a class="btn btn-outline-primary btn-sm" :href="'/leads/' + lead.leadDistributionId">Open</a></td>
             </tr>
           </template>
 
           <tr x-show="loading">
-            <td colspan="7" class="text-center text-muted py-5">Loading leads…</td>
+            <td colspan="8" class="text-center text-muted py-5">Loading leads…</td>
           </tr>
           <tr x-show="!loading && !rows.length">
-            <td colspan="7" class="text-center py-5">
+            <td colspan="8" class="text-center py-5">
               <div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div>
               <div class="fw-semibold mt-2">No matching leads</div>
               <div class="text-muted fs-sm mt-1">Try clearing filters or ask CRM to verify category matching.</div>
@@ -289,7 +300,8 @@
       },
 
       statusClass(lead) {
-        if (lead.providerLeadStatus === 'confirmed') return 'bg-success text-white';
+        if (lead.providerSaleOutcome === 'confirmed') return 'bg-success text-white';
+        if (lead.providerSaleOutcome === 'not_confirmed') return 'bg-secondary text-white';
         if (['rejected', 'invalid'].includes(lead.providerLeadStatus)) return 'bg-danger text-white';
         if (lead.providerLeadStatus === 'on_hold') return 'bg-warning text-dark';
         if (lead.providerLeadStatus === 'not_interested') return 'bg-secondary text-white';

@@ -197,3 +197,64 @@ npm run diagnose:provider -- 8693097982
 npm run ensure:indexes
 npm audit --omit=dev
 ```
+
+## Marketplace transparency and dynamic lead pricing
+
+Before an unlock, the provider can see the lead intent selected by CRM, the current competition level, how many providers have unlocked the lead, whether any provider currently confirms the sale, and the current effective credit cost. Customer contact information remains hidden.
+
+Competition is calculated from successful unlocks:
+
+| Successful unlocks | Competition |
+|---:|---|
+| 0–1 | Low |
+| 2–3 | Medium |
+| 4+ | High |
+
+The CRM-assigned lead intent is one of `high`, `medium`, `low`, or `not_assessed`.
+
+The server calculates the unlock discount from previous successful unlocks:
+
+| Previous successful unlocks | Discount |
+|---:|---:|
+| 0 | 0% |
+| 1–2 | 20% |
+| 3–4 | 40% |
+| 5–7 | 50% |
+| 8+ | 75% |
+
+Wallet-credit and direct-payment unlocks use the same effective price. Direct-payment quotes are stored on the payment order, so the amount remains fixed while the Razorpay checkout is active.
+
+## Provider outcomes and CRM synchronization
+
+Every unlocked lead requires a sale outcome:
+
+- `confirmed`
+- `not_confirmed`
+
+The separate activity status is optional and supports `contacted`, `valid`, `follow_up`, `on_hold`, `rejected`, `invalid`, `not_interested`, and `other`.
+
+The provider browser submits to its own backend. The backend stores the update and then calls the CRM Communication Center integration endpoint. Configure both applications with the same token:
+
+```env
+# Provider portal
+CRM_API_BASE_URL=https://admin.findoly.com
+CRM_COMMUNICATION_EVENT_PATH=/api/communication/events
+COMMUNICATION_EVENT_API_TOKEN=<shared-random-secret>
+
+# CRM admin
+COMMUNICATION_EVENT_API_TOKEN=<same-shared-random-secret>
+```
+
+The provider call is sent to:
+
+```text
+POST /api/communication/events/provider_feedback_updated
+```
+
+A CRM synchronization failure does not discard the provider update. The lead shows the pending synchronization state, and saving the outcome again retries the integration.
+
+## Seven-day outcome reminder
+
+An unlocked lead with no Confirmed/Not Confirmed outcome becomes overdue after `PROVIDER_OUTCOME_REMINDER_DAYS` (default 7). The dashboard displays a pending count and a dismissible reminder popup. Dismissal lasts only for the current browser session, and the reminder returns in a later session until the outcome is updated.
+
+The reminder warns that Findoly may verify the status with the customer and provider. Incorrect or misleading outcomes are reviewed manually in CRM and may result in a warning, temporary suspension, or permanent restriction.

@@ -44,8 +44,12 @@
             </div>
           </div>
           <div class="portal-price-box">
-            <span>Credit cost</span>
-            <strong x-text="credits(lead.leadCostCredits)">0 Credits</strong>
+            <span>Current unlock price</span>
+            <div class="portal-price-values">
+              <del x-show="lead.unlockDiscountPercent > 0" x-text="credits(lead.baseLeadCostCredits)"></del>
+              <strong x-text="credits(lead.leadCostCredits)">0 Credits</strong>
+            </div>
+            <small x-show="lead.unlockDiscountPercent > 0" x-text="lead.unlockDiscountPercent + '% marketplace discount'"></small>
           </div>
         </div>
 
@@ -67,6 +71,77 @@
               <span>Preferred slot</span>
               <strong x-text="lead.preferredSlot || 'Flexible'"></strong>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="portal-marketplace-trust mb-4">
+        <div><span>Lead intent</span><strong :class="'is-' + lead.leadIntent" x-text="lead.leadIntent === 'not_assessed' ? 'Not assessed' : humanize(lead.leadIntent) + ' intent'"></strong></div>
+        <div><span>Competition</span><strong :class="'is-' + lead.competitionLevel" x-text="humanize(lead.competitionLevel)"></strong></div>
+        <div><span>Provider interest</span><strong><span x-text="lead.unlockedCount || 0"></span> unlocked</strong></div>
+        <div><span>Current result</span><strong :class="lead.currentlyConfirmed ? 'is-confirmed' : ''" x-text="lead.currentlyConfirmed ? 'Confirmed by ' + lead.providerConfirmedCount : 'Not confirmed yet'"></strong></div>
+      </div>
+
+      <div id="provider-outcome" class="card portal-card portal-outcome-card mb-4" x-show="isUnlocked" x-cloak>
+        <div class="card-header border-bottom d-flex align-items-center gap-3">
+          <div>
+            <div class="portal-step-label">Required update</div>
+            <h5 class="mb-1">Sale outcome</h5>
+            <div class="text-muted fs-sm">Mark whether this lead resulted in a confirmed sale. You can correct it later if the customer decision changes.</div>
+          </div>
+          <span class="badge ms-auto" :class="outcomeClass" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : 'Pending'"></span>
+        </div>
+        <div class="card-body">
+          <div class="portal-outcome-radio-grid" role="radiogroup" aria-label="Sale outcome">
+            <label :class="{ selected: feedbackForm.outcome === 'confirmed' }">
+              <input type="radio" name="providerSaleOutcome" value="confirmed" x-model="feedbackForm.outcome">
+              <span><strong>Confirmed</strong><small>The customer booked or purchased the service.</small></span>
+            </label>
+            <label :class="{ selected: feedbackForm.outcome === 'not_confirmed' }">
+              <input type="radio" name="providerSaleOutcome" value="not_confirmed" x-model="feedbackForm.outcome">
+              <span><strong>Not Confirmed</strong><small>No completed sale at this time.</small></span>
+            </label>
+          </div>
+
+          <div class="portal-policy-warning mt-3">
+            Submit accurate information only. Findoly may verify this outcome with the customer and provider. Incorrect or misleading updates can result in a warning, temporary suspension, or permanent platform restriction after team review.
+          </div>
+
+          <div class="row g-3 mt-1">
+            <div class="col-12">
+              <label class="form-label" for="providerOutcomeNote">Outcome note <span class="text-muted">(optional)</span></label>
+              <input id="providerOutcomeNote" class="form-control" maxlength="1000" x-model="feedbackForm.outcomeNote" placeholder="Booking reference, expected service date, or a short update">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="providerLeadStatus">Activity status <span class="text-muted">(optional)</span></label>
+              <select id="providerLeadStatus" class="form-select" x-model="feedbackForm.status" @change="feedbackForm.reason = ''; feedbackForm.note = ''">
+                <option value="">No additional activity status</option>
+                <template x-for="option in leadStatusOptions" :key="option.value">
+                  <option :value="option.value" x-text="option.label"></option>
+                </template>
+              </select>
+            </div>
+            <div class="col-md-6" x-show="requiresReason" x-cloak>
+              <label class="form-label" for="providerLeadReason">Reason</label>
+              <select id="providerLeadReason" class="form-select" x-model="feedbackForm.reason">
+                <option value="">Select reason</option>
+                <template x-for="reason in currentReasonOptions" :key="reason.value">
+                  <option :value="reason.value" x-text="reason.label"></option>
+                </template>
+              </select>
+            </div>
+            <div class="col-12" x-show="feedbackForm.status" x-cloak>
+              <label class="form-label" for="providerLeadNote">Activity note <span class="text-muted" x-show="!requiresReason">(optional)</span></label>
+              <textarea id="providerLeadNote" class="form-control" rows="2" maxlength="1000" x-model="feedbackForm.note" :placeholder="feedbackForm.reason === 'other' || feedbackForm.status === 'other' ? 'Explain this activity status' : 'Add a short follow-up note, if needed'"></textarea>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
+            <button class="btn btn-primary" type="button" @click="saveStatus()" :disabled="savingStatus || !canSaveStatus">
+              <span x-text="savingStatus ? 'Saving…' : 'Save outcome'"></span>
+            </button>
+            <div class="text-muted fs-sm" x-show="lead.providerSaleOutcomeUpdatedAt" x-text="`Outcome updated ${formatDate(lead.providerSaleOutcomeUpdatedAt)}`"></div>
+            <div class="text-warning fs-sm" x-show="lead.crmSyncStatus === 'failed'">Saved locally; CRM notification is pending.</div>
           </div>
         </div>
       </div>
@@ -108,58 +183,6 @@
         </div>
       </div>
 
-      <div class="card portal-card" x-show="isUnlocked" x-cloak>
-        <div class="card-header border-bottom d-flex align-items-center">
-          <div>
-            <h5 class="mb-1">Lead status</h5>
-            <div class="text-muted fs-sm">Record your current result and the reason for it.</div>
-          </div>
-          <span class="badge ms-auto" :class="statusClass" x-text="lead.providerLeadStatus ? humanize(lead.providerLeadStatus) : 'Not updated'"></span>
-        </div>
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label" for="providerLeadStatus">Status</label>
-              <select id="providerLeadStatus" class="form-select" x-model="statusForm.status" @change="statusForm.reason = ''; statusForm.note = ''">
-                <option value="">Select status</option>
-                <template x-for="option in leadStatusOptions" :key="option.value">
-                  <option :value="option.value" x-text="option.label"></option>
-                </template>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="providerLeadReason">Reason</label>
-              <select id="providerLeadReason" class="form-select" x-model="statusForm.reason" :disabled="!statusForm.status">
-                <option value="">Select reason</option>
-                <template x-for="reason in currentReasonOptions" :key="reason.value">
-                  <option :value="reason.value" x-text="reason.label"></option>
-                </template>
-              </select>
-            </div>
-            <div class="col-12" x-show="statusForm.reason" x-cloak>
-              <label class="form-label" for="providerLeadNote">
-                <span x-text="statusForm.reason === 'other' ? 'Reason details' : 'Additional note (optional)'"></span>
-              </label>
-              <textarea
-                id="providerLeadNote"
-                class="form-control"
-                rows="3"
-                maxlength="1000"
-                x-model="statusForm.note"
-                :placeholder="statusForm.reason === 'other' ? 'Add a short reason for this status' : 'Add a short note, if needed'"
-              ></textarea>
-              <div class="form-text" x-show="statusForm.reason === 'other'">Required when Other is selected.</div>
-            </div>
-          </div>
-
-          <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
-            <button class="btn btn-primary" type="button" @click="saveStatus()" :disabled="savingStatus || !canSaveStatus">
-              <span x-text="savingStatus ? 'Saving…' : 'Save lead status'"></span>
-            </button>
-            <div class="text-muted fs-sm" x-show="lead.providerLeadStatusUpdatedAt" x-text="`Last updated ${formatDate(lead.providerLeadStatusUpdatedAt)}`"></div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <div class="col-xl-4">
@@ -175,9 +198,10 @@
 
           <template x-if="!isUnlocked">
             <div>
-              <div class="d-flex align-items-center mb-3">
-                <span class="text-muted">Lead cost</span>
-                <strong class="ms-auto" x-text="credits(lead.leadCostCredits)"></strong>
+              <div class="portal-unlock-price mb-3">
+                <div><span>Original price</span><strong :class="{ 'text-decoration-line-through text-muted': lead.unlockDiscountPercent > 0 }" x-text="credits(lead.baseLeadCostCredits)"></strong></div>
+                <div x-show="lead.unlockDiscountPercent > 0"><span>Marketplace discount</span><strong class="text-success" x-text="lead.unlockDiscountPercent + '% off'"></strong></div>
+                <div class="is-total"><span>Unlock now</span><strong x-text="credits(lead.leadCostCredits)"></strong></div>
               </div>
 
               <template x-if="hasEnoughBalance">
@@ -236,27 +260,12 @@
       payingDirect: false,
       savingStatus: false,
       error: '',
-      statusForm: { status: '', reason: '', note: '' },
+      feedbackForm: { outcome: '', outcomeNote: '', status: '', reason: '', note: '' },
       leadStatusOptions: [
-        { value: 'contacted', label: 'Contacted', reasons: [
-          { value: 'first_contact_completed', label: 'First contact completed' },
-          { value: 'follow_up_required', label: 'Follow-up required' },
-          { value: 'appointment_scheduled', label: 'Appointment scheduled' },
-          { value: 'other', label: 'Other' }
-        ] },
-        { value: 'confirmed', label: 'Confirmed', reasons: [
-          { value: 'customer_confirmed', label: 'Customer confirmed' },
-          { value: 'service_booked', label: 'Service booked' },
-          { value: 'payment_agreed', label: 'Payment agreed' },
-          { value: 'other', label: 'Other' }
-        ] },
-        { value: 'on_hold', label: 'On hold', reasons: [
-          { value: 'customer_requested_callback', label: 'Customer requested callback' },
-          { value: 'awaiting_customer_response', label: 'Awaiting customer response' },
-          { value: 'schedule_pending', label: 'Schedule pending' },
-          { value: 'price_discussion', label: 'Price discussion' },
-          { value: 'other', label: 'Other' }
-        ] },
+        { value: 'contacted', label: 'Contacted', reasons: [] },
+        { value: 'valid', label: 'Valid lead', reasons: [] },
+        { value: 'follow_up', label: 'Follow up', reasons: [] },
+        { value: 'on_hold', label: 'On hold', reasons: [] },
         { value: 'rejected', label: 'Rejected', reasons: [
           { value: 'outside_service_area', label: 'Outside service area' },
           { value: 'provider_unavailable', label: 'Provider unavailable' },
@@ -277,7 +286,8 @@
           { value: 'budget_issue', label: 'Budget issue' },
           { value: 'no_response', label: 'No response' },
           { value: 'other', label: 'Other' }
-        ] }
+        ] },
+        { value: 'other', label: 'Other', reasons: [{ value: 'other', label: 'Other' }] }
       ],
 
       get isUnlocked() {
@@ -293,8 +303,7 @@
       },
 
       get directBasePaise() {
-        const storedPrice = Number(this.lead.leadPricePaise || 0);
-        return storedPrice > 0 ? storedPrice : Math.round(Number(this.lead.leadCostCredits || 0) * 100);
+        return Math.round(Number(this.lead.leadCostCredits || 0) * 100);
       },
 
       get directGstPaise() {
@@ -306,21 +315,34 @@
       },
 
       get displayStatus() {
-        if (this.lead.providerLeadStatus) return humanize(this.lead.providerLeadStatus);
-        return this.isUnlocked ? 'Unlocked' : humanize(this.lead.status);
+        if (this.lead.providerSaleOutcome) return humanize(this.lead.providerSaleOutcome);
+        return this.isUnlocked ? 'Outcome pending' : humanize(this.lead.status);
       },
 
       get currentReasonOptions() {
-        return this.leadStatusOptions.find((option) => option.value === this.statusForm.status)?.reasons || [];
+        return this.leadStatusOptions.find((option) => option.value === this.feedbackForm.status)?.reasons || [];
+      },
+
+      get requiresReason() {
+        return ['rejected', 'invalid', 'not_interested', 'other'].includes(this.feedbackForm.status);
       },
 
       get canSaveStatus() {
-        if (!this.statusForm.status || !this.statusForm.reason) return false;
-        return this.statusForm.reason !== 'other' || Boolean(String(this.statusForm.note || '').trim());
+        if (!['confirmed', 'not_confirmed'].includes(this.feedbackForm.outcome)) return false;
+        if (!this.feedbackForm.status) return true;
+        if (!this.requiresReason) return true;
+        if (!this.feedbackForm.reason) return false;
+        return this.feedbackForm.reason !== 'other' || Boolean(String(this.feedbackForm.note || '').trim());
+      },
+
+      get outcomeClass() {
+        if (this.lead.providerSaleOutcome === 'confirmed') return 'bg-success text-white';
+        if (this.lead.providerSaleOutcome === 'not_confirmed') return 'bg-secondary text-white';
+        return 'bg-warning text-dark';
       },
 
       get statusClass() {
-        if (this.lead.providerLeadStatus === 'confirmed') return 'bg-success text-white';
+        if (this.lead.providerSaleOutcome === 'confirmed') return 'bg-success text-white';
         if (['rejected', 'invalid'].includes(this.lead.providerLeadStatus)) return 'bg-danger text-white';
         if (this.lead.providerLeadStatus === 'on_hold') return 'bg-warning text-dark';
         if (this.lead.providerLeadStatus === 'not_interested') return 'bg-secondary text-white';
@@ -353,7 +375,9 @@
       },
 
       syncStatusForm() {
-        this.statusForm = {
+        this.feedbackForm = {
+          outcome: this.lead.providerSaleOutcome || '',
+          outcomeNote: this.lead.providerSaleOutcomeNote || '',
           status: this.lead.providerLeadStatus || '',
           reason: this.lead.providerLeadReason || '',
           note: this.lead.providerLeadNote || ''
@@ -487,10 +511,10 @@
         try {
           this.lead = (await apiFetch('/api/lead/' + encodeURIComponent(this.recordId) + '/status', {
             method: 'PATCH',
-            body: JSON.stringify(this.statusForm)
+            body: JSON.stringify(this.feedbackForm)
           })).data;
           this.syncStatusForm();
-          this.$dispatch('portal-notify', { type: 'success', message: 'Lead status updated successfully.' });
+          this.$dispatch('portal-notify', { type: 'success', message: this.lead.syncWarning || 'Lead outcome updated successfully.' });
         } catch (error) {
           this.error = error.message;
         } finally {

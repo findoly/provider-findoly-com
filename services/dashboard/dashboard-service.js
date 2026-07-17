@@ -6,6 +6,7 @@ const {
 } = require("../../utils/provider");
 const { presentLead } = require("../../utils/lead");
 const creditService = require("../billing/credit-service");
+const leadService = require("../lead/lead-service");
 
 async function get(provider) {
   const providerId = providerIdentity(provider);
@@ -19,7 +20,7 @@ async function get(provider) {
   };
   availableQuery.categorySlug = { $in: categorySlugs };
 
-  const [offered, unlocked, recent] = await Promise.all([
+  const [offered, unlocked, recent, pendingOutcomeResult] = await Promise.all([
     LeadDistribution.countDocuments(availableQuery),
     LeadDistribution.countDocuments({ providerId, contactUnlocked: true }),
     LeadDistribution.find({
@@ -29,13 +30,17 @@ async function get(provider) {
       .sort({ distributedAt: -1, createdAt: -1 })
       .limit(8)
       .lean(),
+    leadService.pendingOutcomes(provider, { limit: 10 }),
   ]);
 
   return {
     provider: presentProvider(syncedProvider),
     offered,
     unlocked,
-    recent: recent.map(presentLead),
+    recent: await leadService.presentRows(recent),
+    pendingOutcomes: pendingOutcomeResult.data,
+    pendingOutcomeCount: pendingOutcomeResult.total,
+    outcomeReminderDays: pendingOutcomeResult.reminderDays,
   };
 }
 

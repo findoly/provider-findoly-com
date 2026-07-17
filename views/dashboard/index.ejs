@@ -28,6 +28,44 @@
 <div x-data="dashboardPage()" x-init="load()" :class="loading ? 'portal-loading' : ''">
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
+  <div class="portal-pending-banner mb-4" x-show="data.pendingOutcomeCount > 0" x-cloak>
+    <div>
+      <strong><span x-text="data.pendingOutcomeCount"></span> lead outcomes need your update</strong>
+      <span>Mark each unlocked lead as Confirmed or Not Confirmed. Accurate updates protect customer and provider trust.</span>
+    </div>
+    <button class="btn btn-warning btn-sm" type="button" @click="reminderOpen = true">Review pending leads</button>
+  </div>
+
+  <div class="portal-reminder-backdrop" x-show="reminderOpen" x-cloak @keydown.escape.window="reminderOpen = false">
+    <section class="portal-reminder-dialog" role="dialog" aria-modal="true" aria-labelledby="pending-outcome-title" @click.outside="dismissReminder()">
+      <div class="portal-reminder-header">
+        <div>
+          <div class="portal-reminder-kicker">Outcome update required</div>
+          <h3 id="pending-outcome-title">Please update overdue unlocked leads</h3>
+        </div>
+        <button type="button" aria-label="Remind me later" @click="dismissReminder()">×</button>
+      </div>
+      <div class="portal-policy-warning">
+        Submit accurate Confirmed or Not Confirmed outcomes. Findoly may verify updates with the customer and provider. Incorrect or misleading information can lead to a warning, temporary suspension, or permanent platform restriction after team review.
+      </div>
+      <div class="portal-reminder-list">
+        <template x-for="lead in data.pendingOutcomes || []" :key="lead.leadDistributionId">
+          <article class="portal-reminder-item">
+            <div class="min-w-0">
+              <strong x-text="lead.leadTitle || lead.serviceType || lead.enquiryId"></strong>
+              <span><span x-text="lead.city || 'Location not provided'"></span> · unlocked <b x-text="lead.daysPending + ' days ago'"></b></span>
+            </div>
+            <a class="btn btn-primary btn-sm" :href="'/leads/' + lead.leadDistributionId + '#provider-outcome'">Update outcome</a>
+          </article>
+        </template>
+      </div>
+      <div class="portal-reminder-footer">
+        <button class="btn btn-light" type="button" @click="dismissReminder()">Remind me later</button>
+        <a class="btn btn-primary" href="/leads?status=unlocked">View all unlocked leads</a>
+      </div>
+    </section>
+  </div>
+
   <div class="row g-3 mb-4">
     <div class="col-6 col-xl-3">
       <a href="/leads?status=offered" class="portal-stat-card">
@@ -108,7 +146,7 @@
                     <div class="text-muted fs-sm" x-text="lead.state || ''"></div>
                   </td>
                   <td class="fw-semibold" x-text="credits(lead.leadCostCredits)"></td>
-                  <td><span class="badge" :class="statusClass(lead)" x-text="lead.providerLeadStatus ? humanize(lead.providerLeadStatus) : (lead.contactUnlocked ? 'Unlocked' : humanize(lead.status))"></span></td>
+                  <td><span class="badge" :class="statusClass(lead)" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : (lead.contactUnlocked ? 'Outcome pending' : humanize(lead.status))"></span></td>
                   <td class="text-end"><a class="btn btn-outline-primary btn-sm" :href="'/leads/' + (lead.leadDistributionId)">View</a></td>
                 </tr>
               </template>
@@ -146,6 +184,7 @@
       data: {},
       loading: true,
       error: '',
+      reminderOpen: false,
 
       get categorySummary() {
         const categories = this.data.provider?.categorySlugs || [];
@@ -155,7 +194,8 @@
       },
 
       statusClass(lead) {
-        if (lead.providerLeadStatus === 'confirmed') return 'bg-success text-white';
+        if (lead.providerSaleOutcome === 'confirmed') return 'bg-success text-white';
+        if (lead.providerSaleOutcome === 'not_confirmed') return 'bg-secondary text-white';
         if (['rejected', 'invalid'].includes(lead.providerLeadStatus)) return 'bg-danger text-white';
         if (lead.providerLeadStatus === 'on_hold') return 'bg-warning text-dark';
         if (lead.providerLeadStatus === 'not_interested') return 'bg-secondary text-white';
@@ -168,12 +208,19 @@
         this.loading = true;
         this.error = '';
         try {
-          this.data = (await apiFetch('/api/dashboard')).data;
+          this.data = (await apiFetch('/api/dashboard')).data || {};
+          const dismissed = sessionStorage.getItem('findoly-pending-outcome-reminder-dismissed') === '1';
+          this.reminderOpen = Number(this.data.pendingOutcomeCount || 0) > 0 && !dismissed;
         } catch (error) {
           this.error = error.message;
         } finally {
           this.loading = false;
         }
+      },
+
+      dismissReminder() {
+        this.reminderOpen = false;
+        sessionStorage.setItem('findoly-pending-outcome-reminder-dismissed', '1');
       }
     };
   }

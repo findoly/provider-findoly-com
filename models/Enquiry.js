@@ -17,6 +17,7 @@ const enquirySchema = new mongoose.Schema(
     serviceType: { type: String, default: "", trim: true },
     requirementTitle: { type: String, default: "", trim: true },
     priority: { type: String, default: "normal", index: true },
+    leadIntent: { type: String, enum: ["not_assessed", "low", "medium", "high"], default: "not_assessed", index: true },
     status: { type: String, default: "new", index: true },
     preferredDate: { type: String, default: "" },
     preferredSlot: { type: String, default: "" },
@@ -38,6 +39,7 @@ const enquirySchema = new mongoose.Schema(
     timeline: { type: [mongoose.Schema.Types.Mixed], default: [] },
     distributionCount: { type: Number, default: 0 },
     unlockedCount: { type: Number, default: 0 },
+    providerConfirmedCount: { type: Number, default: 0, min: 0 },
     distributedAt: { type: Date, default: null },
   },
   {

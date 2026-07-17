@@ -6,9 +6,17 @@ const {
   paiseFromCredits,
   leadCostCredits,
 } = require("../utils/credits");
-const { validateLeadStatus } = require("../utils/lead-status");
+const {
+  validateActivityStatus,
+  validateLeadFeedback,
+} = require("../utils/lead-status");
 const { presentProvider, providerCategories } = require("../utils/provider");
 const { presentLead } = require("../utils/lead");
+const {
+  competitionLevel,
+  discountedCredits,
+  discountPercentForUnlocks,
+} = require("../utils/marketplace");
 const { getPlan, directPaymentQuote } = require("../config/plans");
 
 test("rupee-backed balances and lead prices are exposed as 1:1 credits", () => {
@@ -31,51 +39,82 @@ test("provider categories are deduplicated and empty values are removed", () => 
   );
 });
 
-test("lead status requires a valid reason and Other requires a note", () => {
+test("sale outcome is mandatory while activity status remains optional", () => {
   assert.deepEqual(
-    validateLeadStatus({
+    validateLeadFeedback({ outcome: "Confirmed" }),
+    {
+      outcome: "confirmed",
+      outcomeNote: "",
+      status: "",
+      reason: "",
+      note: "",
+    },
+  );
+
+  assert.throws(
+    () => validateLeadFeedback({ status: "contacted" }),
+    (error) => error.code === "PROVIDER_OUTCOME_REQUIRED",
+  );
+
+  assert.deepEqual(
+    validateActivityStatus({
       status: "On Hold",
-      reason: "schedule pending",
       note: "Customer will confirm tomorrow",
     }),
     {
       status: "on_hold",
-      reason: "schedule_pending",
+      reason: "",
       note: "Customer will confirm tomorrow",
     },
   );
 
   assert.throws(
-    () => validateLeadStatus({ status: "rejected", reason: "other" }),
+    () => validateActivityStatus({ status: "rejected", reason: "other" }),
     (error) => error.code === "LEAD_STATUS_NOTE_REQUIRED",
-  );
-
-  assert.throws(
-    () => validateLeadStatus({ status: "confirmed", reason: "invalid_contact" }),
-    (error) => error.code === "LEAD_STATUS_REASON_INVALID",
   );
 });
 
-test("saved provider lead status is returned only after contact unlock", () => {
+test("marketplace competition and discount tiers use previous successful unlocks", () => {
+  assert.equal(competitionLevel(0), "low");
+  assert.equal(competitionLevel(2), "medium");
+  assert.equal(competitionLevel(4), "high");
+
+  assert.equal(discountPercentForUnlocks(0), 0);
+  assert.equal(discountPercentForUnlocks(1), 20);
+  assert.equal(discountPercentForUnlocks(3), 40);
+  assert.equal(discountPercentForUnlocks(5), 50);
+  assert.equal(discountPercentForUnlocks(8), 75);
+
+  assert.deepEqual(discountedCredits(100, 3), {
+    baseCredits: 100,
+    effectiveCredits: 60,
+    discountPercent: 40,
+    savingsCredits: 40,
+    previousUnlocks: 3,
+  });
+});
+
+test("saved provider outcome and activity are returned only after contact unlock", () => {
   const source = {
     leadDistributionId: "lead-1",
     status: "unlocked",
     contactUnlocked: true,
     leadPricePaise: 5000,
-    providerLeadStatus: "confirmed",
-    providerLeadReason: "service_booked",
-    providerLeadNote: "Booked for Monday",
+    providerSaleOutcome: "confirmed",
+    providerSaleOutcomeNote: "Booked for Monday",
+    providerLeadStatus: "follow_up",
+    providerLeadNote: "Final service date pending",
   };
 
   const unlocked = presentLead(source);
   assert.equal(unlocked.leadCostCredits, 50);
-  assert.equal(unlocked.providerLeadStatus, "confirmed");
-  assert.equal(unlocked.providerLeadReason, "service_booked");
+  assert.equal(unlocked.providerSaleOutcome, "confirmed");
+  assert.equal(unlocked.providerLeadStatus, "follow_up");
 
   const locked = presentLead({ ...source, status: "offered", contactUnlocked: false });
+  assert.equal(locked.providerSaleOutcome, undefined);
   assert.equal(locked.providerLeadStatus, undefined);
 });
-
 
 test("plan pricing applies monthly GST and includes yearly GST", () => {
   const starterMonthly = getPlan("starter", "monthly");

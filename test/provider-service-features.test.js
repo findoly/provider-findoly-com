@@ -41,42 +41,12 @@ test("locked lead detail is hidden after provider category mismatch", async () =
   }
 });
 
-test("unlocked lead status update stores status, reason, note and provider", async () => {
-  const originalFindOneAndUpdate = LeadDistribution.findOneAndUpdate;
-  let capturedQuery;
-  let capturedUpdate;
-
-  LeadDistribution.findOneAndUpdate = async (query, update) => {
-    capturedQuery = query;
-    capturedUpdate = update;
-    return {
-      toObject: () => ({
-        leadDistributionId: "lead-1",
-        providerId: "provider-1",
-        categorySlug: "grooming",
-        status: "unlocked",
-        contactUnlocked: true,
-        leadPricePaise: 2500,
-        ...update.$set,
-      }),
-    };
-  };
-
-  try {
-    const result = await leadService.updateStatus(provider, "lead-1", {
-      status: "rejected",
-      reason: "other",
-      note: "Customer requested a service outside our scope",
-    });
-
-    assert.equal(capturedQuery.providerId, "provider-1");
-    assert.equal(capturedQuery.contactUnlocked, true);
-    assert.equal(capturedUpdate.$set.providerLeadStatus, "rejected");
-    assert.equal(capturedUpdate.$set.providerLeadReason, "other");
-    assert.equal(capturedUpdate.$set.providerLeadStatusUpdatedBy, "provider-1");
-    assert.equal(result.providerLeadStatus, "rejected");
-    assert.equal(result.providerLeadNote, "Customer requested a service outside our scope");
-  } finally {
-    LeadDistribution.findOneAndUpdate = originalFindOneAndUpdate;
-  }
+test("provider feedback requires a mandatory sale outcome before database access", async () => {
+  await assert.rejects(
+    leadService.updateFeedback(provider, "lead-1", {
+      status: "follow_up",
+      note: "Customer asked us to call tomorrow",
+    }),
+    (error) => error.code === "PROVIDER_OUTCOME_REQUIRED" && error.status === 400,
+  );
 });

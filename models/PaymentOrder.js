@@ -33,6 +33,10 @@ const paymentOrderSchema = new mongoose.Schema(
 
     leadDistributionId: { type: String, default: "", index: true },
     enquiryId: { type: String, default: "", index: true },
+    baseLeadCostCredits: { type: Number, default: 0, min: 0 },
+    effectiveLeadCostCredits: { type: Number, default: 0, min: 0 },
+    unlockDiscountPercent: { type: Number, default: 0, min: 0, max: 100 },
+    unlockCountAtPurchase: { type: Number, default: 0, min: 0 },
 
     currency: { type: String, default: "INR" },
     status: { type: String, default: "created", index: true },

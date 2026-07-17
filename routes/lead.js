@@ -4,6 +4,7 @@ const { unlockLimiter, walletLimiter } = require("../middleware/rate-limit");
 const { verifyCsrf } = require("../middleware/security");
 
 router.get("/", controller.list);
+router.get("/pending-outcomes", controller.pendingOutcomes);
 router.get("/:leadDistributionId", controller.get);
 router.post(
   "/:leadDistributionId/unlock",

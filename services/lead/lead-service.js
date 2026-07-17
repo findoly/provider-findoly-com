@@ -9,9 +9,11 @@ const {
 } = require("../../utils/provider");
 const { presentLead } = require("../../utils/lead");
 const { leadCostCredits, paiseFromCredits } = require("../../utils/credits");
-const { validateLeadStatus } = require("../../utils/lead-status");
+const { discountedCredits, normalizeIntent } = require("../../utils/marketplace");
+const { validateLeadFeedback } = require("../../utils/lead-status");
 const { withTransaction } = require("../../utils/transaction");
 const creditService = require("../billing/credit-service");
+const crmService = require("../integration/crm-service");
 
 function escapeRegex(value) {
   return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -24,18 +26,52 @@ function dateAt(value, endOfDay = false) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-
 function distributionQuery(leadDistributionId) {
-  return {
-    $or: [
-      { leadDistributionId },
-      { id: leadDistributionId },
-    ],
-  };
+  return { $or: [{ leadDistributionId }, { id: leadDistributionId }] };
 }
 
 function enquiryQuery(enquiryId) {
   return { $or: [{ enquiryId }, { id: enquiryId }] };
+}
+
+async function marketplaceMap(rows = [], session = null) {
+  const ids = [...new Set(rows.map((row) => String(row.enquiryId || row.requirementId || "").trim()).filter(Boolean))];
+  if (!ids.length) return new Map();
+  let query = Enquiry.find({ $or: [{ enquiryId: { $in: ids } }, { id: { $in: ids } }] })
+    .select({ enquiryId: 1, id: 1, unlockedCount: 1, providerConfirmedCount: 1, leadIntent: 1, leadCostCredits: 1, leadPricePaise: 1 })
+    .lean();
+  if (session) query = query.session(session);
+  const enquiries = await query;
+  return new Map(enquiries.map((item) => [String(item.enquiryId || item.id), item]));
+}
+
+async function presentRows(rows = [], session = null) {
+  const map = await marketplaceMap(rows, session);
+  return rows.map((row) => {
+    const item = row.toObject ? row.toObject() : { ...row };
+    const enquiry = map.get(String(item.enquiryId || item.requirementId || "")) || {};
+    return presentLead({
+      ...item,
+      marketplaceUnlockedCount: enquiry.unlockedCount,
+      marketplaceConfirmedCount: enquiry.providerConfirmedCount,
+      marketplaceLeadIntent: enquiry.leadIntent,
+      marketplaceBaseCredits: leadCostCredits(item),
+    });
+  });
+}
+
+async function pricingForLead(lead, session = null) {
+  let query = Enquiry.findOne(enquiryQuery(lead.enquiryId || lead.requirementId));
+  if (session) query = query.session(session);
+  const enquiry = await query.lean();
+  const previousUnlocks = Number(enquiry?.unlockedCount || 0);
+  const pricing = discountedCredits(leadCostCredits(lead), previousUnlocks);
+  return {
+    ...pricing,
+    enquiry,
+    leadIntent: normalizeIntent(enquiry?.leadIntent || lead.leadIntent),
+    providerConfirmedCount: Number(enquiry?.providerConfirmedCount || 0),
+  };
 }
 
 async function list(provider, filters = {}) {
@@ -121,10 +157,8 @@ async function list(provider, filters = {}) {
   ]);
 
   return {
-    ...pageResult(rows.map(presentLead), total, page, limit),
-    filters: {
-      categories,
-    },
+    ...pageResult(await presentRows(rows), total, page, limit),
+    filters: { categories },
   };
 }
 
@@ -160,7 +194,7 @@ async function get(provider, leadDistributionId) {
     });
   }
 
-  return presentLead(lead);
+  return (await presentRows([lead]))[0];
 }
 
 async function unlock(provider, leadDistributionId) {
@@ -168,7 +202,7 @@ async function unlock(provider, leadDistributionId) {
   const categories = providerCategories(provider);
 
   try {
-    const result = await withTransaction(async (session) => {
+    return await withTransaction(async (session) => {
       const lead = await LeadDistribution.findOne({
         providerId,
         ...distributionQuery(leadDistributionId),
@@ -180,73 +214,66 @@ async function unlock(provider, leadDistributionId) {
           code: "LEAD_NOT_FOUND",
         });
       }
-
       if (lead.contactUnlocked || lead.status === "unlocked") {
-        return presentLead(lead.toObject());
+        return (await presentRows([lead], session))[0];
       }
-
       if (lead.status !== "offered") {
-        throw Object.assign(
-          new Error(`This lead is ${String(lead.status || "unavailable")}`),
-          { status: 409, code: "LEAD_NOT_AVAILABLE" },
-        );
+        throw Object.assign(new Error(`This lead is ${String(lead.status || "unavailable")}`), {
+          status: 409,
+          code: "LEAD_NOT_AVAILABLE",
+        });
       }
-
       if (!categories.includes(lead.categorySlug)) {
-        throw Object.assign(
-          new Error("This lead no longer matches your provider categories"),
-          { status: 409, code: "CATEGORY_MISMATCH" },
-        );
+        throw Object.assign(new Error("This lead no longer matches your provider categories"), {
+          status: 409,
+          code: "CATEGORY_MISMATCH",
+        });
       }
-
       if (
         lead.directPaymentPendingOrderId &&
         lead.directPaymentPendingUntil &&
         new Date(lead.directPaymentPendingUntil) > new Date()
       ) {
-        throw Object.assign(
-          new Error("A direct payment checkout is already in progress for this lead"),
-          { status: 409, code: "DIRECT_PAYMENT_PENDING" },
-        );
+        throw Object.assign(new Error("A direct payment checkout is already in progress for this lead"), {
+          status: 409,
+          code: "DIRECT_PAYMENT_PENDING",
+        });
       }
 
-      const costCredits = leadCostCredits(lead);
-      const amountPaise = paiseFromCredits(costCredits);
-      const creditResult = await creditService.consumeCredits(
-        providerId,
-        amountPaise,
-        session,
-      );
+      const pricing = await pricingForLead(lead, session);
+      const amountPaise = paiseFromCredits(pricing.effectiveCredits);
+      const creditResult = await creditService.consumeCredits(providerId, amountPaise, session);
 
       let walletTransactionId = "";
       if (amountPaise > 0) {
         walletTransactionId = uuid();
-        await WalletTransaction.create(
-          [
-            {
-              walletTransactionId,
-              providerId,
-              type: "debit",
-              amountPaise,
-              currency: lead.currency || "INR",
-              balanceBeforePaise: creditResult.balanceBeforePaise,
-              balanceAfterPaise: creditResult.balanceAfterPaise,
-              status: "posted",
-              source: "lead_unlock",
-              referenceId: leadDistributionId,
-              idempotencyKey: `lead-unlock:${providerId}:${leadDistributionId}`,
-              description: `Unlocked ${lead.leadTitle || "lead"} using credits`,
-              metadata: {
-                enquiryId: lead.enquiryId,
-                costCredits,
-                allocationConsumption: creditResult.consumption,
-              },
+        await WalletTransaction.create([
+          {
+            walletTransactionId,
+            providerId,
+            type: "debit",
+            amountPaise,
+            currency: lead.currency || "INR",
+            balanceBeforePaise: creditResult.balanceBeforePaise,
+            balanceAfterPaise: creditResult.balanceAfterPaise,
+            status: "posted",
+            source: "lead_unlock",
+            referenceId: leadDistributionId,
+            idempotencyKey: `lead-unlock:${providerId}:${leadDistributionId}`,
+            description: `Unlocked ${lead.leadTitle || "lead"} using credits`,
+            metadata: {
+              enquiryId: lead.enquiryId,
+              baseCredits: pricing.baseCredits,
+              effectiveCredits: pricing.effectiveCredits,
+              discountPercent: pricing.discountPercent,
+              previousUnlocks: pricing.previousUnlocks,
+              allocationConsumption: creditResult.consumption,
             },
-          ],
-          { session },
-        );
+          },
+        ], { session });
       }
 
+      const now = new Date();
       const unlocked = await LeadDistribution.findOneAndUpdate(
         {
           providerId,
@@ -258,13 +285,18 @@ async function unlock(provider, leadDistributionId) {
           $set: {
             contactUnlocked: true,
             status: "unlocked",
-            unlockedAt: new Date(),
+            unlockedAt: now,
             walletTransactionId,
             unlockMethod: "credits",
             paymentOrderId: "",
             directPaymentPendingOrderId: "",
             directPaymentPendingUntil: null,
-            updatedAt: new Date(),
+            baseLeadCostCredits: pricing.baseCredits,
+            effectiveLeadCostCredits: pricing.effectiveCredits,
+            unlockDiscountPercent: pricing.discountPercent,
+            unlockCountAtPurchase: pricing.previousUnlocks,
+            leadIntent: pricing.leadIntent,
+            updatedAt: now,
           },
         },
         { new: true, session },
@@ -279,72 +311,157 @@ async function unlock(provider, leadDistributionId) {
 
       await Enquiry.updateOne(
         enquiryQuery(lead.enquiryId || lead.requirementId),
-        { $inc: { unlockedCount: 1 }, $set: { updatedAt: new Date() } },
+        { $inc: { unlockedCount: 1 }, $set: { updatedAt: now } },
         { session },
       );
-
-      return presentLead(unlocked.toObject());
+      return (await presentRows([unlocked], session))[0];
     });
-
-    return result;
   } catch (error) {
     if (error?.code === 11000) {
-      const latest = await LeadDistribution.findOne({
-        providerId,
-        ...distributionQuery(leadDistributionId),
-      }).lean();
-      if (latest?.contactUnlocked) return presentLead(latest);
+      const latest = await LeadDistribution.findOne({ providerId, ...distributionQuery(leadDistributionId) }).lean();
+      if (latest?.contactUnlocked) return (await presentRows([latest]))[0];
     }
     throw error;
   }
 }
 
-async function updateStatus(provider, leadDistributionId, input = {}) {
+async function updateFeedback(provider, leadDistributionId, input = {}) {
   const providerId = providerIdentity(provider);
-  const update = validateLeadStatus(input);
+  const feedback = validateLeadFeedback(input);
   const now = new Date();
+  const existing = await LeadDistribution.findOne({
+    providerId,
+    ...distributionQuery(leadDistributionId),
+  }).lean();
 
-  const lead = await LeadDistribution.findOneAndUpdate(
-    {
-      providerId,
-      ...distributionQuery(leadDistributionId),
-      contactUnlocked: true,
+  if (!existing) {
+    throw Object.assign(new Error("Lead offer not found"), { status: 404, code: "LEAD_NOT_FOUND" });
+  }
+  if (existing.contactUnlocked !== true) {
+    throw Object.assign(new Error("Unlock this lead before updating its outcome"), {
+      status: 409,
+      code: "LEAD_NOT_UNLOCKED",
+    });
+  }
+
+  const outcomeHistory = {
+    historyId: uuid(),
+    fromOutcome: existing.providerSaleOutcome || (existing.providerLeadStatus === "confirmed" ? "confirmed" : ""),
+    outcome: feedback.outcome,
+    note: feedback.outcomeNote,
+    actor: `provider:${providerId}`,
+    createdAt: now,
+  };
+  const update = {
+    $set: {
+      providerSaleOutcome: feedback.outcome,
+      providerSaleOutcomeNote: feedback.outcomeNote,
+      providerSaleOutcomeUpdatedAt: now,
+      providerSaleOutcomeUpdatedBy: providerId,
+      providerLeadStatus: feedback.status,
+      providerLeadReason: feedback.reason,
+      providerLeadNote: feedback.note,
+      providerLeadStatusUpdatedAt: feedback.status ? now : existing.providerLeadStatusUpdatedAt || null,
+      providerLeadStatusUpdatedBy: feedback.status ? providerId : existing.providerLeadStatusUpdatedBy || "",
+      outcomeVerificationStatus: "pending_review",
+      outcomeVerificationNote: "",
+      outcomeVerifiedAt: null,
+      outcomeVerifiedBy: "",
+      crmSyncStatus: "pending",
+      crmSyncError: "",
+      crmSyncUpdatedAt: now,
+      updatedAt: now,
     },
-    {
-      $set: {
-        providerLeadStatus: update.status,
-        providerLeadReason: update.reason,
-        providerLeadNote: update.note,
-        providerLeadStatusUpdatedAt: now,
-        providerLeadStatusUpdatedBy: providerId,
-        updatedAt: now,
-      },
-    },
-    { new: true },
-  );
+    $push: { providerSaleOutcomeHistory: outcomeHistory },
+  };
+  if (feedback.status) {
+    update.$push.providerLeadStatusHistory = {
+      historyId: uuid(),
+      fromStatus: existing.providerLeadStatus || "",
+      status: feedback.status,
+      reason: feedback.reason,
+      note: feedback.note,
+      actor: `provider:${providerId}`,
+      createdAt: now,
+    };
+  }
 
-  if (!lead) {
-    const existing = await LeadDistribution.findOne({
+  await LeadDistribution.updateOne({ leadDistributionId: existing.leadDistributionId }, update);
+
+  let syncError = null;
+  try {
+    const sync = await crmService.sendProviderFeedback({
+      leadDistributionId: existing.leadDistributionId,
+      enquiryId: existing.enquiryId,
       providerId,
-      ...distributionQuery(leadDistributionId),
-    })
-      .select({ contactUnlocked: 1, status: 1 })
-      .lean();
-
-    if (!existing) {
-      throw Object.assign(new Error("Lead offer not found"), {
-        status: 404,
-        code: "LEAD_NOT_FOUND",
-      });
-    }
-
-    throw Object.assign(
-      new Error("Unlock this lead before updating its status"),
-      { status: 409, code: "LEAD_NOT_UNLOCKED" },
+      providerName: existing.providerBusinessName || existing.providerName || provider.businessName || provider.name || "",
+      outcome: feedback.outcome,
+      outcomeNote: feedback.outcomeNote,
+      activityStatus: feedback.status,
+      reason: feedback.reason,
+      note: feedback.note,
+      updatedAt: now.toISOString(),
+    });
+    await LeadDistribution.updateOne(
+      { leadDistributionId: existing.leadDistributionId },
+      { $set: { crmSyncStatus: sync.skipped ? "pending" : "synced", crmSyncError: sync.reason || "", crmSyncUpdatedAt: new Date() } },
+    );
+  } catch (error) {
+    syncError = error;
+    await LeadDistribution.updateOne(
+      { leadDistributionId: existing.leadDistributionId },
+      { $set: { crmSyncStatus: "failed", crmSyncError: String(error.message || "CRM synchronization failed").slice(0, 1000), crmSyncUpdatedAt: new Date() } },
     );
   }
 
-  return presentLead(lead.toObject());
+  const updated = await LeadDistribution.findOne({ leadDistributionId: existing.leadDistributionId }).lean();
+  const presented = (await presentRows([updated]))[0];
+  if (syncError) {
+    presented.syncWarning = "Your update was saved, but CRM notification is pending and will need retry.";
+  }
+  return presented;
 }
 
-module.exports = { list, get, unlock, updateStatus };
+async function pendingOutcomes(provider, { limit = 25 } = {}) {
+  const providerId = providerIdentity(provider);
+  const days = Math.max(1, Number(process.env.PROVIDER_OUTCOME_REMINDER_DAYS || 7));
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const rows = await LeadDistribution.find({
+    providerId,
+    contactUnlocked: true,
+    unlockedAt: { $ne: null, $lte: cutoff },
+    $and: [
+      { $or: [{ providerSaleOutcome: "" }, { providerSaleOutcome: { $exists: false } }] },
+      { providerLeadStatus: { $ne: "confirmed" } },
+    ],
+  })
+    .sort({ unlockedAt: 1, _id: 1 })
+    .limit(Math.min(100, Math.max(1, Number(limit || 25))))
+    .lean();
+
+  const data = (await presentRows(rows)).map((lead) => ({
+    ...lead,
+    daysPending: Math.max(days, Math.floor((Date.now() - new Date(lead.unlockedAt).getTime()) / 86400000)),
+  }));
+  const total = await LeadDistribution.countDocuments({
+    providerId,
+    contactUnlocked: true,
+    unlockedAt: { $ne: null, $lte: cutoff },
+    $and: [
+      { $or: [{ providerSaleOutcome: "" }, { providerSaleOutcome: { $exists: false } }] },
+      { providerLeadStatus: { $ne: "confirmed" } },
+    ],
+  });
+  return { data, total, reminderDays: days };
+}
+
+module.exports = {
+  get,
+  list,
+  pendingOutcomes,
+  presentRows,
+  pricingForLead,
+  unlock,
+  updateFeedback,
+  updateStatus: updateFeedback,
+};

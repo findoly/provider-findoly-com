@@ -26,6 +26,7 @@ const leadDistributionSchema = new mongoose.Schema(
     preferredDate: { type: String, default: "" },
     preferredSlot: { type: String, default: "" },
     priority: { type: String, default: "normal" },
+    leadIntent: { type: String, enum: ["not_assessed", "low", "medium", "high"], default: "not_assessed", index: true },
     sourceWebsite: { type: String, default: "" },
     customerName: { type: String, default: "" },
     customerMobile: { type: String, default: "" },
@@ -49,11 +50,28 @@ const leadDistributionSchema = new mongoose.Schema(
     directPaymentTotalPaise: { type: Number, default: 0, min: 0 },
     directPaymentPendingOrderId: { type: String, default: "", index: true },
     directPaymentPendingUntil: { type: Date, default: null },
+    providerSaleOutcome: { type: String, enum: ["", "confirmed", "not_confirmed"], default: "", index: true },
+    providerSaleOutcomeNote: { type: String, default: "" },
+    providerSaleOutcomeUpdatedAt: { type: Date, default: null, index: true },
+    providerSaleOutcomeUpdatedBy: { type: String, default: "" },
+    providerSaleOutcomeHistory: { type: [mongoose.Schema.Types.Mixed], default: undefined },
     providerLeadStatus: { type: String, default: "", index: true },
     providerLeadReason: { type: String, default: "" },
     providerLeadNote: { type: String, default: "" },
     providerLeadStatusUpdatedAt: { type: Date, default: null },
     providerLeadStatusUpdatedBy: { type: String, default: "" },
+    providerLeadStatusHistory: { type: [mongoose.Schema.Types.Mixed], default: undefined },
+    outcomeVerificationStatus: { type: String, enum: ["", "pending_review", "verified", "unable_to_verify", "incorrect_status", "under_review"], default: "", index: true },
+    outcomeVerificationNote: { type: String, default: "" },
+    outcomeVerifiedAt: { type: Date, default: null },
+    outcomeVerifiedBy: { type: String, default: "" },
+    crmSyncStatus: { type: String, enum: ["", "pending", "synced", "failed"], default: "", index: true },
+    crmSyncError: { type: String, default: "" },
+    crmSyncUpdatedAt: { type: Date, default: null },
+    baseLeadCostCredits: { type: Number, min: 0, default: undefined },
+    effectiveLeadCostCredits: { type: Number, min: 0, default: undefined },
+    unlockDiscountPercent: { type: Number, min: 0, max: 100, default: 0 },
+    unlockCountAtPurchase: { type: Number, min: 0, default: 0 },
   },
   {
     collection: "leaddistributions",
@@ -63,6 +81,7 @@ const leadDistributionSchema = new mongoose.Schema(
 );
 
 leadDistributionSchema.index({ enquiryId: 1, providerId: 1 }, { unique: true });
+leadDistributionSchema.index({ providerId: 1, contactUnlocked: 1, unlockedAt: 1, providerSaleOutcome: 1 });
 
 module.exports = mongoose.model(
   "LeadDistribution",

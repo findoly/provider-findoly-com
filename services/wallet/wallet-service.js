@@ -21,6 +21,7 @@ const {
   paiseFromCredits,
 } = require("../../utils/credits");
 const { presentLead } = require("../../utils/lead");
+const { discountedCredits } = require("../../utils/marketplace");
 const {
   directPaymentQuote,
   getPlan,
@@ -369,7 +370,9 @@ async function createLeadOrder(provider, leadDistributionId) {
   const providerId = providerIdentity(provider);
   const lead = await findLeadForDirectPayment(provider, leadDistributionId);
   const syncedProvider = await creditService.syncCredits(providerId);
-  const costMinor = paiseFromCredits(leadCostCredits(lead));
+  const enquiry = await Enquiry.findOne(enquiryQuery(lead.enquiryId || lead.requirementId)).lean();
+  const pricing = discountedCredits(leadCostCredits(lead), enquiry?.unlockedCount || 0);
+  const costMinor = paiseFromCredits(pricing.effectiveCredits);
 
   if (Number(syncedProvider.walletBalancePaise || 0) >= costMinor) {
     throw Object.assign(
@@ -402,6 +405,10 @@ async function createLeadOrder(provider, leadDistributionId) {
         gstAmountPaise: Number(existing.gstAmountPaise || 0),
         totalAmountPaise: Number(existing.totalAmountPaise || existing.amountPaise),
         gstRatePercent: Number(existing.gstRatePercent || 18),
+        baseCredits: Number(existing.baseLeadCostCredits || leadCostCredits(lead)),
+        effectiveCredits: Number(existing.effectiveLeadCostCredits || creditsFromPaise(existing.subtotalPaise || 0)),
+        discountPercent: Number(existing.unlockDiscountPercent || 0),
+        previousUnlocks: Number(existing.unlockCountAtPurchase || 0),
       },
       lead: {
         leadDistributionId: lead.leadDistributionId || leadDistributionId,
@@ -413,9 +420,7 @@ async function createLeadOrder(provider, leadDistributionId) {
     };
   }
 
-  const baseAmountPaise = Number(lead.leadPricePaise || 0) > 0
-    ? Number(lead.leadPricePaise)
-    : costMinor;
+  const baseAmountPaise = costMinor;
   const quote = directPaymentQuote(baseAmountPaise);
   if (quote.totalAmountPaise < 100) {
     throw Object.assign(new Error("This lead does not require direct payment"), {
@@ -455,6 +460,10 @@ async function createLeadOrder(provider, leadDistributionId) {
     currency: "INR",
     status: "created",
     fulfillmentStatus: "pending",
+    baseLeadCostCredits: pricing.baseCredits,
+    effectiveLeadCostCredits: pricing.effectiveCredits,
+    unlockDiscountPercent: pricing.discountPercent,
+    unlockCountAtPurchase: pricing.previousUnlocks,
     receipt,
   });
 
@@ -506,7 +515,13 @@ async function createLeadOrder(provider, leadDistributionId) {
     razorpayOrderId: order.id,
     amountPaise: quote.totalAmountPaise,
     currency: "INR",
-    quote,
+    quote: {
+      ...quote,
+      baseCredits: pricing.baseCredits,
+      effectiveCredits: pricing.effectiveCredits,
+      discountPercent: pricing.discountPercent,
+      previousUnlocks: pricing.previousUnlocks,
+    },
     lead: {
       leadDistributionId: lead.leadDistributionId || leadDistributionId,
       enquiryId: lead.enquiryId || "",
@@ -880,6 +895,10 @@ async function fulfillLeadOrder(paymentOrder, paymentId) {
           directPaymentTotalPaise: Number(order.totalAmountPaise || order.amountPaise || 0),
           directPaymentPendingOrderId: "",
           directPaymentPendingUntil: null,
+          baseLeadCostCredits: Number(order.baseLeadCostCredits ?? leadCostCredits(existingLead)),
+          effectiveLeadCostCredits: Number(order.effectiveLeadCostCredits ?? creditsFromPaise(order.subtotalPaise || 0)),
+          unlockDiscountPercent: Number(order.unlockDiscountPercent || 0),
+          unlockCountAtPurchase: Number(order.unlockCountAtPurchase || 0),
           updatedAt: now,
         },
       },

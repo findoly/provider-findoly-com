@@ -82,6 +82,16 @@ async function verifyDirectPayment(req, res, next) {
   }
 }
 
+
+async function pendingOutcomes(req, res, next) {
+  try {
+    const result = await service.pendingOutcomes(req.provider, req.query);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function updateStatus(req, res, next) {
   try {
     return res.json({
@@ -105,4 +115,5 @@ module.exports = {
   cancelDirectPayment,
   verifyDirectPayment,
   updateStatus,
+  pendingOutcomes,
 };
