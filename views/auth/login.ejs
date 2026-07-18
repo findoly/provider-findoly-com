@@ -4,16 +4,16 @@
 <body class="portal-login-body" x-data="loginPage()" x-init="init()">
   <main class="portal-login-shell">
     <div class="portal-login-brand">
-      <span class="portal-brand-mark">L</span>
-      <div><strong>LeadPortal</strong><span>Secure provider access</span></div>
+      <img src="/images/findoly-logo.png" alt="Findoly" class="portal-login-logo">
+      <span>Provider portal</span>
     </div>
 
     <section class="card portal-login-card" aria-labelledby="loginTitle">
       <div class="card-body">
         <div class="text-center mb-4">
-          <span class="portal-login-lock" aria-hidden="true">✓</span>
-          <h1 id="loginTitle" class="h3 mb-2">Provider login</h1>
-          <p class="text-muted mb-0">Use the mobile number approved in the CRM.</p>
+          <span class="portal-login-lock" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span>
+          <h1 id="loginTitle" class="h3 mb-2">Sign in to Findoly</h1>
+          <p class="text-muted mb-0">Use the mobile number approved for your provider account.</p>
         </div>
 
         <div x-show="error" x-cloak class="alert alert-danger" role="alert" x-text="error"></div>

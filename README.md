@@ -198,31 +198,45 @@ npm run ensure:indexes
 npm audit --omit=dev
 ```
 
-## Marketplace transparency and dynamic lead pricing
+## Nearby marketplace and transparency
 
-Before an unlock, the provider can see the lead intent selected by CRM, the current competition level, how many providers have unlocked the lead, whether any provider currently confirms the sale, and the current effective credit cost. Customer contact information remains hidden.
+The CRM is the source of truth for provider categories, the provider's single service PIN code, provider coordinates and Lead Intent. Providers can view the registered service area in the portal, but cannot edit it themselves.
 
-Competition is calculated from successful unlocks:
+Before an unlock, the provider can see:
 
-| Successful unlocks | Competition |
-|---:|---|
-| 0–1 | Low |
-| 2–3 | Medium |
-| 4+ | High |
+- CRM-assigned Lead Intent (`high`, `medium`, `low`, or `not_assessed`);
+- approximate distance from the CRM-managed provider service location;
+- the number of providers who have unlocked the lead;
+- whether any provider currently reports a confirmed sale;
+- requirement, location and preferred timing;
+- the original credit cost configured by CRM.
 
-The CRM-assigned lead intent is one of `high`, `medium`, `low`, or `not_assessed`.
+There is no dynamic discount. Wallet-credit and direct-payment unlocks always use the CRM-configured lead price. Customer contact information remains hidden until a successful unlock.
 
-The server calculates the unlock discount from previous successful unlocks:
+Marketplace visibility expands progressively from the lead location:
 
-| Previous successful unlocks | Discount |
+| Time after marketplace publication | Radius |
 |---:|---:|
-| 0 | 0% |
-| 1–2 | 20% |
-| 3–4 | 40% |
-| 5–7 | 50% |
-| 8+ | 75% |
+| 0–5 minutes | 5 km |
+| 5–15 minutes | 10 km |
+| 15–30 minutes | 25 km |
+| 30–60 minutes | 50 km |
+| 1–2 hours | 100 km |
+| 2–4 hours | 200 km |
+| 4–8 hours | 400 km |
+| After 8 hours | No platform radius restriction |
 
-Wallet-credit and direct-payment unlocks use the same effective price. Direct-payment quotes are stored on the payment order, so the amount remains fixed while the Razorpay checkout is active.
+Category matching and active-account checks continue to apply at every stage. A successfully unlocked lead is removed from that provider's Marketplace and appears in Unlocked Leads.
+
+## Provider interface
+
+The provider portal uses the Findoly logo and a LinkedIn-inspired responsive workspace with:
+
+- desktop top navigation and provider summary rail;
+- feed-style Marketplace and Unlocked Lead cards;
+- compact filters;
+- a mobile bottom navigation bar;
+- mobile-safe lead actions, reminders, profile, wallet and payment screens.
 
 ## Provider outcomes and CRM synchronization
 

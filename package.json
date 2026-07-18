@@ -1,7 +1,7 @@
 {
   "name": "provider-lead-portal",
-  "version": "1.2.0",
-  "description": "Production-ready provider lead portal with category matching, subscription credits, Razorpay plan checkout and direct Pay & Unlock.",
+  "version": "1.3.0",
+  "description": "Findoly provider portal with nearby lead matching, CRM-synced outcomes, responsive professional UI, credits and Razorpay unlocks.",
   "private": true,
   "type": "commonjs",
   "scripts": {

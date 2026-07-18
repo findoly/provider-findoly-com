@@ -16,39 +16,50 @@
   <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.1a1.9 1.9 0 0 0 1.4-3.2 1.9 1.9 0 0 1 1.4-3.2H18a3 3 0 0 0 3-3A8.6 8.6 0 0 0 12 3z"/><circle cx="7.5" cy="10" r=".8"/><circle cx="10" cy="6.8" r=".8"/><circle cx="14" cy="6.8" r=".8"/><circle cx="16.5" cy="10" r=".8"/></symbol>
 </svg>
 
-<div class="navbar navbar-expand-lg navbar-static portal-navbar border-bottom">
-  <div class="container-fluid">
-    <div class="d-flex d-lg-none me-2">
-      <button type="button" class="navbar-toggler portal-sidebar-toggle" aria-label="Open navigation" @click="toggleSidebar()">
-        <svg class="icon"><use href="#i-menu"></use></svg>
-      </button>
-    </div>
+<header class="portal-navbar" role="banner">
+  <div class="portal-navbar-inner">
+    <button type="button" class="portal-mobile-menu d-lg-none" aria-label="Open navigation" @click="toggleSidebar()">
+      <svg class="icon"><use href="#i-menu"></use></svg>
+    </button>
 
-    <div class="navbar-brand flex-1 flex-lg-0">
-      <a href="/dashboard" class="portal-brand">
-        <span class="portal-brand-mark">L</span>
-        <span>LeadPortal</span>
+    <a href="/dashboard" class="portal-brand" aria-label="Findoly provider dashboard">
+      <img src="/images/findoly-logo.png" alt="Findoly" class="portal-brand-logo">
+      <span class="portal-brand-product d-none d-xl-inline">Provider</span>
+    </a>
+
+    <form class="portal-global-search d-none d-md-flex" @submit.prevent="runSearch()">
+      <svg class="icon"><use href="#i-search"></use></svg>
+      <input type="search" x-model="shellSearch" placeholder="Search leads" aria-label="Search leads">
+    </form>
+
+    <nav class="portal-desktop-nav d-none d-lg-flex" aria-label="Primary navigation">
+      <a href="/dashboard" :class="{ active: pathIs('/dashboard') }">
+        <svg class="icon"><use href="#i-home"></use></svg><span>Home</span>
       </a>
-    </div>
+      <a href="/leads?status=offered" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }">
+        <svg class="icon"><use href="#i-lead"></use></svg><span>Marketplace</span>
+      </a>
+      <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' }">
+        <svg class="icon"><use href="#i-unlock"></use></svg><span>Unlocked</span>
+      </a>
+      <a href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }">
+        <svg class="icon"><use href="#i-wallet"></use></svg><span>Credits</span>
+      </a>
+    </nav>
 
-    <div class="d-none d-md-flex flex-fill justify-content-center px-4">
-      <form class="portal-global-search" @submit.prevent="runSearch()">
-        <svg class="icon"><use href="#i-search"></use></svg>
-        <input type="search" x-model="shellSearch" placeholder="Search available leads" aria-label="Search leads">
-      </form>
-    </div>
+    <div class="portal-navbar-actions">
+      <a class="portal-wallet-pill d-none d-sm-inline-flex" href="/plans" aria-label="Open credits and plans">
+        <span>Credits</span>
+        <strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong>
+      </a>
 
-    <ul class="nav flex-row align-items-center gap-2 ms-auto">
-      <li class="nav-item">
-        <a class="portal-wallet-pill" href="/plans">
-          <span>Credits</span>
-          <strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong>
-        </a>
-      </li>
-      <li class="nav-item dropdown portal-profile-dropdown">
+      <div class="dropdown portal-profile-dropdown">
         <button class="portal-user-button" data-bs-toggle="dropdown" data-bs-display="static" data-bs-auto-close="outside" type="button" aria-expanded="false" aria-label="Open account menu">
           <span x-text="initials(provider.name || provider.businessName || 'Provider')">P</span>
-          <span class="d-none d-sm-inline" x-text="provider.businessName || provider.name || 'Provider'">Provider</span>
+          <span class="d-none d-xl-inline portal-user-copy">
+            <strong x-text="provider.businessName || provider.name || 'Provider'">Provider</strong>
+            <small>Me</small>
+          </span>
         </button>
         <div class="dropdown-menu dropdown-menu-end portal-profile-menu">
           <div class="portal-profile-menu-header">
@@ -61,52 +72,31 @@
           <div class="portal-profile-menu-links">
             <a class="dropdown-item" href="/profile"><svg class="icon"><use href="#i-user"></use></svg><span>My profile</span></a>
             <a class="dropdown-item" href="/plans"><svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span></a>
-            <button
-              class="dropdown-item d-flex align-items-center justify-content-between portal-appearance-toggle"
-              type="button"
-              :aria-expanded="appearanceOpen.toString()"
-              aria-controls="portalThemeChoices"
-              @click.stop="appearanceOpen = !appearanceOpen"
-            >
+            <button class="dropdown-item d-flex align-items-center justify-content-between portal-appearance-toggle" type="button" :aria-expanded="appearanceOpen.toString()" aria-controls="portalThemeChoices" @click.stop="appearanceOpen = !appearanceOpen">
               <span class="portal-menu-item-main"><svg class="icon"><use href="#i-palette"></use></svg><span>Appearance</span></span>
-              <span class="portal-appearance-current">
-                <small x-text="themeLabel(theme)">Professional Blue</small>
-                <span class="portal-appearance-chevron" :class="{ 'is-open': appearanceOpen }" aria-hidden="true">⌄</span>
-              </span>
+              <span class="portal-appearance-current"><small x-text="themeLabel(theme)">Professional Blue</small><span class="portal-appearance-chevron" :class="{ 'is-open': appearanceOpen }" aria-hidden="true">⌄</span></span>
             </button>
-            <div
-              id="portalThemeChoices"
-              class="portal-inline-themes"
-              x-cloak
-              x-show="appearanceOpen"
-              x-transition.opacity.duration.120ms
-              @click.stop
-            >
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'professional-blue' }" @click="setTheme('professional-blue')">
-                <span class="portal-inline-theme-preview portal-theme-preview-blue" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-                <span><strong>Professional Blue</strong><small>Clean and business-focused</small></span>
-                <svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg>
-              </button>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'teal-professional' }" @click="setTheme('teal-professional')">
-                <span class="portal-inline-theme-preview portal-theme-preview-teal" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-                <span><strong>Teal Professional</strong><small>Modern and service-oriented</small></span>
-                <svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg>
-              </button>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'navy-premium' }" @click="setTheme('navy-premium')">
-                <span class="portal-inline-theme-preview portal-theme-preview-navy" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-                <span><strong>Navy Premium</strong><small>Rich navigation and bright content</small></span>
-                <svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg>
-              </button>
+            <div id="portalThemeChoices" class="portal-inline-themes" x-cloak x-show="appearanceOpen" x-transition.opacity.duration.120ms @click.stop>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'professional-blue' }" @click="setTheme('professional-blue')"><span class="portal-inline-theme-preview portal-theme-preview-blue" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Professional Blue</strong><small>Clean and business-focused</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'teal-professional' }" @click="setTheme('teal-professional')"><span class="portal-inline-theme-preview portal-theme-preview-teal" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Teal Professional</strong><small>Modern and service-oriented</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'navy-premium' }" @click="setTheme('navy-premium')"><span class="portal-inline-theme-preview portal-theme-preview-navy" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Navy Premium</strong><small>Rich navigation and bright content</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
             </div>
           </div>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item text-danger" type="button" @click="logout()">Sign out</button>
         </div>
-      </li>
-    </ul>
+      </div>
+    </div>
   </div>
-</div>
+</header>
 
+<nav class="portal-mobile-nav d-lg-none" aria-label="Mobile navigation">
+  <a href="/dashboard" :class="{ active: pathIs('/dashboard') }"><svg class="icon"><use href="#i-home"></use></svg><span>Home</span></a>
+  <a href="/leads?status=offered" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }"><svg class="icon"><use href="#i-lead"></use></svg><span>Leads</span></a>
+  <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' }"><svg class="icon"><use href="#i-unlock"></use></svg><span>Unlocked</span></a>
+  <a href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }"><svg class="icon"><use href="#i-wallet"></use></svg><span>Credits</span></a>
+  <a href="/profile" :class="{ active: pathIs('/profile') }"><svg class="icon"><use href="#i-user"></use></svg><span>Profile</span></a>
+</nav>
 
 <div class="portal-toast" x-cloak x-show="notice.show" x-transition :class="'portal-toast-' + notice.type" role="status" aria-live="polite">
   <span class="portal-toast-dot"></span>

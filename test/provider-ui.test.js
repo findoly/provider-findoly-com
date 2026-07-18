@@ -12,7 +12,7 @@ test("lead lists use the cache-busted professional feed UI", () => {
   const view = source("views/lead/index.ejs");
   const css = source("public/css/app.css");
 
-  assert.match(head, /app\.css\?v=provider-social-ui-/);
+  assert.match(head, /app\.css\?v=provider-linkedin-mobile-/);
   assert.match(view, /provider-filter-grid/);
   assert.match(view, /provider-feed-card/);
   assert.match(view, /provider-transparency-row/);
@@ -28,6 +28,21 @@ test("lead lists use the cache-busted professional feed UI", () => {
   ]) {
     assert.match(css, new RegExp(selector.replace(".", "\\.")));
   }
+});
+
+test("provider shell uses Findoly branding and mobile navigation", () => {
+  const navbar = source("views/partials/navbar.ejs");
+  const sidebar = source("views/partials/sidebar.ejs");
+  const login = source("views/auth/login.ejs");
+  const css = source("public/css/app.css");
+
+  assert.match(navbar, /\/images\/findoly-logo\.png/);
+  assert.match(login, /\/images\/findoly-logo\.png/);
+  assert.match(navbar, /portal-desktop-nav/);
+  assert.match(navbar, /portal-mobile-nav/);
+  assert.match(sidebar, /portal-provider-card/);
+  assert.match(css, /\.portal-mobile-nav/);
+  assert.match(css, /Findoly provider workspace/);
 });
 
 test("provider UI retains synchronized marketplace and outcome features", () => {
@@ -47,4 +62,16 @@ test("provider UI retains synchronized marketplace and outcome features", () => 
   assert.match(dashboard, /pendingOutcomeCount/);
   assert.match(dashboard, /Remind me later/);
   assert.match(profile, /servicePincode/);
+});
+
+test("provider location is read-only and CRM managed", () => {
+  const profile = source("views/profile/index.ejs");
+  const controller = source("controllers/profileController.js");
+  const leadList = source("views/lead/index.ejs");
+
+  assert.match(profile, /managed by the Findoly CRM team/i);
+  assert.doesNotMatch(profile, /saveLocation\(/);
+  assert.doesNotMatch(profile, /api\/profile\/location/);
+  assert.match(controller, /CRM_MANAGED_LOCATION/);
+  assert.match(leadList, /pending in CRM/i);
 });

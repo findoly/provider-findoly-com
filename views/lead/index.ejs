@@ -30,10 +30,10 @@
 
   <div class="portal-location-required provider-location-alert mb-3" x-show="!loading && !locationReady && filters.status !== 'unlocked'" x-cloak>
     <div class="min-w-0">
-      <strong>Add your service PIN code to view nearby leads</strong>
-      <span>Findoly releases category-matched leads to the closest eligible providers first.</span>
+      <strong>Your service location is pending in CRM</strong>
+      <span>Contact Findoly support to complete your provider PIN code before nearby leads can appear.</span>
     </div>
-    <a href="/profile#marketplace-location" class="btn btn-primary btn-sm">Add PIN code</a>
+    <a href="/profile#marketplace-location" class="btn btn-light btn-sm">View account location</a>
   </div>
 
   <nav class="provider-lead-tabs" aria-label="Lead sections">
@@ -156,8 +156,8 @@
           <div x-show="loading" class="text-muted">Loading leads…</div>
           <div x-show="!loading && !rows.length">
             <div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div>
-            <h3 x-text="filters.status === 'unlocked' ? 'No unlocked leads yet' : (!locationReady ? 'Service PIN code required' : 'No nearby leads right now')"></h3>
-            <p x-text="filters.status === 'unlocked' ? 'Leads appear here immediately after a successful unlock.' : (!locationReady ? 'Add your primary PIN code in My Profile to start receiving nearby opportunities.' : 'New category-matched opportunities will appear as the marketplace expands.')"></p>
+            <h3 x-text="filters.status === 'unlocked' ? 'No unlocked leads yet' : (!locationReady ? 'Service location pending' : 'No nearby leads right now')"></h3>
+            <p x-text="filters.status === 'unlocked' ? 'Leads appear here immediately after a successful unlock.' : (!locationReady ? 'Contact Findoly support to complete your CRM-managed service location.' : 'New category-matched opportunities will appear as the marketplace expands.')"></p>
           </div>
         </div>
       </section>
@@ -201,7 +201,7 @@
             <p>Lead visibility expands by distance over time while category matching remains active.</p>
           </div>
         </div>
-        <a href="/profile#marketplace-location" class="provider-aside-link">Review service PIN code</a>
+        <a href="/profile#marketplace-location" class="provider-aside-link">View service location</a>
       </section>
     </aside>
   </div>

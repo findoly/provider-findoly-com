@@ -48,33 +48,29 @@
         </div>
       </div>
 
-      <div class="card portal-card portal-location-card mb-4">
+      <div class="card portal-card portal-location-card mb-4" id="marketplace-location">
         <div class="card-header border-bottom d-flex align-items-start gap-3">
-          <div>
+          <div class="portal-section-icon"><svg class="icon"><use href="#i-location"></use></svg></div>
+          <div class="min-w-0">
             <div class="portal-step-label">Marketplace location</div>
-            <h5 class="mb-1">Your primary service PIN code</h5>
-            <div class="text-muted fs-sm">Findoly uses this one location to show nearby category-matched leads first. Your full address is optional and is never shown before a lead is unlocked.</div>
+            <h5 class="mb-1">Primary service area</h5>
+            <div class="text-muted fs-sm">Your PIN code is registered and managed by the Findoly CRM team. It is used to show nearby category-matched leads.</div>
           </div>
-          <span class="badge ms-auto" :class="profile.locationReady ? 'bg-success text-white' : 'bg-warning text-dark'" x-text="profile.locationReady ? 'Verified' : 'Required'"></span>
+          <span class="badge ms-auto" :class="profile.locationReady ? 'bg-success text-white' : 'bg-warning text-dark'" x-text="profile.locationReady ? 'Verified' : 'Pending'">Pending</span>
         </div>
-        <form class="card-body" @submit.prevent="saveLocation()">
-          <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-              <label class="form-label" for="servicePincode">PIN code <span class="text-danger">*</span></label>
-              <input id="servicePincode" class="form-control form-control-lg" x-model="locationForm.servicePincode" @input="locationForm.servicePincode = String(locationForm.servicePincode || '').replace(/\D/g, '').slice(0, 6)" inputmode="numeric" pattern="[1-9][0-9]{5}" maxlength="6" placeholder="400001" required>
+        <div class="card-body">
+          <div class="portal-managed-location" :class="profile.locationReady ? 'is-ready' : 'is-pending'">
+            <div class="portal-managed-location-main">
+              <span class="portal-managed-location-pin" x-text="profile.servicePincode || 'Not configured'">Not configured</span>
+              <strong x-text="detectedLocation || 'Service location has not been configured'">Service location has not been configured</strong>
+              <small x-show="profile.serviceAddress" x-text="profile.serviceAddress"></small>
             </div>
-            <div class="col-md-8">
-              <label class="form-label" for="serviceAddress">Full address <span class="text-muted">(optional)</span></label>
-              <input id="serviceAddress" class="form-control form-control-lg" x-model="locationForm.serviceAddress" maxlength="500" placeholder="Business or service address">
-            </div>
-            <div class="col-12">
-              <button class="btn btn-primary" type="submit" :disabled="savingLocation">
-                <span x-text="savingLocation ? 'Verifying location…' : 'Save service location'"></span>
-              </button>
-              <span class="text-muted fs-sm ms-2" x-show="profile.locationReady" x-text="detectedLocation"></span>
+            <div class="portal-managed-location-note">
+              <svg class="icon"><use href="#i-check"></use></svg>
+              <span x-text="profile.locationReady ? 'Managed by Findoly Admin. Contact support if this location needs correction.' : 'Contact Findoly support to complete your service location in CRM.'"></span>
             </div>
           </div>
-        </form>
+        </div>
       </div>
 
       <div class="card portal-card mb-4">
@@ -85,7 +81,7 @@
               <tr><th>Provider ID</th><td class="portal-id" x-text="profile.providerId || '—'"></td></tr>
               <tr><th>Mobile</th><td x-text="profile.mobile || '—'"></td></tr>
               <tr><th>Email</th><td x-text="profile.email || '—'"></td></tr>
-              <tr><th>Verified area</th><td x-text="detectedLocation || 'Add your PIN code above'"></td></tr>
+              <tr><th>Verified area</th><td x-text="detectedLocation || 'Managed by Findoly Admin'"></td></tr>
               <tr><th>Availability</th><td x-text="humanize(profile.availability)"></td></tr>
               <tr><th>Rating</th><td x-text="profile.rating ? `${profile.rating} / 5` : '—'"></td></tr>
             </tbody>
@@ -128,9 +124,7 @@
   function profilePage() {
     return {
       profile: {},
-      locationForm: { servicePincode: '', serviceAddress: '' },
       loading: true,
-      savingLocation: false,
       error: '',
       get detectedLocation() {
         return [
@@ -140,41 +134,13 @@
           this.profile.servicePincode
         ].filter(Boolean).filter((value, index, values) => values.indexOf(value) === index).join(', ');
       },
-      syncForm() {
-        this.locationForm = {
-          servicePincode: this.profile.servicePincode || '',
-          serviceAddress: this.profile.serviceAddress || ''
-        };
-      },
       async load() {
         try {
           this.profile = (await apiFetch('/api/profile')).data;
-          this.syncForm();
         } catch (error) {
           this.error = error.message;
         } finally {
           this.loading = false;
-        }
-      },
-      async saveLocation() {
-        this.error = '';
-        if (!/^[1-9]\d{5}$/.test(String(this.locationForm.servicePincode || ''))) {
-          this.error = 'Enter a valid 6-digit Indian PIN code';
-          return;
-        }
-        this.savingLocation = true;
-        try {
-          this.profile = (await apiFetch('/api/profile/location', {
-            method: 'PATCH',
-            body: JSON.stringify(this.locationForm)
-          })).data;
-          this.syncForm();
-          this.$dispatch('profile-updated');
-          this.$dispatch('portal-notify', { type: 'success', message: `Service location verified for PIN ${this.profile.servicePincode}. Nearby leads will now appear based on distance.` });
-        } catch (error) {
-          this.error = error.message;
-        } finally {
-          this.savingLocation = false;
         }
       }
     };

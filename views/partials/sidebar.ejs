@@ -1,47 +1,34 @@
-<div class="sidebar sidebar-main sidebar-expand-lg portal-sidebar">
+<aside class="sidebar sidebar-main sidebar-expand-lg portal-sidebar" aria-label="Provider workspace">
   <div class="sidebar-content">
-    <div class="sidebar-section portal-provider-summary">
-      <div class="sidebar-section-body d-flex align-items-center">
-        <div class="flex-grow-1 min-w-0">
-          <div class="fw-semibold text-truncate" x-text="provider.businessName || provider.name || 'Provider'">Provider</div>
-          <div class="text-muted fs-sm text-truncate" x-text="provider.city || 'Service provider'">Service provider</div>
-        </div>
-        <button type="button" class="btn btn-light btn-icon d-lg-none portal-sidebar-toggle" aria-label="Close navigation" @click="closeSidebar()">×</button>
+    <section class="portal-provider-card">
+      <button type="button" class="portal-sidebar-close d-lg-none" aria-label="Close navigation" @click="closeSidebar()">×</button>
+      <div class="portal-provider-cover" aria-hidden="true"></div>
+      <div class="portal-provider-avatar" x-text="initials(provider.name || provider.businessName || 'Provider')">P</div>
+      <div class="portal-provider-card-body">
+        <strong class="text-truncate" x-text="provider.businessName || provider.name || 'Provider'">Provider</strong>
+        <span class="text-truncate" x-text="provider.name || 'Findoly service provider'">Findoly service provider</span>
+        <small class="text-truncate" x-text="provider.locationReady ? ([provider.serviceLocality || provider.city, provider.serviceState || provider.state].filter(Boolean).join(', ') || provider.servicePincode) : 'Service location pending in CRM'">Service provider</small>
       </div>
-    </div>
+      <div class="portal-provider-card-stats">
+        <a href="/plans"><span>Available credits</span><strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong></a>
+        <a href="/profile"><span>Matched categories</span><strong x-text="(provider.categorySlugs || []).length">0</strong></a>
+      </div>
+    </section>
 
-    <div class="sidebar-section">
-      <ul class="nav nav-sidebar">
-        <li class="nav-item-header"><div class="text-uppercase fs-sm">Workspace</div></li>
-        <li class="nav-item">
-          <a href="/dashboard" class="nav-link" :class="{ active: pathIs('/dashboard') }">
-            <svg class="icon"><use href="#i-home"></use></svg><span>Dashboard</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="/leads" class="nav-link" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }">
-            <svg class="icon"><use href="#i-lead"></use></svg><span>Lead marketplace</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="/leads?status=unlocked" class="nav-link" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' }">
-            <svg class="icon"><use href="#i-unlock"></use></svg><span>Unlocked leads</span>
-          </a>
-        </li>
+    <nav class="portal-sidebar-nav" aria-label="Workspace navigation">
+      <div class="portal-sidebar-label">Workspace</div>
+      <a href="/dashboard" :class="{ active: pathIs('/dashboard') }"><svg class="icon"><use href="#i-home"></use></svg><span>Dashboard</span></a>
+      <a href="/leads?status=offered" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }"><svg class="icon"><use href="#i-lead"></use></svg><span>Lead marketplace</span></a>
+      <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' }"><svg class="icon"><use href="#i-unlock"></use></svg><span>Unlocked leads</span></a>
 
-        <li class="nav-item-header"><div class="text-uppercase fs-sm">Account</div></li>
-        <li class="nav-item">
-          <a href="/plans" class="nav-link" :class="{ active: pathIs('/plans') || pathIs('/wallet') }">
-            <svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span>
-            <span class="badge bg-light text-body border ms-auto" x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="/profile" class="nav-link" :class="{ active: pathIs('/profile') }">
-            <svg class="icon"><use href="#i-user"></use></svg><span>My profile</span>
-          </a>
-        </li>
-      </ul>
-    </div>
+      <div class="portal-sidebar-label">Account</div>
+      <a href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }"><svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span></a>
+      <a href="/profile" :class="{ active: pathIs('/profile') }"><svg class="icon"><use href="#i-user"></use></svg><span>My profile</span></a>
+    </nav>
+
+    <section class="portal-sidebar-help">
+      <strong>Need help?</strong>
+      <span>Provider categories, PIN code and account access are managed by the Findoly CRM team.</span>
+    </section>
   </div>
-</div>
+</aside>

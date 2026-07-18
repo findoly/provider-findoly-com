@@ -86,7 +86,7 @@ function assertMarketplaceAccess(provider, lead) {
   if (lead.contactUnlocked === true || lead.status === "unlocked") return;
   if (!hasCoordinates(provider, "service")) {
     throw Object.assign(
-      new Error("Add and verify your service PIN code in My Profile before viewing marketplace leads."),
+      new Error("Your service location is not configured in CRM. Contact Findoly support before viewing marketplace leads."),
       { status: 409, code: "PROVIDER_LOCATION_REQUIRED" },
     );
   }

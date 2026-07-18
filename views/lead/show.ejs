@@ -185,7 +185,7 @@
     </div>
 
     <div class="col-xl-4">
-      <div class="card portal-card portal-sticky-card">
+      <div id="lead-access-panel" class="card portal-card portal-sticky-card">
         <div class="card-header border-bottom">
           <h5 class="mb-0" x-text="isUnlocked ? 'Lead unlocked' : 'Unlock this lead'"></h5>
         </div>
@@ -246,6 +246,20 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="portal-mobile-lead-action d-xl-none" x-cloak x-show="!loading">
+    <template x-if="!isUnlocked">
+      <button type="button" class="btn btn-primary" @click="document.getElementById('lead-access-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">
+        <span>Unlock options</span><strong x-text="credits(lead.leadCostCredits)"></strong>
+      </button>
+    </template>
+    <template x-if="isUnlocked && !lead.providerSaleOutcome">
+      <button type="button" class="btn btn-primary" @click="document.getElementById('provider-outcome')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Update required outcome</button>
+    </template>
+    <template x-if="isUnlocked && lead.providerSaleOutcome">
+      <a class="btn btn-primary" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'">Call customer</a>
+    </template>
   </div>
 </div>
 

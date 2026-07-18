@@ -10,10 +10,10 @@ async function get(req, res, next) {
 
 async function updateLocation(req, res, next) {
   try {
-    return res.json({
-      success: true,
-      message: "Service location updated successfully",
-      data: await service.updateLocation(req.provider, req.body),
+    return res.status(403).json({
+      success: false,
+      code: "CRM_MANAGED_LOCATION",
+      message: "Your service PIN code is managed by Findoly Admin. Contact support to request a change.",
     });
   } catch (error) {
     return next(error);

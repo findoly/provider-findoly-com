@@ -365,7 +365,7 @@ async function findLeadForDirectPayment(provider, leadDistributionId) {
     });
   }
   if (!hasCoordinates(provider, "service")) {
-    throw Object.assign(new Error("Add and verify your service PIN code before unlocking leads."), {
+    throw Object.assign(new Error("Your service location is not configured in CRM. Contact Findoly support before unlocking leads."), {
       status: 409,
       code: "PROVIDER_LOCATION_REQUIRED",
     });
