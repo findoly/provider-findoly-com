@@ -13,16 +13,7 @@
   <%- include('../partials/sidebar') %>
   <div class="content-wrapper">
     <div class="content-inner">
-      <div class="page-header portal-page-header border-bottom">
-        <div class="page-header-content d-flex align-items-center">
-          <div class="flex-grow-1 min-w-0">
-            <h1 class="page-title mb-0"><%= title %></h1>
-            <div class="page-subtitle mt-1"><%= subtitle %></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="content" x-data="plansPage()" x-init="load()">
+      <div class="content provider-plans-content" x-data="plansPage()" x-init="load()">
         <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
         <div x-show="error" x-cloak class="alert alert-danger portal-flash" role="alert">
           <span x-text="error"></span>
@@ -30,21 +21,40 @@
         </div>
         <div x-show="success" x-cloak class="alert alert-success portal-flash" x-text="success"></div>
 
-        <div class="row g-4 mb-4">
+        <section class="provider-plans-intro mb-3" aria-labelledby="plans-title">
+          <div>
+            <span class="provider-section-kicker">Wallet &amp; subscription</span>
+            <h1 id="plans-title">Plans &amp; credits</h1>
+            <p>Choose a plan, manage credits and review payment activity.</p>
+          </div>
+          <a class="btn btn-light" href="/leads?status=offered">Browse leads</a>
+        </section>
+
+        <div class="row g-3 mb-4 provider-wallet-overview">
           <div class="col-lg-5">
-            <div class="card portal-card portal-credit-balance-card h-100">
+            <div class="card portal-card portal-credit-balance-card provider-credit-overview h-100">
               <div class="card-body">
-                <div class="portal-summary-label">Available credits</div>
-                <strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong>
-                <div class="portal-summary-meta">
-                  <span>Use credits to unlock matched leads</span>
+                <div class="provider-credit-overview-heading">
+                  <span class="provider-credit-overview-icon"><svg class="icon"><use href="#i-wallet"></use></svg></span>
+                  <div>
+                    <span>Available credits</span>
+                    <small>Ready to unlock matched leads</small>
+                  </div>
+                </div>
+                <strong class="provider-credit-overview-value" x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong>
+                <div class="provider-credit-overview-meta">
                   <span x-show="data.provider?.currentPlanExpiresAt" x-text="`Valid through ${formatDateOnly(data.provider.currentPlanExpiresAt)}`"></span>
+                  <span x-show="!data.provider?.currentPlanExpiresAt">No expiry shown for your current balance</span>
+                </div>
+                <div class="provider-credit-overview-actions">
+                  <a class="btn btn-light btn-sm" href="/leads?status=offered">Use credits</a>
+                  <button class="btn btn-outline-light btn-sm" type="button" @click="$refs.creditActivity?.scrollIntoView({ behavior: 'smooth', block: 'start' })">View activity</button>
                 </div>
               </div>
             </div>
           </div>
           <div class="col-lg-7">
-            <div class="card portal-card h-100">
+            <div class="card portal-card provider-current-plan-card h-100">
               <div class="card-body portal-current-plan">
                 <div class="d-flex align-items-start gap-3">
                   <div class="portal-current-plan-icon"><svg class="icon"><use href="#i-plan"></use></svg></div>
@@ -54,7 +64,7 @@
                       <span class="badge bg-success-subtle text-success" x-show="data.currentSubscription" x-cloak>Active</span>
                       <span class="badge bg-primary-subtle text-primary" x-show="data.upcomingSubscription" x-cloak>Renewal scheduled</span>
                     </div>
-                    <div class="text-muted" x-text="currentPlanDescription"></div>
+                    <div class="text-muted provider-current-plan-description" x-text="currentPlanDescription"></div>
                     <div class="portal-plan-dates mt-3" x-show="data.currentSubscription || data.upcomingSubscription" x-cloak>
                       <div x-show="data.currentSubscription">
                         <span>Current validity</span>
@@ -65,6 +75,7 @@
                         <strong x-text="formatDateOnly(data.upcomingSubscription?.startsAt)"></strong>
                       </div>
                     </div>
+                    <button x-show="!data.currentSubscription" class="btn btn-primary btn-sm mt-3" type="button" @click="document.getElementById('provider-plan-options')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Choose a plan</button>
                   </div>
                 </div>
               </div>
@@ -72,7 +83,7 @@
           </div>
         </div>
 
-        <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-3">
+        <div id="provider-plan-options" class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-3 provider-plan-section-heading">
           <div>
             <h4 class="mb-1">Choose your plan</h4>
             <p class="text-muted mb-0">Monthly prices add 18% GST at checkout. Yearly prices already include GST.</p>
@@ -146,7 +157,7 @@
 
         <div class="row g-4 align-items-start">
           <div class="col-xl-7">
-            <div class="card portal-card">
+            <div class="card portal-card" x-ref="creditActivity">
               <div class="card-header border-bottom d-flex align-items-center">
                 <div>
                   <h5 class="mb-1">Credit activity</h5>

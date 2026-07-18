@@ -14,9 +14,11 @@
   <symbol id="i-credit" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></symbol>
   <symbol id="i-plan" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 9h16M8 13h4M8 16h8"/></symbol>
   <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.1a1.9 1.9 0 0 0 1.4-3.2 1.9 1.9 0 0 1 1.4-3.2H18a3 3 0 0 0 3-3A8.6 8.6 0 0 0 12 3z"/><circle cx="7.5" cy="10" r=".8"/><circle cx="10" cy="6.8" r=".8"/><circle cx="14" cy="6.8" r=".8"/><circle cx="16.5" cy="10" r=".8"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></symbol>
 </svg>
 
-<header class="portal-navbar" role="banner">
+<header class="portal-navbar portal-navbar-minimal" role="banner">
   <div class="portal-navbar-inner">
     <button type="button" class="portal-mobile-menu d-lg-none" aria-label="Open navigation" @click="toggleSidebar()">
       <svg class="icon"><use href="#i-menu"></use></svg>
@@ -24,49 +26,36 @@
 
     <a href="/dashboard" class="portal-brand" aria-label="Findoly provider dashboard">
       <img src="/images/findoly-logo.png" alt="Findoly" class="portal-brand-logo">
-      <span class="portal-brand-product d-none d-xl-inline">Provider</span>
+      <span class="portal-brand-product">Provider</span>
     </a>
 
-    <form class="portal-global-search d-none d-md-flex" @submit.prevent="runSearch()">
-      <svg class="icon"><use href="#i-search"></use></svg>
-      <input type="search" x-model="shellSearch" placeholder="Search leads" aria-label="Search leads">
-    </form>
+    <div class="portal-header-context d-none d-md-grid">
+      <strong x-text="page.title || 'Provider workspace'">Provider workspace</strong>
+      <span x-text="page.subtitle || 'Manage leads and outcomes'">Manage leads and outcomes</span>
+    </div>
 
-    <nav class="portal-desktop-nav d-none d-lg-flex" aria-label="Primary navigation">
-      <a href="/dashboard" :class="{ active: pathIs('/dashboard') }">
-        <svg class="icon"><use href="#i-home"></use></svg><span>Home</span>
-      </a>
-      <a href="/leads?status=offered" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }">
-        <svg class="icon"><use href="#i-lead"></use></svg><span>Marketplace</span>
-      </a>
-      <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' }">
-        <svg class="icon"><use href="#i-unlock"></use></svg><span>Unlocked</span>
-      </a>
-      <a href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }">
-        <svg class="icon"><use href="#i-wallet"></use></svg><span>Credits</span>
-      </a>
-    </nav>
-
-    <div class="portal-navbar-actions">
-      <a class="portal-wallet-pill d-none d-sm-inline-flex" href="/plans" aria-label="Open credits and plans">
-        <span>Credits</span>
+    <div class="portal-navbar-actions ms-auto">
+      <a class="portal-header-credit" href="/plans" aria-label="Open credits and plans">
+        <svg class="icon"><use href="#i-wallet"></use></svg>
+        <span class="d-none d-sm-inline">Credits</span>
         <strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong>
+      </a>
+
+      <a class="portal-header-action d-none d-sm-inline-flex" href="/leads?status=unlocked&amp;outcome=pending" aria-label="Open pending outcomes" title="Pending outcomes">
+        <svg class="icon"><use href="#i-clock"></use></svg>
       </a>
 
       <div class="dropdown portal-profile-dropdown">
         <button class="portal-user-button" data-bs-toggle="dropdown" data-bs-display="static" data-bs-auto-close="outside" type="button" aria-expanded="false" aria-label="Open account menu">
           <span x-text="initials(provider.name || provider.businessName || 'Provider')">P</span>
-          <span class="d-none d-xl-inline portal-user-copy">
-            <strong x-text="provider.businessName || provider.name || 'Provider'">Provider</strong>
-            <small>Me</small>
-          </span>
+          <svg class="portal-user-caret" viewBox="0 0 12 8" aria-hidden="true"><path d="m1 1 5 5 5-5"/></svg>
         </button>
         <div class="dropdown-menu dropdown-menu-end portal-profile-menu">
           <div class="portal-profile-menu-header">
             <span class="portal-profile-menu-avatar" x-text="initials(provider.name || provider.businessName || 'Provider')">P</span>
             <div class="min-w-0">
               <strong class="text-truncate" x-text="provider.businessName || provider.name || 'Provider'">Provider</strong>
-              <small class="text-truncate" x-text="provider.city || 'Service provider'">Service provider</small>
+              <small class="text-truncate" x-text="provider.city || 'Findoly provider'">Findoly provider</small>
             </div>
           </div>
           <div class="portal-profile-menu-links">
@@ -74,16 +63,16 @@
             <a class="dropdown-item" href="/plans"><svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span></a>
             <button class="dropdown-item d-flex align-items-center justify-content-between portal-appearance-toggle" type="button" :aria-expanded="appearanceOpen.toString()" aria-controls="portalThemeChoices" @click.stop="appearanceOpen = !appearanceOpen">
               <span class="portal-menu-item-main"><svg class="icon"><use href="#i-palette"></use></svg><span>Appearance</span></span>
-              <span class="portal-appearance-current"><small x-text="themeLabel(theme)">Professional Blue</small><span class="portal-appearance-chevron" :class="{ 'is-open': appearanceOpen }" aria-hidden="true">⌄</span></span>
+              <span class="portal-appearance-chevron" :class="{ 'is-open': appearanceOpen }" aria-hidden="true">⌄</span>
             </button>
             <div id="portalThemeChoices" class="portal-inline-themes" x-cloak x-show="appearanceOpen" x-transition.opacity.duration.120ms @click.stop>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'professional-blue' }" @click="setTheme('professional-blue')"><span class="portal-inline-theme-preview portal-theme-preview-blue" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Professional Blue</strong><small>Clean and business-focused</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'teal-professional' }" @click="setTheme('teal-professional')"><span class="portal-inline-theme-preview portal-theme-preview-teal" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Teal Professional</strong><small>Modern and service-oriented</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'navy-premium' }" @click="setTheme('navy-premium')"><span class="portal-inline-theme-preview portal-theme-preview-navy" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Navy Premium</strong><small>Rich navigation and bright content</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'professional-blue' }" @click="setTheme('professional-blue')"><span class="portal-inline-theme-preview portal-theme-preview-blue" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Professional Blue</strong><small>Clean business theme</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'teal-professional' }" @click="setTheme('teal-professional')"><span class="portal-inline-theme-preview portal-theme-preview-teal" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Teal Professional</strong><small>Modern service theme</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'navy-premium' }" @click="setTheme('navy-premium')"><span class="portal-inline-theme-preview portal-theme-preview-navy" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Navy Premium</strong><small>Dark navigation theme</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
             </div>
           </div>
           <div class="dropdown-divider"></div>
-          <button class="dropdown-item text-danger" type="button" @click="logout()">Sign out</button>
+          <button class="dropdown-item text-danger" type="button" @click="logout()"><svg class="icon"><use href="#i-logout"></use></svg><span>Sign out</span></button>
         </div>
       </div>
     </div>

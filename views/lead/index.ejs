@@ -25,7 +25,7 @@
       <div class="content">
         <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
 
-<div class="provider-lead-page" x-data="leadList()" x-init="init()">
+<div class="provider-lead-page provider-minimal-page" x-data="leadList()" x-init="init()">
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
   <div class="portal-location-required provider-location-alert mb-3" x-show="!loading && !locationReady && filters.status !== 'unlocked'" x-cloak>
@@ -33,177 +33,254 @@
       <strong>Your service location is pending in CRM</strong>
       <span>Contact Findoly support to complete your provider PIN code before nearby leads can appear.</span>
     </div>
-    <a href="/profile#marketplace-location" class="btn btn-light btn-sm">View account location</a>
+    <a href="/profile#marketplace-location" class="btn btn-light btn-sm">View location</a>
   </div>
 
-  <nav class="provider-lead-tabs" aria-label="Lead sections">
+  <nav class="provider-lead-tabs provider-minimal-tabs" aria-label="Lead sections">
     <a href="/leads?status=offered" :class="filters.status !== 'unlocked' ? 'active' : ''">
       <span class="provider-tab-icon"><svg class="icon"><use href="#i-lead"></use></svg></span>
-      <span class="provider-tab-copy">
-        <strong>Lead marketplace</strong>
-        <small>Nearby opportunities</small>
-      </span>
+      <span class="provider-tab-copy"><strong>Marketplace</strong><small>Available leads</small></span>
       <span class="provider-tab-count" x-show="filters.status !== 'unlocked' && !loading" x-text="pagination.total || 0"></span>
     </a>
     <a href="/leads?status=unlocked" :class="filters.status === 'unlocked' ? 'active' : ''">
       <span class="provider-tab-icon"><svg class="icon"><use href="#i-unlock"></use></svg></span>
-      <span class="provider-tab-copy">
-        <strong>Unlocked leads</strong>
-        <small>Your customer contacts</small>
-      </span>
+      <span class="provider-tab-copy"><strong>Unlocked</strong><small>Your contacts</small></span>
       <span class="provider-tab-count" x-show="filters.status === 'unlocked' && !loading" x-text="pagination.total || 0"></span>
     </a>
   </nav>
 
-  <section class="card portal-card provider-filter-card" aria-label="Lead filters">
-    <div class="provider-filter-grid">
+  <section class="card portal-card provider-minimal-filter" aria-label="Lead filters">
+    <div class="provider-filter-toolbar">
       <div class="provider-filter-search">
         <svg class="icon"><use href="#i-search"></use></svg>
-        <input
-          class="form-control"
-          type="search"
-          x-model="filters.q"
-          @keydown.enter.prevent="apply()"
-          placeholder="Search requirement, category, city or lead ID"
-          aria-label="Search leads"
-        >
+        <input class="form-control" type="search" x-model="filters.q" @keydown.enter.prevent="apply()" placeholder="Search leads" aria-label="Search leads">
       </div>
-      <div class="provider-filter-field">
-        <label class="visually-hidden" for="provider-lead-category">Category</label>
-        <select id="provider-lead-category" class="form-select" x-model="filters.categorySlug">
-          <option value="">All categories</option>
-          <template x-for="category in categories" :key="category">
-            <option :value="category" x-text="humanize(category)"></option>
-          </template>
-        </select>
+      <button class="btn btn-light provider-advanced-toggle" type="button" @click="filtersOpen = !filtersOpen" :aria-expanded="filtersOpen.toString()">
+        <span>Advanced filters</span>
+        <span class="provider-filter-active-count" x-show="activeFilterCount()" x-cloak x-text="activeFilterCount()"></span>
+      </button>
+      <button class="btn btn-primary provider-filter-apply" type="button" @click="apply()">Search</button>
+    </div>
+
+    <div class="provider-advanced-panel" x-show="filtersOpen" x-cloak>
+      <div class="provider-advanced-grid">
+        <label class="provider-filter-control">
+          <span>Category</span>
+          <select class="form-select" x-model="filters.categorySlug">
+            <option value="">All categories</option>
+            <template x-for="category in categories" :key="category"><option :value="category" x-text="humanize(category)"></option></template>
+          </select>
+        </label>
+        <label class="provider-filter-control">
+          <span>City</span>
+          <input class="form-control" type="text" x-model="filters.city" placeholder="Any city">
+        </label>
+        <label class="provider-filter-control">
+          <span>PIN code</span>
+          <input class="form-control" type="text" inputmode="numeric" maxlength="6" x-model="filters.pincode" placeholder="Any PIN code">
+        </label>
+        <label class="provider-filter-control">
+          <span>Lead intent</span>
+          <select class="form-select" x-model="filters.leadIntent">
+            <option value="">Any intent</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+            <option value="not_assessed">Not assessed</option>
+          </select>
+        </label>
+
+        <template x-if="filters.status !== 'unlocked'">
+          <div class="provider-advanced-subgrid">
+            <label class="provider-filter-control">
+              <span>Provider confirmation</span>
+              <select class="form-select" x-model="filters.confirmation">
+                <option value="">Any confirmation</option>
+                <option value="confirmed">Currently confirmed</option>
+                <option value="not_confirmed">Not confirmed</option>
+              </select>
+            </label>
+            <label class="provider-filter-control">
+              <span>Providers unlocked</span>
+              <select class="form-select" x-model="filters.unlockCount">
+                <option value="">Any number</option>
+                <option value="none">None</option>
+                <option value="one_two">1–2 providers</option>
+                <option value="three_plus">3+ providers</option>
+              </select>
+            </label>
+            <label class="provider-filter-control">
+              <span>Lead age</span>
+              <select class="form-select" x-model="filters.age">
+                <option value="">Any age</option>
+                <option value="today">Last 24 hours</option>
+                <option value="3d">Last 3 days</option>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+              </select>
+            </label>
+          </div>
+        </template>
+
+        <template x-if="filters.status === 'unlocked'">
+          <div class="provider-advanced-subgrid">
+            <label class="provider-filter-control">
+              <span>Sale outcome</span>
+              <select class="form-select" x-model="filters.outcome">
+                <option value="">Any outcome</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="not_confirmed">Not confirmed</option>
+              </select>
+            </label>
+            <label class="provider-filter-control">
+              <span>Activity status</span>
+              <select class="form-select" x-model="filters.activityStatus">
+                <option value="">Any activity</option>
+                <option value="contacted">Contacted</option>
+                <option value="valid">Valid</option>
+                <option value="follow_up">Follow up</option>
+                <option value="on_hold">On hold</option>
+                <option value="rejected">Rejected</option>
+                <option value="invalid">Invalid</option>
+                <option value="not_interested">Not interested</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label class="provider-filter-control provider-check-control">
+              <span>Pending follow-up</span>
+              <span class="provider-checkbox-row"><input type="checkbox" x-model="filters.overdue"> Overdue 7+ days</span>
+            </label>
+          </div>
+        </template>
+
+        <label class="provider-filter-control">
+          <span x-text="filters.status === 'unlocked' ? 'Unlocked from' : 'Published from'"></span>
+          <input class="form-control" type="date" x-model="filters.startDate">
+        </label>
+        <label class="provider-filter-control">
+          <span x-text="filters.status === 'unlocked' ? 'Unlocked to' : 'Published to'"></span>
+          <input class="form-control" type="date" x-model="filters.endDate">
+        </label>
+        <label class="provider-filter-control">
+          <span>Minimum credits</span>
+          <input class="form-control" type="number" min="0" step="1" x-model="filters.minCredits" placeholder="No minimum">
+        </label>
+        <label class="provider-filter-control">
+          <span>Maximum credits</span>
+          <input class="form-control" type="number" min="0" step="1" x-model="filters.maxCredits" placeholder="No maximum">
+        </label>
+        <label class="provider-filter-control">
+          <span>Sort by</span>
+          <select class="form-select" x-model="filters.sort">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="nearest">Nearest first</option>
+            <option value="cost_low">Lowest credits</option>
+            <option value="cost_high">Highest credits</option>
+          </select>
+        </label>
       </div>
-      <div class="provider-filter-field">
-        <label class="visually-hidden" for="provider-lead-city">City</label>
-        <input id="provider-lead-city" class="form-control" type="text" x-model="filters.city" @keydown.enter.prevent="apply()" placeholder="Any city">
+      <div class="provider-filter-actions">
+        <button class="btn btn-light" type="button" @click="clear()" :disabled="!hasActiveFilters()">Clear all</button>
+        <button class="btn btn-primary" type="button" @click="apply()">Apply filters</button>
       </div>
-      <button class="btn btn-primary provider-filter-apply" type="button" @click="apply()">Apply</button>
-      <button class="btn btn-light provider-filter-clear" type="button" x-show="hasActiveFilters()" x-cloak @click="clear()">Clear</button>
     </div>
   </section>
 
-  <div class="provider-feed-layout">
-    <main class="provider-lead-feed" :class="loading ? 'portal-loading' : ''" aria-live="polite">
-      <template x-for="lead in rows" :key="lead.leadDistributionId">
-        <article class="provider-feed-card" :class="lead.contactUnlocked ? 'is-unlocked' : 'is-marketplace'">
-          <header class="provider-feed-header">
-            <span class="provider-feed-avatar" aria-hidden="true">
-              <svg class="icon"><use :href="lead.contactUnlocked ? '#i-unlock' : '#i-lead'"></use></svg>
-            </span>
-            <div class="provider-feed-identity min-w-0">
-              <div class="provider-feed-category" x-text="lead.category || humanize(lead.categorySlug) || 'Service category'"></div>
+  <div class="provider-active-filters" x-show="activeChips().length" x-cloak>
+    <template x-for="chip in activeChips()" :key="chip.key">
+      <button type="button" @click="removeFilter(chip.key)"><span x-text="chip.label"></span><b aria-hidden="true">×</b></button>
+    </template>
+    <button class="is-clear" type="button" @click="clear()">Clear all</button>
+  </div>
+
+  <div class="provider-minimal-results" x-show="!loading" x-cloak>
+    <strong x-text="`${pagination.total || 0} ${filters.status === 'unlocked' ? 'unlocked' : 'available'} lead${Number(pagination.total || 0) === 1 ? '' : 's'}`"></strong>
+  </div>
+
+  <main class="provider-minimal-list" :class="loading ? 'portal-loading' : ''" aria-live="polite">
+    <template x-for="lead in rows" :key="lead.leadDistributionId">
+      <article class="provider-minimal-card provider-opportunity-card" :class="lead.contactUnlocked ? 'is-unlocked' : 'is-marketplace'">
+        <div class="provider-minimal-card-main">
+          <div class="provider-minimal-title-row">
+            <div class="min-w-0">
+              <span class="provider-minimal-category" x-text="lead.category || humanize(lead.categorySlug) || 'Service category'"></span>
               <h2><a :href="'/leads/' + lead.leadDistributionId" x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></a></h2>
-              <div class="provider-feed-context">
-                <span x-text="[lead.city, lead.state].filter(Boolean).join(', ') || 'Location available in lead details'"></span>
-                <span aria-hidden="true">•</span>
-                <span x-text="relativeAge(lead.distributedAt || lead.createdAt)"></span>
-                <template x-if="lead.providerDistanceKm !== null && lead.providerDistanceKm !== undefined">
-                  <span class="provider-feed-distance"><span aria-hidden="true">•</span> <span x-text="distanceLabel(lead.providerDistanceKm) + ' away'"></span></span>
-                </template>
-              </div>
+              <p class="provider-card-location"><svg class="icon"><use href="#i-location"></use></svg><span x-text="locationLabel(lead)"></span></p>
             </div>
             <span class="provider-intent-badge" :class="'is-' + lead.leadIntent" x-text="intentLabel(lead.leadIntent)"></span>
-          </header>
+          </div>
 
-          <div class="provider-feed-body">
-            <p class="provider-feed-summary" x-text="leadSummary(lead)"></p>
+          <p class="provider-card-summary" x-show="leadSummary(lead)" x-text="leadSummary(lead)"></p>
 
-            <div class="provider-transparency-row">
-              <div class="provider-transparency-item">
-                <span class="provider-transparency-icon"><svg class="icon"><use href="#i-unlock"></use></svg></span>
-                <div>
-                  <strong x-text="`${lead.unlockedCount || 0} provider${Number(lead.unlockedCount || 0) === 1 ? '' : 's'} unlocked`"></strong>
-                  <small>Current provider interest</small>
-                </div>
-              </div>
-              <div class="provider-transparency-item" :class="lead.currentlyConfirmed ? 'is-confirmed' : ''">
-                <span class="provider-transparency-icon"><svg class="icon"><use href="#i-check"></use></svg></span>
-                <div>
-                  <strong x-text="lead.currentlyConfirmed ? `Confirmed by ${lead.providerConfirmedCount || 1} provider${Number(lead.providerConfirmedCount || 1) === 1 ? '' : 's'}` : 'Not confirmed yet'"></strong>
-                  <small>Current outcome signal</small>
-                </div>
-              </div>
+          <div class="provider-card-facts">
+            <div x-show="!lead.contactUnlocked">
+              <small>Approx. distance</small>
+              <strong x-text="distanceLabel(lead)"></strong>
             </div>
-
-            <div class="provider-feed-facts">
-              <div>
-                <span>Preferred timing</span>
-                <strong x-text="preferredLabel(lead)"></strong>
-              </div>
-              <div>
-                <span x-text="lead.contactUnlocked ? 'Unlocked on' : 'Unlock cost'"></span>
-                <strong x-text="lead.contactUnlocked ? formatDate(lead.unlockedAt) : credits(lead.leadCostCredits)"></strong>
-              </div>
+            <div x-show="lead.contactUnlocked">
+              <small>Customer</small>
+              <strong x-text="lead.customerName || 'Customer details available'"></strong>
+            </div>
+            <div>
+              <small>Preferred timing</small>
+              <strong x-text="preferredLabel(lead)"></strong>
+            </div>
+            <div x-show="!lead.contactUnlocked">
+              <small>Lead age</small>
+              <strong x-text="relativeAge(lead.marketplacePublishedAt || lead.distributedAt || lead.createdAt)"></strong>
+            </div>
+            <div x-show="lead.contactUnlocked">
+              <small>Contact</small>
+              <strong x-text="lead.customerMobile || 'Open lead to view contact'"></strong>
             </div>
           </div>
 
-          <footer class="provider-feed-footer">
-            <div class="provider-feed-reference min-w-0">
-              <span class="portal-id" x-text="lead.enquiryId || lead.leadDistributionId"></span>
-              <span class="badge provider-feed-status" :class="statusClass(lead)" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : (lead.contactUnlocked ? 'Outcome pending' : 'Available')"></span>
-            </div>
-            <a class="btn btn-primary" :href="'/leads/' + lead.leadDistributionId" x-text="lead.contactUnlocked ? 'Open unlocked lead' : 'View opportunity'"></a>
-          </footer>
-        </article>
-      </template>
+          <div class="provider-minimal-signals" x-show="!lead.contactUnlocked">
+            <span><svg class="icon"><use href="#i-unlock"></use></svg><b x-text="lead.unlockedCount || 0"></b><span x-text="Number(lead.unlockedCount || 0) === 1 ? 'provider unlocked' : 'providers unlocked'"></span></span>
+            <span :class="lead.currentlyConfirmed ? 'is-confirmed' : ''"><svg class="icon"><use href="#i-check"></use></svg><span x-text="lead.currentlyConfirmed ? `${lead.providerConfirmedCount || 1} provider confirmed` : 'No provider confirmed yet'"></span></span>
+          </div>
 
-      <section class="card portal-card provider-feed-empty" x-show="loading || (!loading && !rows.length)">
-        <div class="card-body text-center">
-          <div x-show="loading" class="text-muted">Loading leads…</div>
-          <div x-show="!loading && !rows.length">
-            <div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div>
-            <h3 x-text="filters.status === 'unlocked' ? 'No unlocked leads yet' : (!locationReady ? 'Service location pending' : 'No nearby leads right now')"></h3>
-            <p x-text="filters.status === 'unlocked' ? 'Leads appear here immediately after a successful unlock.' : (!locationReady ? 'Contact Findoly support to complete your CRM-managed service location.' : 'New category-matched opportunities will appear as the marketplace expands.')"></p>
+          <div class="provider-minimal-signals" x-show="lead.contactUnlocked">
+            <span class="provider-outcome-chip" :class="statusClass(lead)" x-text="outcomeLabel(lead)"></span>
+            <span x-show="lead.providerLeadStatus"><svg class="icon"><use href="#i-lead"></use></svg><span x-text="humanize(lead.providerLeadStatus)"></span></span>
+            <span x-show="isOverdue(lead)" class="is-overdue"><svg class="icon"><use href="#i-clock"></use></svg>Outcome overdue</span>
           </div>
         </div>
-      </section>
 
-      <div class="portal-card portal-pagination provider-feed-pagination" x-show="pagination.pages > 1">
-        <div class="text-muted fs-sm" x-text="`${pagination.total || 0} leads`"></div>
-        <div class="d-flex align-items-center gap-2 ms-auto">
-          <button class="btn btn-light btn-sm" :disabled="pagination.page <= 1 || loading" @click="go(pagination.page - 1)">Previous</button>
-          <span class="fs-sm" x-text="`${pagination.page} of ${pagination.pages}`"></span>
-          <button class="btn btn-light btn-sm" :disabled="pagination.page >= pagination.pages || loading" @click="go(pagination.page + 1)">Next</button>
+        <div class="provider-minimal-card-action">
+          <div class="provider-card-price-block">
+            <small x-text="lead.contactUnlocked ? 'Unlocked on' : 'Unlock cost'"></small>
+            <strong x-text="lead.contactUnlocked ? formatDateOnly(lead.unlockedAt) : credits(lead.leadCostCredits)"></strong>
+          </div>
+          <div class="provider-card-actions">
+            <a x-show="lead.contactUnlocked && lead.customerMobile" class="btn btn-light provider-card-call" :href="phoneHref(lead.customerMobile)"><svg class="icon"><use href="#i-phone"></use></svg><span>Call</span></a>
+            <a class="btn btn-primary" :href="'/leads/' + lead.leadDistributionId" x-text="lead.contactUnlocked ? 'Open lead' : 'View opportunity'"></a>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <section class="card portal-card provider-minimal-empty" x-show="loading || (!loading && !rows.length)">
+      <div class="card-body text-center">
+        <div x-show="loading" class="text-muted">Loading leads…</div>
+        <div x-show="!loading && !rows.length">
+          <div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div>
+          <strong x-text="filters.status === 'unlocked' ? 'No unlocked leads found' : (!locationReady ? 'Service location required' : 'No leads match your filters')"></strong>
+          <span x-text="hasActiveFilters() ? 'Clear or change your filters to see more leads.' : (filters.status === 'unlocked' ? 'Successfully unlocked leads will appear here.' : 'New matching leads will appear here automatically.')"></span>
+          <button x-show="hasActiveFilters()" type="button" class="btn btn-light btn-sm" @click="clear()">Clear filters</button>
         </div>
       </div>
-    </main>
+    </section>
+  </main>
 
-    <aside class="provider-feed-aside" aria-label="Marketplace information">
-      <section class="card portal-card provider-aside-card">
-        <div class="provider-aside-heading">
-          <span class="provider-aside-icon"><svg class="icon"><use href="#i-check"></use></svg></span>
-          <div>
-            <h3 x-text="filters.status === 'unlocked' ? 'Keep outcomes current' : 'Understand each lead'"></h3>
-            <p x-text="filters.status === 'unlocked' ? 'Accurate outcomes keep CRM conversion and customer follow-up in sync.' : 'Use these signals before deciding whether to unlock.'"></p>
-          </div>
-        </div>
-        <ul class="provider-aside-list" x-show="filters.status !== 'unlocked'">
-          <li><strong>Lead Intent</strong><span>Assessed by the Findoly CRM team.</span></li>
-          <li><strong>Providers unlocked</strong><span>Shows current interest without exposing provider identities.</span></li>
-          <li><strong>Confirmed signal</strong><span>Shows whether any provider currently reports a confirmed sale.</span></li>
-        </ul>
-        <ul class="provider-aside-list" x-show="filters.status === 'unlocked'">
-          <li><strong>Confirmed / Not Confirmed</strong><span>Required for each unlocked lead.</span></li>
-          <li><strong>Activity status</strong><span>Optional and useful for follow-up history.</span></li>
-          <li><strong>Seven-day reminder</strong><span>Appears until an overdue outcome is updated.</span></li>
-        </ul>
-      </section>
-
-      <section class="card portal-card provider-aside-card provider-aside-location" x-show="filters.status !== 'unlocked'">
-        <div class="provider-aside-heading">
-          <span class="provider-aside-icon"><svg class="icon"><use href="#i-location"></use></svg></span>
-          <div>
-            <h3>Nearby lead matching</h3>
-            <p>Lead visibility expands by distance over time while category matching remains active.</p>
-          </div>
-        </div>
-        <a href="/profile#marketplace-location" class="provider-aside-link">View service location</a>
-      </section>
-    </aside>
+  <div class="portal-card portal-pagination provider-minimal-pagination" x-show="pagination.pages > 1" x-cloak>
+    <span x-text="`${pagination.page} of ${pagination.pages}`"></span>
+    <div>
+      <button class="btn btn-light btn-sm" :disabled="pagination.page <= 1 || loading" @click="go(pagination.page - 1)">Previous</button>
+      <button class="btn btn-light btn-sm" :disabled="pagination.page >= pagination.pages || loading" @click="go(pagination.page + 1)">Next</button>
+    </div>
   </div>
 </div>
 
@@ -211,115 +288,106 @@
   function leadList() {
     const query = new URLSearchParams(location.search);
     const initialStatus = query.get('status') === 'unlocked' ? 'unlocked' : 'offered';
+    const queryValue = (key, fallback = '') => query.get(key) ?? fallback;
     return {
-      rows: [],
-      categories: [],
-      locationReady: true,
-      loading: true,
-      error: '',
-      pagination: { page: Number(query.get('page') || 1), pages: 1, total: 0 },
+      rows: [], categories: [], locationReady: true, loading: true, error: '', filtersOpen: false,
+      pagination: { page: Number(queryValue('page', 1)), pages: 1, total: 0 },
       filters: {
-        q: query.get('q') || '',
-        status: initialStatus,
-        categorySlug: query.get('categorySlug') || '',
-        city: query.get('city') || '',
-        limit: Number(query.get('limit') || 20)
+        q: queryValue('q'), status: initialStatus, categorySlug: queryValue('categorySlug'), city: queryValue('city'),
+        pincode: queryValue('pincode'), leadIntent: queryValue('leadIntent'), confirmation: queryValue('confirmation'),
+        unlockCount: queryValue('unlockCount'), age: queryValue('age'), outcome: queryValue('outcome'),
+        activityStatus: queryValue('activityStatus'), overdue: queryValue('overdue') === 'true', startDate: queryValue('startDate'),
+        endDate: queryValue('endDate'), minCredits: queryValue('minCredits'), maxCredits: queryValue('maxCredits'),
+        sort: queryValue('sort', 'newest'), limit: Number(queryValue('limit', 20))
       },
-      init() {
-        this.updatePageTitle();
-        this.load();
-      },
+      init() { this.updatePageTitle(); this.load(); },
       updatePageTitle() {
         const unlocked = this.filters.status === 'unlocked';
-        this.$dispatch('portal-page', {
-          title: unlocked ? 'Unlocked leads' : 'Lead marketplace',
-          subtitle: unlocked ? 'Customer contacts you have purchased' : 'Nearby category-matched opportunities from Findoly CRM'
-        });
+        this.$dispatch('portal-page', { title: unlocked ? 'Unlocked leads' : 'Lead marketplace', subtitle: unlocked ? 'Customer contacts and outcome updates' : 'Nearby category-matched opportunities' });
       },
       params() {
         const params = new URLSearchParams();
         Object.entries(this.filters).forEach(([key, value]) => {
-          if (value !== '' && value !== null && value !== undefined) params.set(key, value);
+          if (value !== '' && value !== null && value !== undefined && value !== false) params.set(key, value === true ? 'true' : value);
         });
         params.set('page', this.pagination.page);
         return params;
       },
-      hasActiveFilters() {
-        return Boolean(String(this.filters.q || '').trim() || this.filters.categorySlug || String(this.filters.city || '').trim());
+      filterKeys() {
+        const common = ['q','categorySlug','city','pincode','leadIntent','startDate','endDate','minCredits','maxCredits'];
+        return this.filters.status === 'unlocked' ? [...common,'outcome','activityStatus','overdue'] : [...common,'confirmation','unlockCount','age'];
       },
-      statusClass(lead) {
-        if (lead.providerSaleOutcome === 'confirmed') return 'bg-success text-white';
-        if (lead.providerSaleOutcome === 'not_confirmed') return 'bg-secondary text-white';
-        if (['rejected', 'invalid'].includes(lead.providerLeadStatus)) return 'bg-danger text-white';
-        if (lead.providerLeadStatus === 'on_hold') return 'bg-warning text-dark';
-        return lead.contactUnlocked ? 'bg-primary-subtle text-primary' : 'bg-light text-body border';
+      hasActiveFilters() { return this.filterKeys().some((key) => Boolean(this.filters[key])); },
+      activeFilterCount() { return this.filterKeys().filter((key) => Boolean(this.filters[key])).length; },
+      chipText(key, value) {
+        const labels = { q: `Search: ${value}`, categorySlug: humanize(value), city: value, pincode: `PIN ${value}`, leadIntent: `${humanize(value)} intent`, confirmation: value === 'confirmed' ? 'Currently confirmed' : 'Not confirmed', unlockCount: { none: 'No unlocks', one_two: '1–2 unlocks', three_plus: '3+ unlocks' }[value], age: { today: 'Last 24 hours', '3d': 'Last 3 days', '7d': 'Last 7 days', '30d': 'Last 30 days' }[value], outcome: `Outcome: ${humanize(value)}`, activityStatus: `Activity: ${humanize(value)}`, overdue: 'Overdue 7+ days', startDate: `From ${value}`, endDate: `To ${value}`, minCredits: `Min ${value} credits`, maxCredits: `Max ${value} credits` };
+        return labels[key] || humanize(value);
       },
-      intentLabel(value) {
-        if (value === 'not_assessed') return 'Intent not assessed';
-        return `${humanize(value)} intent`;
+      activeChips() { return this.filterKeys().filter((key) => Boolean(this.filters[key])).map((key) => ({ key, label: this.chipText(key, this.filters[key]) })); },
+      removeFilter(key) { this.filters[key] = key === 'overdue' ? false : ''; this.apply(); },
+      intentLabel(value) { return value === 'not_assessed' ? 'Not assessed' : `${humanize(value)} intent`; },
+      locationLabel(lead) {
+        return [lead.city, lead.state, lead.pincode].filter(Boolean).join(', ') || 'Location available in lead details';
+      },
+      distanceLabel(lead) {
+        const value = Number(lead.providerDistanceKm);
+        if (!Number.isFinite(value)) return 'Nearby matched area';
+        return value < 1 ? `${Math.max(1, Math.round(value * 1000))} m away` : `${value.toFixed(value < 10 ? 1 : 0)} km away`;
+      },
+      preferredLabel(lead) {
+        const date = lead.preferredDate ? formatDateOnly(lead.preferredDate) : '';
+        const slot = lead.preferredSlot ? humanize(lead.preferredSlot) : '';
+        return [date, slot].filter(Boolean).join(' · ') || 'Flexible timing';
       },
       relativeAge(value) {
-        const time = new Date(value).getTime();
+        const time = new Date(value || '').getTime();
         if (!Number.isFinite(time)) return 'Recently added';
         const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
-        if (minutes < 1) return 'Just now';
-        if (minutes < 60) return `${minutes} min ago`;
+        if (minutes < 2) return 'Just now';
+        if (minutes < 60) return `${minutes} minutes ago`;
         const hours = Math.floor(minutes / 60);
-        if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`;
+        if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
         const days = Math.floor(hours / 24);
         return `${days} day${days === 1 ? '' : 's'} ago`;
       },
-      distanceLabel(value) {
-        const distance = Number(value);
-        if (!Number.isFinite(distance)) return 'Distance pending';
-        return distance < 1 ? `${Math.max(1, Math.round(distance * 1000))} m` : `${distance.toFixed(distance < 10 ? 1 : 0)} km`;
-      },
-      preferredLabel(lead) {
-        const date = lead.preferredDate ? formatDateOnly(lead.preferredDate) : 'Flexible date';
-        return lead.preferredSlot ? `${date} · ${lead.preferredSlot}` : date;
-      },
       leadSummary(lead) {
         const details = lead.additionalDetails || {};
-        const parts = Object.entries(details)
-          .filter(([, value]) => value !== '' && value !== null && value !== undefined && ['string', 'number', 'boolean'].includes(typeof value))
-          .slice(0, 3)
-          .map(([key, value]) => `${humanize(key)}: ${typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value}`);
-        return parts.length ? parts.join(' · ') : 'Review the requirement, location and preferred timing before taking action.';
+        const keys = ['requirement', 'description', 'summary', 'details', 'serviceRequirement', 'message', 'notes', 'note'];
+        let value = '';
+        for (const key of keys) {
+          if (typeof details[key] === 'string' && details[key].trim()) { value = details[key].trim(); break; }
+        }
+        if (!value && typeof lead.serviceType === 'string' && lead.serviceType.trim() && lead.serviceType !== lead.leadTitle) {
+          value = lead.serviceType.trim();
+        }
+        value = String(value || '').replace(/\s+/g, ' ').trim();
+        return value.length > 180 ? `${value.slice(0, 177)}…` : value;
       },
+      phoneHref(value) { return `tel:${String(value || '').replace(/[^+\d]/g, '')}`; },
+      statusClass(lead) {
+        if (lead.providerSaleOutcome === 'confirmed') return 'is-success';
+        if (lead.providerSaleOutcome === 'not_confirmed') return 'is-neutral';
+        if (['rejected','invalid'].includes(lead.providerLeadStatus)) return 'is-danger';
+        if (lead.providerLeadStatus === 'on_hold') return 'is-warning';
+        return 'is-pending';
+      },
+      outcomeLabel(lead) { return lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : 'Outcome pending'; },
+      isOverdue(lead) { return !lead.providerSaleOutcome && lead.unlockedAt && (Date.now() - new Date(lead.unlockedAt).getTime()) >= 7 * 86400000; },
       async load() {
-        this.loading = true;
-        this.error = '';
+        this.loading = true; this.error = '';
         try {
           const body = await apiFetch('/api/lead?' + this.params().toString());
-          this.rows = body.data || [];
-          this.categories = body.filters?.categories || [];
-          this.locationReady = body.filters?.locationReady !== false;
+          this.rows = body.data || []; this.categories = body.filters?.categories || []; this.locationReady = body.filters?.locationReady !== false;
           this.pagination = body.pagination || { page: 1, pages: 1, total: this.rows.length };
-        } catch (error) {
-          this.error = error.message;
-        } finally {
-          this.loading = false;
-        }
+        } catch (error) { this.error = error.message; } finally { this.loading = false; }
       },
-      apply() {
-        this.pagination.page = 1;
-        history.replaceState({}, '', '/leads?' + this.params().toString());
-        this.load();
-      },
+      apply() { this.pagination.page = 1; history.replaceState({}, '', '/leads?' + this.params().toString()); this.load(); },
       clear() {
-        this.filters.q = '';
-        this.filters.categorySlug = '';
-        this.filters.city = '';
-        this.pagination.page = 1;
-        history.replaceState({}, '', '/leads?' + this.params().toString());
-        this.load();
+        ['q','categorySlug','city','pincode','leadIntent','confirmation','unlockCount','age','outcome','activityStatus','startDate','endDate','minCredits','maxCredits'].forEach((key) => { this.filters[key] = ''; });
+        this.filters.overdue = false; this.filters.sort = 'newest'; this.pagination.page = 1; this.filtersOpen = false;
+        history.replaceState({}, '', '/leads?' + this.params().toString()); this.load();
       },
-      go(page) {
-        this.pagination.page = page;
-        history.replaceState({}, '', '/leads?' + this.params().toString());
-        this.load();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      go(page) { this.pagination.page = page; history.replaceState({}, '', '/leads?' + this.params().toString()); this.load(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
     };
   }
 </script>

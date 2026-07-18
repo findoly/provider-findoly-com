@@ -98,32 +98,88 @@ function assertMarketplaceAccess(provider, lead) {
   }
 }
 
+function numericFilter(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function enumFilter(value, allowed = []) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return allowed.includes(normalized) ? normalized : "";
+}
+
+function ageCutoff(value) {
+  const key = enumFilter(value, ["today", "3d", "7d", "30d"]);
+  if (!key) return null;
+  const duration = {
+    today: 24 * 60 * 60 * 1000,
+    "3d": 3 * 24 * 60 * 60 * 1000,
+    "7d": 7 * 24 * 60 * 60 * 1000,
+    "30d": 30 * 24 * 60 * 60 * 1000,
+  }[key];
+  return new Date(Date.now() - duration);
+}
+
+async function enquiryIdsForFilters(filters = {}) {
+  const clauses = [];
+  const intent = enumFilter(filters.leadIntent, ["not_assessed", "low", "medium", "high"]);
+  if (intent) clauses.push({ leadIntent: intent });
+
+  const confirmation = enumFilter(filters.confirmation, ["confirmed", "not_confirmed"]);
+  if (confirmation === "confirmed") clauses.push({ providerConfirmedCount: { $gt: 0 } });
+  if (confirmation === "not_confirmed") {
+    clauses.push({
+      $or: [
+        { providerConfirmedCount: { $exists: false } },
+        { providerConfirmedCount: { $lte: 0 } },
+      ],
+    });
+  }
+
+  const unlockCount = enumFilter(filters.unlockCount, ["none", "one_two", "three_plus"]);
+  if (unlockCount === "none") {
+    clauses.push({ $or: [{ unlockedCount: { $exists: false } }, { unlockedCount: { $lte: 0 } }] });
+  }
+  if (unlockCount === "one_two") clauses.push({ unlockedCount: { $gte: 1, $lte: 2 } });
+  if (unlockCount === "three_plus") clauses.push({ unlockedCount: { $gte: 3 } });
+
+  if (!clauses.length) return null;
+  const rows = await Enquiry.find(clauses.length === 1 ? clauses[0] : { $and: clauses })
+    .select({ enquiryId: 1, id: 1 })
+    .lean();
+  return [...new Set(rows.map((row) => String(row.enquiryId || row.id || "").trim()).filter(Boolean))];
+}
+
+function listSort(status, value) {
+  const sort = enumFilter(value, ["newest", "oldest", "nearest", "cost_low", "cost_high"]);
+  if (sort === "oldest") return status === "unlocked" ? { unlockedAt: 1, createdAt: 1 } : { distributedAt: 1, createdAt: 1 };
+  if (sort === "nearest") return { providerDistanceKm: 1, distributedAt: -1 };
+  if (sort === "cost_low") return { leadCostCredits: 1, leadPricePaise: 1, distributedAt: -1 };
+  if (sort === "cost_high") return { leadCostCredits: -1, leadPricePaise: -1, distributedAt: -1 };
+  return status === "unlocked" ? { unlockedAt: -1, createdAt: -1 } : { distributedAt: -1, createdAt: -1 };
+}
+
 async function list(provider, filters = {}) {
   const providerId = providerIdentity(provider);
   const categories = providerCategories(provider);
   const { page, limit, skip } = getPagination(filters);
-  const query = { providerId };
-
-  const status = String(filters.status || "offered").trim();
-  if (status && !["offered", "unlocked"].includes(status)) {
+  const status = enumFilter(filters.status || "offered", ["offered", "unlocked"]);
+  if (!status) {
     throw Object.assign(new Error("Invalid lead status filter"), {
       status: 400,
       code: "FILTER_INVALID",
     });
   }
 
+  const query = { providerId };
+  const conditions = [];
+
   if (status === "unlocked") {
     query.contactUnlocked = true;
-  } else if (status === "offered") {
-    query.status = "offered";
-    query.contactUnlocked = { $ne: true };
-    query.categorySlug = { $in: categories };
   } else {
     query.status = "offered";
     query.contactUnlocked = { $ne: true };
     query.categorySlug = { $in: categories };
-  }
-  if (status !== "unlocked") {
     query.marketplaceVisibleAt = { $ne: null, $lte: new Date() };
   }
 
@@ -141,37 +197,113 @@ async function list(provider, filters = {}) {
   const city = String(filters.city || "").trim();
   if (city) query.city = new RegExp(escapeRegex(city), "i");
 
+  const pincode = String(filters.pincode || "").trim();
+  if (pincode) query.pincode = new RegExp(`^${escapeRegex(pincode)}`, "i");
+
   const searchValue = String(filters.q || "").trim();
   if (searchValue) {
     const search = new RegExp(escapeRegex(searchValue), "i");
-    const searchQuery = [
-      { leadTitle: search },
-      { serviceType: search },
-      { category: search },
-      { city: search },
-      { categorySlug: search },
-      { enquiryId: search },
-      { leadDistributionId: search },
-    ];
-    if (query.$or) {
-      query.$and = [{ $or: query.$or }, { $or: searchQuery }];
-      delete query.$or;
-    } else {
-      query.$or = searchQuery;
+    conditions.push({
+      $or: [
+        { leadTitle: search },
+        { serviceType: search },
+        { category: search },
+        { city: search },
+        { state: search },
+        { pincode: search },
+        { categorySlug: search },
+        { enquiryId: search },
+        { leadDistributionId: search },
+      ],
+    });
+  }
+
+  const dateField = status === "unlocked" ? "unlockedAt" : "distributedAt";
+  const start = dateAt(filters.startDate);
+  const end = dateAt(filters.endDate, true);
+  const relativeStart = ageCutoff(filters.age);
+  if (start || end || relativeStart) {
+    query[dateField] = {};
+    if (relativeStart) query[dateField].$gte = relativeStart;
+    if (start) query[dateField].$gte = start;
+    if (end) query[dateField].$lte = end;
+  }
+
+  const minCredits = numericFilter(filters.minCredits);
+  const maxCredits = numericFilter(filters.maxCredits);
+  if (minCredits !== null || maxCredits !== null) {
+    const creditRange = {};
+    const paiseRange = {};
+    if (minCredits !== null) {
+      creditRange.$gte = minCredits;
+      paiseRange.$gte = Math.round(minCredits * 100);
+    }
+    if (maxCredits !== null) {
+      creditRange.$lte = maxCredits;
+      paiseRange.$lte = Math.round(maxCredits * 100);
+    }
+    conditions.push({
+      $or: [
+        { leadCostCredits: creditRange },
+        {
+          $and: [
+            { $or: [{ leadCostCredits: { $exists: false } }, { leadCostCredits: null }] },
+            { leadPricePaise: paiseRange },
+          ],
+        },
+      ],
+    });
+  }
+
+  if (status === "unlocked") {
+    const outcome = enumFilter(filters.outcome, ["pending", "confirmed", "not_confirmed"]);
+    if (outcome === "confirmed") query.providerSaleOutcome = "confirmed";
+    if (outcome === "not_confirmed") query.providerSaleOutcome = "not_confirmed";
+    if (outcome === "pending") {
+      conditions.push({
+        $and: [
+          { $or: [{ providerSaleOutcome: "" }, { providerSaleOutcome: { $exists: false } }] },
+          { providerLeadStatus: { $ne: "confirmed" } },
+        ],
+      });
+    }
+
+    const activityStatus = enumFilter(filters.activityStatus, [
+      "contacted", "valid", "follow_up", "on_hold", "rejected", "invalid", "not_interested", "other",
+    ]);
+    if (activityStatus) query.providerLeadStatus = activityStatus;
+
+    if (String(filters.overdue || "").toLowerCase() === "true") {
+      const days = Math.max(1, Number(process.env.PROVIDER_OUTCOME_REMINDER_DAYS || 7));
+      const overdueCutoff = new Date(Date.now() - days * 86400000);
+      query.unlockedAt = { ...(query.unlockedAt || {}), $ne: null };
+      if (!query.unlockedAt.$lte || query.unlockedAt.$lte > overdueCutoff) query.unlockedAt.$lte = overdueCutoff;
+      conditions.push({
+        $and: [
+          { $or: [{ providerSaleOutcome: "" }, { providerSaleOutcome: { $exists: false } }] },
+          { providerLeadStatus: { $ne: "confirmed" } },
+        ],
+      });
     }
   }
 
-  const start = dateAt(filters.startDate);
-  const end = dateAt(filters.endDate, true);
-  if (start || end) {
-    query.distributedAt = {};
-    if (start) query.distributedAt.$gte = start;
-    if (end) query.distributedAt.$lte = end;
+  const enquiryIds = await enquiryIdsForFilters(filters);
+  if (Array.isArray(enquiryIds)) {
+    if (!enquiryIds.length) {
+      return {
+        ...pageResult([], 0, page, limit),
+        filters: { categories, locationReady: hasCoordinates(provider, "service") },
+      };
+    }
+    query.enquiryId = { $in: enquiryIds };
   }
 
+  if (conditions.length) query.$and = conditions;
+
+  const sort = listSort(status, filters.sort);
   const [rows, total] = await Promise.all([
     LeadDistribution.find(query)
-      .sort({ distributedAt: -1, createdAt: -1 })
+      .sort(sort)
       .skip(skip)
       .limit(limit)
       .lean(),
