@@ -31,6 +31,21 @@ function presentProvider(provider = {}) {
     skills: Array.isArray(provider.skills) ? provider.skills : [],
     city: provider.city || "",
     state: provider.state || "",
+    servicePincode: provider.servicePincode || "",
+    serviceAddress: provider.serviceAddress || "",
+    serviceLatitude: Number.isFinite(Number(provider.serviceLatitude)) ? Number(provider.serviceLatitude) : null,
+    serviceLongitude: Number.isFinite(Number(provider.serviceLongitude)) ? Number(provider.serviceLongitude) : null,
+    serviceLocality: provider.serviceLocality || "",
+    serviceDistrict: provider.serviceDistrict || "",
+    serviceState: provider.serviceState || provider.state || "",
+    serviceCountry: provider.serviceCountry || "India",
+    serviceLocationVerifiedAt: provider.serviceLocationVerifiedAt || null,
+    serviceLocationSource: provider.serviceLocationSource || "",
+    locationReady: Boolean(
+      provider.servicePincode
+      && Number.isFinite(Number(provider.serviceLatitude))
+      && Number.isFinite(Number(provider.serviceLongitude)),
+    ),
     serviceAreas: Array.isArray(provider.serviceAreas)
       ? provider.serviceAreas
       : [],

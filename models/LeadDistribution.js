@@ -23,6 +23,11 @@ const leadDistributionSchema = new mongoose.Schema(
     city: { type: String, default: "" },
     state: { type: String, default: "" },
     pincode: { type: String, default: "" },
+    leadLatitude: { type: Number, default: null },
+    leadLongitude: { type: Number, default: null },
+    providerDistanceKm: { type: Number, default: null, min: 0 },
+    marketplacePublishedAt: { type: Date, default: null, index: true },
+    marketplaceVisibleAt: { type: Date, default: null, index: true },
     preferredDate: { type: String, default: "" },
     preferredSlot: { type: String, default: "" },
     priority: { type: String, default: "normal" },
@@ -82,6 +87,7 @@ const leadDistributionSchema = new mongoose.Schema(
 
 leadDistributionSchema.index({ enquiryId: 1, providerId: 1 }, { unique: true });
 leadDistributionSchema.index({ providerId: 1, contactUnlocked: 1, unlockedAt: 1, providerSaleOutcome: 1 });
+leadDistributionSchema.index({ providerId: 1, status: 1, marketplaceVisibleAt: 1, distributedAt: -1 });
 
 module.exports = mongoose.model(
   "LeadDistribution",

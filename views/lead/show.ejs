@@ -44,12 +44,11 @@
             </div>
           </div>
           <div class="portal-price-box">
-            <span>Current unlock price</span>
+            <span x-text="isUnlocked ? 'Access' : 'Unlock cost'"></span>
             <div class="portal-price-values">
-              <del x-show="lead.unlockDiscountPercent > 0" x-text="credits(lead.baseLeadCostCredits)"></del>
-              <strong x-text="credits(lead.leadCostCredits)">0 Credits</strong>
+              <strong x-text="isUnlocked ? 'Unlocked' : credits(lead.leadCostCredits)">0 Credits</strong>
             </div>
-            <small x-show="lead.unlockDiscountPercent > 0" x-text="lead.unlockDiscountPercent + '% marketplace discount'"></small>
+            <small x-text="isUnlocked ? 'Customer contact available to your account' : 'CRM configured price'"></small>
           </div>
         </div>
 
@@ -77,7 +76,7 @@
 
       <div class="portal-marketplace-trust mb-4">
         <div><span>Lead intent</span><strong :class="'is-' + lead.leadIntent" x-text="lead.leadIntent === 'not_assessed' ? 'Not assessed' : humanize(lead.leadIntent) + ' intent'"></strong></div>
-        <div><span>Competition</span><strong :class="'is-' + lead.competitionLevel" x-text="humanize(lead.competitionLevel)"></strong></div>
+        <div><span>Approx. distance</span><strong x-text="distanceLabel(lead.providerDistanceKm)"></strong></div>
         <div><span>Provider interest</span><strong><span x-text="lead.unlockedCount || 0"></span> unlocked</strong></div>
         <div><span>Current result</span><strong :class="lead.currentlyConfirmed ? 'is-confirmed' : ''" x-text="lead.currentlyConfirmed ? 'Confirmed by ' + lead.providerConfirmedCount : 'Not confirmed yet'"></strong></div>
       </div>
@@ -199,9 +198,8 @@
           <template x-if="!isUnlocked">
             <div>
               <div class="portal-unlock-price mb-3">
-                <div><span>Original price</span><strong :class="{ 'text-decoration-line-through text-muted': lead.unlockDiscountPercent > 0 }" x-text="credits(lead.baseLeadCostCredits)"></strong></div>
-                <div x-show="lead.unlockDiscountPercent > 0"><span>Marketplace discount</span><strong class="text-success" x-text="lead.unlockDiscountPercent + '% off'"></strong></div>
-                <div class="is-total"><span>Unlock now</span><strong x-text="credits(lead.leadCostCredits)"></strong></div>
+                <div><span>Lead access</span><strong>Customer contact</strong></div>
+                <div class="is-total"><span>Unlock cost</span><strong x-text="credits(lead.leadCostCredits)"></strong></div>
               </div>
 
               <template x-if="hasEnoughBalance">
@@ -239,7 +237,8 @@
 
           <template x-if="isUnlocked">
             <div>
-              <a class="btn btn-light w-100" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon me-2"><use href="#i-phone"></use></svg>Call customer</a>
+              <a class="btn btn-primary w-100" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon me-2"><use href="#i-phone"></use></svg>Call customer</a>
+              <a class="btn btn-light w-100 mt-2" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'https://wa.me/91' + String(contact.mobile).replace(/\D/g, '').slice(-10) : '#'" target="_blank" rel="noopener">WhatsApp customer</a>
               <a class="btn btn-outline-primary w-100 mt-2" href="/leads?status=unlocked">All unlocked leads</a>
               <p class="text-muted fs-sm mt-3 mb-0" x-text="lead.unlockMethod === 'direct_payment' ? 'Unlocked with a verified direct payment.' : 'The credit deduction is recorded in your transaction history.'"></p>
             </div>
@@ -363,6 +362,12 @@
           email: this.lead.customerEmail || '',
           address: this.lead.customerAddress || ''
         };
+      },
+
+      distanceLabel(value) {
+        const distance = Number(value);
+        if (!Number.isFinite(distance)) return 'Location is being verified';
+        return distance < 1 ? `${Math.max(1, Math.round(distance * 1000))} m away` : `${distance.toFixed(distance < 10 ? 1 : 0)} km away`;
       },
 
       displayValue(value) {

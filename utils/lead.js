@@ -1,10 +1,5 @@
 const { leadCostCredits } = require("./credits");
-const {
-  competitionLevel,
-  discountedCredits,
-  normalizeIntent,
-  safeCount,
-} = require("./marketplace");
+const { normalizeIntent, safeCount } = require("./marketplace");
 
 const SENSITIVE_KEY =
   /(name|mobile|phone|email|address|contact|whatsapp|customer|latitude|longitude|locationlink)/i;
@@ -30,21 +25,10 @@ function presentLead(row = {}) {
   const confirmedCount = safeCount(
     row.marketplaceConfirmedCount ?? row.providerConfirmedCount,
   );
-  const baseCredits = Number(
+  const baseCredits = Math.max(0, Number(
     row.baseLeadCostCredits ?? row.marketplaceBaseCredits ?? leadCostCredits(row),
-  );
-  const pricing = unlocked && Number.isFinite(Number(row.effectiveLeadCostCredits))
-    ? {
-        baseCredits,
-        effectiveCredits: Number(row.effectiveLeadCostCredits),
-        discountPercent: Number(row.unlockDiscountPercent || 0),
-        savingsCredits: Math.max(
-          0,
-          Math.round((baseCredits - Number(row.effectiveLeadCostCredits)) * 100) / 100,
-        ),
-        previousUnlocks: safeCount(row.unlockCountAtPurchase),
-      }
-    : discountedCredits(baseCredits, unlockedCount);
+  ));
+
 
   const lead = {
     leadDistributionId: row.leadDistributionId || row.id || "",
@@ -52,12 +36,12 @@ function presentLead(row = {}) {
     categorySlug: row.categorySlug || "",
     status: row.status || "",
     leadPricePaise: Number(row.leadPricePaise || 0),
-    leadCostCredits: pricing.effectiveCredits,
-    baseLeadCostCredits: pricing.baseCredits,
-    effectiveLeadCostCredits: pricing.effectiveCredits,
-    unlockDiscountPercent: pricing.discountPercent,
-    unlockSavingsCredits: pricing.savingsCredits,
-    unlockCountAtPrice: pricing.previousUnlocks,
+    leadCostCredits: baseCredits,
+    baseLeadCostCredits: baseCredits,
+    effectiveLeadCostCredits: baseCredits,
+    unlockDiscountPercent: 0,
+    unlockSavingsCredits: 0,
+    unlockCountAtPrice: unlockedCount,
     currency: row.currency || "INR",
     contactUnlocked: unlocked,
     leadTitle: row.leadTitle || "",
@@ -72,8 +56,10 @@ function presentLead(row = {}) {
     leadIntent: normalizeIntent(row.leadIntent || row.marketplaceLeadIntent),
     unlockedCount,
     providerConfirmedCount: confirmedCount,
-    competitionLevel: competitionLevel(unlockedCount),
     currentlyConfirmed: confirmedCount > 0,
+    providerDistanceKm: Number.isFinite(Number(row.providerDistanceKm)) ? Number(row.providerDistanceKm) : null,
+    marketplacePublishedAt: row.marketplacePublishedAt || null,
+    marketplaceVisibleAt: row.marketplaceVisibleAt || null,
     additionalDetails: unlocked
       ? row.additionalDetails || {}
       : sanitizeDetails(row.additionalDetails || {}),

@@ -12,11 +12,12 @@ const {
 } = require("../utils/lead-status");
 const { presentProvider, providerCategories } = require("../utils/provider");
 const { presentLead } = require("../utils/lead");
+const { normalizeIntent } = require("../utils/marketplace");
 const {
-  competitionLevel,
-  discountedCredits,
-  discountPercentForUnlocks,
-} = require("../utils/marketplace");
+  haversineDistanceKm,
+  marketplaceVisibleAt,
+  stageForDistance,
+} = require("../utils/marketplace-radius");
 const { getPlan, directPaymentQuote } = require("../config/plans");
 
 test("rupee-backed balances and lead prices are exposed as 1:1 credits", () => {
@@ -74,24 +75,25 @@ test("sale outcome is mandatory while activity status remains optional", () => {
   );
 });
 
-test("marketplace competition and discount tiers use previous successful unlocks", () => {
-  assert.equal(competitionLevel(0), "low");
-  assert.equal(competitionLevel(2), "medium");
-  assert.equal(competitionLevel(4), "high");
+test("marketplace uses CRM lead intent and progressive distance visibility", () => {
+  assert.equal(normalizeIntent("HIGH"), "high");
+  assert.equal(normalizeIntent("unknown"), "not_assessed");
 
-  assert.equal(discountPercentForUnlocks(0), 0);
-  assert.equal(discountPercentForUnlocks(1), 20);
-  assert.equal(discountPercentForUnlocks(3), 40);
-  assert.equal(discountPercentForUnlocks(5), 50);
-  assert.equal(discountPercentForUnlocks(8), 75);
+  assert.equal(stageForDistance(4.9).delayMinutes, 0);
+  assert.equal(stageForDistance(8).delayMinutes, 5);
+  assert.equal(stageForDistance(20).delayMinutes, 15);
+  assert.equal(stageForDistance(40).delayMinutes, 30);
+  assert.equal(stageForDistance(75).delayMinutes, 60);
+  assert.equal(stageForDistance(150).delayMinutes, 120);
+  assert.equal(stageForDistance(350).delayMinutes, 240);
+  assert.equal(stageForDistance(450).delayMinutes, 480);
 
-  assert.deepEqual(discountedCredits(100, 3), {
-    baseCredits: 100,
-    effectiveCredits: 60,
-    discountPercent: 40,
-    savingsCredits: 40,
-    previousUnlocks: 3,
-  });
+  const publishedAt = new Date("2026-07-18T10:00:00.000Z");
+  assert.equal(
+    marketplaceVisibleAt(publishedAt, 20).toISOString(),
+    "2026-07-18T10:15:00.000Z",
+  );
+  assert.ok(haversineDistanceKm(19.076, 72.8777, 19.076, 72.8777) < 0.1);
 });
 
 test("saved provider outcome and activity are returned only after contact unlock", () => {

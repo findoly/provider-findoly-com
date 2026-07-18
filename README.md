@@ -198,31 +198,33 @@ npm run ensure:indexes
 npm audit --omit=dev
 ```
 
-## Marketplace transparency and dynamic lead pricing
+## Nearby marketplace and transparent lead signals
 
-Before an unlock, the provider can see the lead intent selected by CRM, the current competition level, how many providers have unlocked the lead, whether any provider currently confirms the sale, and the current effective credit cost. Customer contact information remains hidden.
+CRM is the source of truth for Lead Intent (`high`, `medium`, `low`, or `not_assessed`) and the customer PIN code. Each provider maintains one mandatory primary service PIN code; full address is optional. Both PIN codes are geocoded on the server and cached in MongoDB.
 
-Competition is calculated from successful unlocks:
+Marketplace visibility expands automatically from the lead location:
 
-| Successful unlocks | Competition |
-|---:|---|
-| 0–1 | Low |
-| 2–3 | Medium |
-| 4+ | High |
-
-The CRM-assigned lead intent is one of `high`, `medium`, `low`, or `not_assessed`.
-
-The server calculates the unlock discount from previous successful unlocks:
-
-| Previous successful unlocks | Discount |
+| Time since marketplace publication | Radius |
 |---:|---:|
-| 0 | 0% |
-| 1–2 | 20% |
-| 3–4 | 40% |
-| 5–7 | 50% |
-| 8+ | 75% |
+| 0–5 minutes | 5 km |
+| 5–15 minutes | 10 km |
+| 15–30 minutes | 25 km |
+| 30–60 minutes | 50 km |
+| 1–2 hours | 100 km |
+| 2–4 hours | 200 km |
+| 4–8 hours | 400 km |
+| After 8 hours | No platform radius restriction |
 
-Wallet-credit and direct-payment unlocks use the same effective price. Direct-payment quotes are stored on the payment order, so the amount remains fixed while the Razorpay checkout is active.
+Category matching and provider account eligibility always remain required. Before unlock, the provider sees Lead Intent, approximate distance, the number of providers who unlocked, and the current confirmed-provider count. Customer contact information remains hidden.
+
+There is no dynamic discount. Wallet-credit and direct-payment unlocks always use the original credit cost configured in CRM. After a successful unlock, the lead is removed from that provider's Marketplace and appears in Unlocked Leads.
+
+Configure server-side geocoding in both applications:
+
+```env
+GOOGLE_MAPS_API_KEY=<restricted-server-key>
+GOOGLE_MAPS_TIMEOUT_MS=8000
+```
 
 ## Provider outcomes and CRM synchronization
 

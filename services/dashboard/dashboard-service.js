@@ -7,8 +7,10 @@ const {
 const { presentLead } = require("../../utils/lead");
 const creditService = require("../billing/credit-service");
 const leadService = require("../lead/lead-service");
+const { refreshProviderVisibility } = require("../marketplace/visibility-service");
 
 async function get(provider) {
+  await refreshProviderVisibility(provider);
   const providerId = providerIdentity(provider);
   const categorySlugs = providerCategories(provider);
   const syncedProvider = await creditService.syncCredits(providerId);
@@ -17,6 +19,7 @@ async function get(provider) {
     providerId,
     status: "offered",
     contactUnlocked: { $ne: true },
+    marketplaceVisibleAt: { $ne: null, $lte: new Date() },
   };
   availableQuery.categorySlug = { $in: categorySlugs };
 

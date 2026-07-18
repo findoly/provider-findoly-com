@@ -9,6 +9,7 @@ const WalletTransaction = require("../models/WalletTransaction");
 const PaymentOrder = require("../models/PaymentOrder");
 const CreditAllocation = require("../models/CreditAllocation");
 const ProviderSubscription = require("../models/ProviderSubscription");
+const PincodeLocation = require("../models/PincodeLocation");
 
 async function run() {
   await connectDatabase();
@@ -20,6 +21,7 @@ async function run() {
     PaymentOrder,
     CreditAllocation,
     ProviderSubscription,
+    PincodeLocation,
   ];
 
   for (const model of models) {

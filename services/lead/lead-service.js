@@ -9,7 +9,9 @@ const {
 } = require("../../utils/provider");
 const { presentLead } = require("../../utils/lead");
 const { leadCostCredits, paiseFromCredits } = require("../../utils/credits");
-const { discountedCredits, normalizeIntent } = require("../../utils/marketplace");
+const { normalizeIntent } = require("../../utils/marketplace");
+const { isMarketplaceVisible } = require("../../utils/marketplace-radius");
+const { hasCoordinates } = require("../marketplace/visibility-service");
 const { validateLeadFeedback } = require("../../utils/lead-status");
 const { withTransaction } = require("../../utils/transaction");
 const creditService = require("../billing/credit-service");
@@ -38,7 +40,7 @@ async function marketplaceMap(rows = [], session = null) {
   const ids = [...new Set(rows.map((row) => String(row.enquiryId || row.requirementId || "").trim()).filter(Boolean))];
   if (!ids.length) return new Map();
   let query = Enquiry.find({ $or: [{ enquiryId: { $in: ids } }, { id: { $in: ids } }] })
-    .select({ enquiryId: 1, id: 1, unlockedCount: 1, providerConfirmedCount: 1, leadIntent: 1, leadCostCredits: 1, leadPricePaise: 1 })
+    .select({ enquiryId: 1, id: 1, unlockedCount: 1, providerConfirmedCount: 1, leadIntent: 1, leadCostCredits: 1, leadPricePaise: 1, locationLatitude: 1, locationLongitude: 1, marketplacePublishedAt: 1 })
     .lean();
   if (session) query = query.session(session);
   const enquiries = await query;
@@ -56,6 +58,9 @@ async function presentRows(rows = [], session = null) {
       marketplaceConfirmedCount: enquiry.providerConfirmedCount,
       marketplaceLeadIntent: enquiry.leadIntent,
       marketplaceBaseCredits: leadCostCredits(item),
+      leadLatitude: item.leadLatitude ?? enquiry.locationLatitude,
+      leadLongitude: item.leadLongitude ?? enquiry.locationLongitude,
+      marketplacePublishedAt: item.marketplacePublishedAt || enquiry.marketplacePublishedAt,
     });
   });
 }
@@ -64,14 +69,33 @@ async function pricingForLead(lead, session = null) {
   let query = Enquiry.findOne(enquiryQuery(lead.enquiryId || lead.requirementId));
   if (session) query = query.session(session);
   const enquiry = await query.lean();
-  const previousUnlocks = Number(enquiry?.unlockedCount || 0);
-  const pricing = discountedCredits(leadCostCredits(lead), previousUnlocks);
+  const baseCredits = leadCostCredits(lead);
   return {
-    ...pricing,
+    baseCredits,
+    effectiveCredits: baseCredits,
+    discountPercent: 0,
+    savingsCredits: 0,
+    previousUnlocks: Number(enquiry?.unlockedCount || 0),
     enquiry,
     leadIntent: normalizeIntent(enquiry?.leadIntent || lead.leadIntent),
     providerConfirmedCount: Number(enquiry?.providerConfirmedCount || 0),
   };
+}
+
+function assertMarketplaceAccess(provider, lead) {
+  if (lead.contactUnlocked === true || lead.status === "unlocked") return;
+  if (!hasCoordinates(provider, "service")) {
+    throw Object.assign(
+      new Error("Add and verify your service PIN code in My Profile before viewing marketplace leads."),
+      { status: 409, code: "PROVIDER_LOCATION_REQUIRED" },
+    );
+  }
+  if (!isMarketplaceVisible(lead)) {
+    throw Object.assign(new Error("This lead is not available in your service radius yet"), {
+      status: 404,
+      code: "LEAD_NOT_AVAILABLE_IN_RADIUS",
+    });
+  }
 }
 
 async function list(provider, filters = {}) {
@@ -80,7 +104,7 @@ async function list(provider, filters = {}) {
   const { page, limit, skip } = getPagination(filters);
   const query = { providerId };
 
-  const status = String(filters.status || "").trim();
+  const status = String(filters.status || "offered").trim();
   if (status && !["offered", "unlocked"].includes(status)) {
     throw Object.assign(new Error("Invalid lead status filter"), {
       status: 400,
@@ -95,14 +119,12 @@ async function list(provider, filters = {}) {
     query.contactUnlocked = { $ne: true };
     query.categorySlug = { $in: categories };
   } else {
-    query.$or = [
-      { contactUnlocked: true },
-      {
-        status: "offered",
-        contactUnlocked: { $ne: true },
-        categorySlug: { $in: categories },
-      },
-    ];
+    query.status = "offered";
+    query.contactUnlocked = { $ne: true };
+    query.categorySlug = { $in: categories };
+  }
+  if (status !== "unlocked") {
+    query.marketplaceVisibleAt = { $ne: null, $lte: new Date() };
   }
 
   const categorySlug = String(filters.categorySlug || "").trim();
@@ -158,7 +180,7 @@ async function list(provider, filters = {}) {
 
   return {
     ...pageResult(await presentRows(rows), total, page, limit),
-    filters: { categories },
+    filters: { categories, locationReady: hasCoordinates(provider, "service") },
   };
 }
 
@@ -193,6 +215,7 @@ async function get(provider, leadDistributionId) {
       code: "LEAD_WITHDRAWN",
     });
   }
+  assertMarketplaceAccess(provider, lead);
 
   return (await presentRows([lead]))[0];
 }
@@ -229,6 +252,7 @@ async function unlock(provider, leadDistributionId) {
           code: "CATEGORY_MISMATCH",
         });
       }
+      assertMarketplaceAccess(provider, lead);
       if (
         lead.directPaymentPendingOrderId &&
         lead.directPaymentPendingUntil &&
@@ -265,7 +289,7 @@ async function unlock(provider, leadDistributionId) {
               enquiryId: lead.enquiryId,
               baseCredits: pricing.baseCredits,
               effectiveCredits: pricing.effectiveCredits,
-              discountPercent: pricing.discountPercent,
+              unlockPriceCredits: pricing.effectiveCredits,
               previousUnlocks: pricing.previousUnlocks,
               allocationConsumption: creditResult.consumption,
             },
@@ -293,7 +317,7 @@ async function unlock(provider, leadDistributionId) {
             directPaymentPendingUntil: null,
             baseLeadCostCredits: pricing.baseCredits,
             effectiveLeadCostCredits: pricing.effectiveCredits,
-            unlockDiscountPercent: pricing.discountPercent,
+            unlockDiscountPercent: 0,
             unlockCountAtPurchase: pricing.previousUnlocks,
             leadIntent: pricing.leadIntent,
             updatedAt: now,

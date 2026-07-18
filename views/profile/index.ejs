@@ -33,16 +33,48 @@
       <div class="card portal-card mb-4">
         <div class="card-body portal-profile-hero">
           <div class="portal-profile-avatar" x-text="initials(profile.name || profile.businessName)">P</div>
-          <div class="min-w-0">
-            <h3 class="mb-1" x-text="profile.businessName || profile.name || 'Provider'"></h3>
-            <div class="text-muted" x-text="profile.name || ''"></div>
-            <div class="d-flex flex-wrap gap-2 mt-3">
-              <span class="badge bg-success-subtle text-success" x-text="humanize(profile.status)"></span>
-              <span class="badge bg-light text-body border" x-text="profile.portalAccessEnabled === false ? 'Portal disabled' : 'Portal enabled'"></span>
-              <span class="badge bg-light text-body border" x-text="profile.documentsVerified ? 'Documents verified' : 'Documents pending'"></span>
+          <div class="min-w-0 flex-grow-1">
+            <div class="d-flex flex-wrap align-items-start gap-3">
+              <div class="min-w-0">
+                <h3 class="mb-1" x-text="profile.businessName || profile.name || 'Provider'"></h3>
+                <div class="text-muted" x-text="profile.name || ''"></div>
+              </div>
+              <div class="d-flex flex-wrap gap-2 ms-xl-auto">
+                <span class="badge bg-success-subtle text-success" x-text="humanize(profile.status)"></span>
+                <span class="badge" :class="profile.locationReady ? 'bg-primary-subtle text-primary' : 'bg-warning-subtle text-warning'" x-text="profile.locationReady ? 'Location verified' : 'Location required'"></span>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="card portal-card portal-location-card mb-4">
+        <div class="card-header border-bottom d-flex align-items-start gap-3">
+          <div>
+            <div class="portal-step-label">Marketplace location</div>
+            <h5 class="mb-1">Your primary service PIN code</h5>
+            <div class="text-muted fs-sm">Findoly uses this one location to show nearby category-matched leads first. Your full address is optional and is never shown before a lead is unlocked.</div>
+          </div>
+          <span class="badge ms-auto" :class="profile.locationReady ? 'bg-success text-white' : 'bg-warning text-dark'" x-text="profile.locationReady ? 'Verified' : 'Required'"></span>
+        </div>
+        <form class="card-body" @submit.prevent="saveLocation()">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label" for="servicePincode">PIN code <span class="text-danger">*</span></label>
+              <input id="servicePincode" class="form-control form-control-lg" x-model="locationForm.servicePincode" @input="locationForm.servicePincode = String(locationForm.servicePincode || '').replace(/\D/g, '').slice(0, 6)" inputmode="numeric" pattern="[1-9][0-9]{5}" maxlength="6" placeholder="400001" required>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label" for="serviceAddress">Full address <span class="text-muted">(optional)</span></label>
+              <input id="serviceAddress" class="form-control form-control-lg" x-model="locationForm.serviceAddress" maxlength="500" placeholder="Business or service address">
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary" type="submit" :disabled="savingLocation">
+                <span x-text="savingLocation ? 'Verifying location…' : 'Save service location'"></span>
+              </button>
+              <span class="text-muted fs-sm ms-2" x-show="profile.locationReady" x-text="detectedLocation"></span>
+            </div>
+          </div>
+        </form>
       </div>
 
       <div class="card portal-card mb-4">
@@ -53,7 +85,7 @@
               <tr><th>Provider ID</th><td class="portal-id" x-text="profile.providerId || '—'"></td></tr>
               <tr><th>Mobile</th><td x-text="profile.mobile || '—'"></td></tr>
               <tr><th>Email</th><td x-text="profile.email || '—'"></td></tr>
-              <tr><th>City</th><td x-text="[profile.city, profile.state].filter(Boolean).join(', ') || '—'"></td></tr>
+              <tr><th>Verified area</th><td x-text="detectedLocation || 'Add your PIN code above'"></td></tr>
               <tr><th>Availability</th><td x-text="humanize(profile.availability)"></td></tr>
               <tr><th>Rating</th><td x-text="profile.rating ? `${profile.rating} / 5` : '—'"></td></tr>
             </tbody>
@@ -62,26 +94,15 @@
       </div>
 
       <div class="card portal-card">
-        <div class="card-header border-bottom"><h5 class="mb-0">Categories and service areas</h5></div>
+        <div class="card-header border-bottom"><h5 class="mb-0">Matched categories</h5></div>
         <div class="card-body">
-          <div class="mb-4">
-            <div class="text-muted fs-sm mb-2">Matched categories</div>
-            <div class="d-flex flex-wrap gap-2">
-              <template x-for="category in profile.categorySlugs || []" :key="category">
-                <span class="badge bg-primary-subtle text-primary" x-text="humanize(category)"></span>
-              </template>
-              <span class="text-muted" x-show="!(profile.categorySlugs || []).length">No categories assigned</span>
-            </div>
+          <div class="d-flex flex-wrap gap-2">
+            <template x-for="category in profile.categorySlugs || []" :key="category">
+              <span class="badge bg-primary-subtle text-primary" x-text="humanize(category)"></span>
+            </template>
+            <span class="text-muted" x-show="!(profile.categorySlugs || []).length">No categories assigned</span>
           </div>
-          <div>
-            <div class="text-muted fs-sm mb-2">Service areas</div>
-            <div class="d-flex flex-wrap gap-2">
-              <template x-for="area in profile.serviceAreas || []" :key="area">
-                <span class="badge bg-light text-body border" x-text="humanize(area)"></span>
-              </template>
-              <span class="text-muted" x-show="!(profile.serviceAreas || []).length">No service areas assigned</span>
-            </div>
-          </div>
+          <p class="text-muted fs-sm mt-3 mb-0">Categories and account permissions are managed by the Findoly CRM team.</p>
         </div>
       </div>
     </div>
@@ -94,12 +115,9 @@
           <div><span>Portal access</span><strong x-text="profile.portalAccessEnabled === false ? 'Disabled' : 'Enabled'"></strong></div>
           <div><span>Onboarding</span><strong x-text="humanize(profile.onboardingStage)"></strong></div>
           <div><span>Documents</span><strong x-text="profile.documentsVerified ? 'Verified' : 'Pending'"></strong></div>
-          <div><span>Rating</span><strong x-text="profile.rating || '—'"></strong></div>
+          <div><span>Marketplace location</span><strong x-text="profile.locationReady ? profile.servicePincode : 'Required'"></strong></div>
           <div><span>Credits</span><strong x-text="credits(profile.availableCredits ?? profile.walletCredits)"></strong></div>
           <div><span>CRM last updated</span><strong x-text="formatDate(profile.updatedAt)"></strong></div>
-        </div>
-        <div class="card-footer bg-white border-top">
-          <p class="text-muted fs-sm mb-0">Profile changes are controlled from the internal CRM.</p>
         </div>
       </div>
     </div>
@@ -110,15 +128,53 @@
   function profilePage() {
     return {
       profile: {},
+      locationForm: { servicePincode: '', serviceAddress: '' },
       loading: true,
+      savingLocation: false,
       error: '',
+      get detectedLocation() {
+        return [
+          this.profile.serviceLocality || this.profile.city,
+          this.profile.serviceDistrict,
+          this.profile.serviceState || this.profile.state,
+          this.profile.servicePincode
+        ].filter(Boolean).filter((value, index, values) => values.indexOf(value) === index).join(', ');
+      },
+      syncForm() {
+        this.locationForm = {
+          servicePincode: this.profile.servicePincode || '',
+          serviceAddress: this.profile.serviceAddress || ''
+        };
+      },
       async load() {
         try {
           this.profile = (await apiFetch('/api/profile')).data;
+          this.syncForm();
         } catch (error) {
           this.error = error.message;
         } finally {
           this.loading = false;
+        }
+      },
+      async saveLocation() {
+        this.error = '';
+        if (!/^[1-9]\d{5}$/.test(String(this.locationForm.servicePincode || ''))) {
+          this.error = 'Enter a valid 6-digit Indian PIN code';
+          return;
+        }
+        this.savingLocation = true;
+        try {
+          this.profile = (await apiFetch('/api/profile/location', {
+            method: 'PATCH',
+            body: JSON.stringify(this.locationForm)
+          })).data;
+          this.syncForm();
+          this.$dispatch('profile-updated');
+          this.$dispatch('portal-notify', { type: 'success', message: `Service location verified for PIN ${this.profile.servicePincode}. Nearby leads will now appear based on distance.` });
+        } catch (error) {
+          this.error = error.message;
+        } finally {
+          this.savingLocation = false;
         }
       }
     };
@@ -134,4 +190,3 @@
 <%- include('../partials/scripts') %>
 </body>
 </html>
-

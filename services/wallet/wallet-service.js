@@ -21,7 +21,8 @@ const {
   paiseFromCredits,
 } = require("../../utils/credits");
 const { presentLead } = require("../../utils/lead");
-const { discountedCredits } = require("../../utils/marketplace");
+const { isMarketplaceVisible } = require("../../utils/marketplace-radius");
+const { hasCoordinates } = require("../marketplace/visibility-service");
 const {
   directPaymentQuote,
   getPlan,
@@ -363,6 +364,18 @@ async function findLeadForDirectPayment(provider, leadDistributionId) {
       code: "CATEGORY_MISMATCH",
     });
   }
+  if (!hasCoordinates(provider, "service")) {
+    throw Object.assign(new Error("Add and verify your service PIN code before unlocking leads."), {
+      status: 409,
+      code: "PROVIDER_LOCATION_REQUIRED",
+    });
+  }
+  if (!isMarketplaceVisible(lead)) {
+    throw Object.assign(new Error("This lead is not available in your service radius yet"), {
+      status: 404,
+      code: "LEAD_NOT_AVAILABLE_IN_RADIUS",
+    });
+  }
   return lead;
 }
 
@@ -371,8 +384,14 @@ async function createLeadOrder(provider, leadDistributionId) {
   const lead = await findLeadForDirectPayment(provider, leadDistributionId);
   const syncedProvider = await creditService.syncCredits(providerId);
   const enquiry = await Enquiry.findOne(enquiryQuery(lead.enquiryId || lead.requirementId)).lean();
-  const pricing = discountedCredits(leadCostCredits(lead), enquiry?.unlockedCount || 0);
-  const costMinor = paiseFromCredits(pricing.effectiveCredits);
+  const baseCredits = leadCostCredits(lead);
+  const pricing = {
+    baseCredits,
+    effectiveCredits: baseCredits,
+    discountPercent: 0,
+    previousUnlocks: Number(enquiry?.unlockedCount || 0),
+  };
+  const costMinor = paiseFromCredits(baseCredits);
 
   if (Number(syncedProvider.walletBalancePaise || 0) >= costMinor) {
     throw Object.assign(
@@ -407,7 +426,7 @@ async function createLeadOrder(provider, leadDistributionId) {
         gstRatePercent: Number(existing.gstRatePercent || 18),
         baseCredits: Number(existing.baseLeadCostCredits || leadCostCredits(lead)),
         effectiveCredits: Number(existing.effectiveLeadCostCredits || creditsFromPaise(existing.subtotalPaise || 0)),
-        discountPercent: Number(existing.unlockDiscountPercent || 0),
+        discountPercent: 0,
         previousUnlocks: Number(existing.unlockCountAtPurchase || 0),
       },
       lead: {
@@ -462,7 +481,7 @@ async function createLeadOrder(provider, leadDistributionId) {
     fulfillmentStatus: "pending",
     baseLeadCostCredits: pricing.baseCredits,
     effectiveLeadCostCredits: pricing.effectiveCredits,
-    unlockDiscountPercent: pricing.discountPercent,
+    unlockDiscountPercent: 0,
     unlockCountAtPurchase: pricing.previousUnlocks,
     receipt,
   });
@@ -519,7 +538,7 @@ async function createLeadOrder(provider, leadDistributionId) {
       ...quote,
       baseCredits: pricing.baseCredits,
       effectiveCredits: pricing.effectiveCredits,
-      discountPercent: pricing.discountPercent,
+      discountPercent: 0,
       previousUnlocks: pricing.previousUnlocks,
     },
     lead: {
@@ -897,7 +916,7 @@ async function fulfillLeadOrder(paymentOrder, paymentId) {
           directPaymentPendingUntil: null,
           baseLeadCostCredits: Number(order.baseLeadCostCredits ?? leadCostCredits(existingLead)),
           effectiveLeadCostCredits: Number(order.effectiveLeadCostCredits ?? creditsFromPaise(order.subtotalPaise || 0)),
-          unlockDiscountPercent: Number(order.unlockDiscountPercent || 0),
+          unlockDiscountPercent: 0,
           unlockCountAtPurchase: Number(order.unlockCountAtPurchase || 0),
           updatedAt: now,
         },
