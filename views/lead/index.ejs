@@ -34,16 +34,32 @@
     <a href="/profile#marketplace-location" class="btn btn-light btn-sm">View profile</a>
   </div>
 
-  <section class="workspace-market-dashboard workspace-market-dashboard-top" aria-label="Marketplace dashboard" x-show="!loading" x-cloak>
-    <div class="workspace-market-dashboard-copy">
-      <span class="workspace-compact-label" x-text="filters.status === 'unlocked' ? 'MY LEAD WORKSPACE' : 'OPPORTUNITY MARKETPLACE'">OPPORTUNITY MARKETPLACE</span>
-      <strong x-text="filters.status === 'unlocked' ? 'Manage customer outcomes' : 'Find the right opportunity'">Find the right opportunity</strong>
-      <small x-text="filters.status === 'unlocked' ? 'Open customer contacts, update outcomes and continue follow-up.' : 'Review intent, provider activity and cost before opening a lead.'"></small>
+  <section class="provider-conversion-hero" aria-label="Lead workspace summary" x-show="!loading" x-cloak>
+    <div class="provider-conversion-hero-copy">
+      <span class="provider-eyebrow" x-text="filters.status === 'unlocked' ? 'MY LEADS' : 'LEAD MARKETPLACE'">LEAD MARKETPLACE</span>
+      <h1 x-text="filters.status === 'unlocked' ? 'Turn customer leads into business' : 'Find leads worth unlocking'">Find leads worth unlocking</h1>
+      <p x-text="filters.status === 'unlocked' ? 'Contact customers, follow up and keep every outcome up to date.' : 'Compare intent, distance, timing and provider activity before spending credits.'"></p>
+      <div class="provider-conversion-hero-points" x-show="filters.status !== 'unlocked'">
+        <span><svg class="icon"><use href="#i-location"></use></svg>Matched to your service area</span>
+        <span><svg class="icon"><use href="#i-lock"></use></svg>Contact details after unlock</span>
+      </div>
     </div>
-    <div class="workspace-market-dashboard-metrics">
-      <div><span class="workspace-compact-label">RESULTS</span><strong x-text="pagination.total || 0">0</strong></div>
-      <div><span class="workspace-compact-label">AVAILABLE CREDITS</span><strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong></div>
-      <div><span class="workspace-compact-label">ACTIVE FILTERS</span><strong x-text="activeFilterCount() || 'None'">None</strong></div>
+    <div class="provider-conversion-stats">
+      <div class="provider-conversion-stat">
+        <span>RESULTS</span>
+        <strong x-text="pagination.total || 0">0</strong>
+        <small x-text="filters.status === 'unlocked' ? 'customer leads' : 'matching opportunities'"></small>
+      </div>
+      <a class="provider-conversion-stat provider-conversion-credit" href="/plans">
+        <span>AVAILABLE CREDITS</span>
+        <strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong>
+        <small>Manage credits</small>
+      </a>
+      <div class="provider-conversion-stat">
+        <span>ACTIVE FILTERS</span>
+        <strong x-text="activeFilterCount() || 0">0</strong>
+        <small x-text="activeFilterCount() ? 'refining results' : 'showing all matches'"></small>
+      </div>
     </div>
   </section>
 
@@ -132,31 +148,86 @@
 
   <main class="provider-minimal-list workspace-lead-grid" :class="loading ? 'portal-loading' : ''" aria-live="polite">
     <template x-for="lead in rows" :key="lead.leadDistributionId">
-      <article class="provider-minimal-card provider-opportunity-card workspace-lead-card" :class="lead.contactUnlocked ? 'is-unlocked' : 'is-marketplace'">
-        <div class="provider-minimal-card-main workspace-lead-card-main">
-          <div class="workspace-card-topline"><span class="provider-minimal-category" x-text="lead.category || humanize(lead.categorySlug) || 'Service category'"></span><span class="provider-intent-badge" :class="'is-' + lead.leadIntent" x-text="intentLabel(lead.leadIntent)"></span></div>
-          <div class="provider-minimal-title-row workspace-lead-title-row"><div class="min-w-0"><h2><a :href="'/leads/' + lead.leadDistributionId" x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></a></h2><p class="provider-card-location"><svg class="icon"><use href="#i-location"></use></svg><span x-text="locationLabel(lead)"></span></p></div></div>
-          <p class="provider-card-summary" x-show="leadSummary(lead)" x-text="leadSummary(lead)"></p>
-
-          <div class="provider-card-facts workspace-card-facts">
-            <div x-show="!lead.contactUnlocked"><small>Approx. distance</small><strong x-text="distanceLabel(lead)"></strong></div>
-            <div x-show="lead.contactUnlocked"><small>Customer</small><strong x-text="lead.customerName || 'Contact available'"></strong></div>
-            <div><small>Preferred timing</small><strong x-text="preferredLabel(lead)"></strong></div>
-            <div x-show="!lead.contactUnlocked"><small>Lead age</small><strong x-text="relativeAge(lead.marketplacePublishedAt || lead.distributedAt || lead.createdAt)"></strong></div>
-            <div x-show="lead.contactUnlocked"><small>Contact</small><strong x-text="lead.customerMobile || 'Open lead to view'"></strong></div>
+      <article class="provider-minimal-card provider-opportunity-card workspace-lead-card provider-conversion-card" :class="[lead.contactUnlocked ? 'is-unlocked' : 'is-marketplace', lead.leadIntent === 'high' ? 'is-high-intent' : '', (!lead.contactUnlocked && Number(lead.unlockedCount || 0) <= 1 && lead.leadIntent === 'high') ? 'is-recommended' : '']">
+        <div class="provider-conversion-card-main">
+          <div class="provider-conversion-card-top">
+            <div class="provider-conversion-card-labels">
+              <span class="provider-minimal-category" x-text="lead.category || humanize(lead.categorySlug) || 'Service category'"></span>
+              <span class="provider-recommended-badge" x-show="!lead.contactUnlocked && Number(lead.unlockedCount || 0) <= 1 && lead.leadIntent === 'high'" x-cloak>Recommended</span>
+            </div>
+            <span class="provider-intent-badge" :class="'is-' + lead.leadIntent" x-text="intentLabel(lead.leadIntent)"></span>
           </div>
 
-          <div class="provider-minimal-signals workspace-lead-signals" x-show="!lead.contactUnlocked"><span><svg class="icon"><use href="#i-unlock"></use></svg><b x-text="lead.unlockedCount || 0"></b><span x-text="Number(lead.unlockedCount || 0) === 1 ? 'provider unlocked' : 'providers unlocked'"></span></span><span :class="lead.currentlyConfirmed ? 'is-confirmed' : ''"><svg class="icon"><use href="#i-check"></use></svg><span x-text="lead.currentlyConfirmed ? `${lead.providerConfirmedCount || 1} provider confirmed` : 'No provider confirmed yet'"></span></span></div>
-          <div class="provider-minimal-signals workspace-lead-signals" x-show="lead.contactUnlocked"><span class="provider-outcome-chip" :class="statusClass(lead)" x-text="outcomeLabel(lead)"></span><span x-show="lead.providerLeadStatus"><svg class="icon"><use href="#i-trend"></use></svg><span x-text="humanize(lead.providerLeadStatus)"></span></span><span x-show="isOverdue(lead)" class="is-overdue"><svg class="icon"><use href="#i-clock"></use></svg>Outcome overdue</span></div>
+          <h2 class="provider-conversion-title"><a :href="'/leads/' + lead.leadDistributionId" x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></a></h2>
+          <p class="provider-card-summary provider-conversion-summary" x-show="leadSummary(lead)" x-text="leadSummary(lead)"></p>
+
+          <div class="provider-conversion-location">
+            <svg class="icon"><use href="#i-location"></use></svg>
+            <span x-text="locationLabel(lead)"></span>
+            <b x-show="!lead.contactUnlocked" x-text="distanceLabel(lead)"></b>
+          </div>
+
+          <div class="provider-conversion-highlights">
+            <div>
+              <span>WHEN</span>
+              <strong x-text="preferredLabel(lead)"></strong>
+            </div>
+            <div x-show="!lead.contactUnlocked">
+              <span>POSTED</span>
+              <strong x-text="relativeAge(lead.marketplacePublishedAt || lead.distributedAt || lead.createdAt)"></strong>
+            </div>
+            <div x-show="lead.contactUnlocked">
+              <span>CUSTOMER</span>
+              <strong x-text="lead.customerName || 'Contact available'"></strong>
+            </div>
+          </div>
+
+          <div class="provider-conversion-market-signals" x-show="!lead.contactUnlocked">
+            <div>
+              <svg class="icon"><use href="#i-unlock"></use></svg>
+              <span><b x-text="lead.unlockedCount || 0"></b> <span x-text="Number(lead.unlockedCount || 0) === 1 ? 'provider has unlocked' : 'providers have unlocked'"></span></span>
+            </div>
+            <div :class="lead.currentlyConfirmed ? 'is-confirmed' : ''">
+              <svg class="icon"><use href="#i-check"></use></svg>
+              <span x-text="lead.currentlyConfirmed ? `${lead.providerConfirmedCount || 1} provider confirmed` : 'No provider confirmed yet'"></span>
+            </div>
+          </div>
+
+          <div class="provider-unlock-preview" x-show="!lead.contactUnlocked">
+            <span class="provider-unlock-preview-icon"><svg class="icon"><use href="#i-lock"></use></svg></span>
+            <div><strong>Unlock customer contact</strong><small>Get the phone number and full lead details instantly.</small></div>
+          </div>
+
+          <div class="provider-unlocked-status" x-show="lead.contactUnlocked">
+            <span class="provider-outcome-chip" :class="statusClass(lead)" x-text="outcomeLabel(lead)"></span>
+            <span x-show="lead.providerLeadStatus"><svg class="icon"><use href="#i-trend"></use></svg><span x-text="humanize(lead.providerLeadStatus)"></span></span>
+            <span x-show="isOverdue(lead)" class="is-overdue"><svg class="icon"><use href="#i-clock"></use></svg>Outcome overdue</span>
+          </div>
         </div>
 
-        <div class="provider-minimal-card-action workspace-lead-card-footer">
-          <div class="provider-card-price-block"><small x-text="lead.contactUnlocked ? 'Unlocked on' : 'Unlock cost'"></small><strong x-text="lead.contactUnlocked ? formatDateOnly(lead.unlockedAt) : credits(lead.leadCostCredits)"></strong></div>
-          <div class="provider-card-actions">
-            <a x-show="lead.contactUnlocked && lead.customerMobile" class="btn btn-light provider-card-call" :href="phoneHref(lead.customerMobile)"><svg class="icon"><use href="#i-phone"></use></svg><span>Call</span></a>
-            <a x-show="lead.contactUnlocked && lead.customerMobile" class="btn btn-light provider-card-whatsapp" :href="whatsappHref(lead.customerMobile)" target="_blank" rel="noopener"><span aria-hidden="true">↗</span><span>WhatsApp</span></a>
-            <a class="btn btn-primary" :href="'/leads/' + lead.leadDistributionId"><span x-text="lead.contactUnlocked ? (lead.providerSaleOutcome ? 'Open lead' : 'Update outcome') : 'View opportunity'"></span><svg class="icon"><use href="#i-arrow"></use></svg></a>
-          </div>
+        <div class="provider-conversion-card-footer">
+          <template x-if="!lead.contactUnlocked">
+            <div class="provider-conversion-unlock-row">
+              <div class="provider-conversion-price">
+                <span>UNLOCK COST</span>
+                <strong x-text="credits(lead.leadCostCredits)"></strong>
+              </div>
+              <a class="btn btn-primary provider-unlock-cta" :href="'/leads/' + lead.leadDistributionId">
+                <span><b>View &amp; unlock lead</b><small>Customer contact inside</small></span>
+                <svg class="icon"><use href="#i-arrow"></use></svg>
+              </a>
+            </div>
+          </template>
+          <template x-if="lead.contactUnlocked">
+            <div class="provider-conversion-unlocked-row">
+              <div class="provider-conversion-price"><span>UNLOCKED ON</span><strong x-text="formatDateOnly(lead.unlockedAt)"></strong></div>
+              <div class="provider-card-actions provider-conversion-actions">
+                <a x-show="lead.customerMobile" class="btn btn-light" :href="phoneHref(lead.customerMobile)"><svg class="icon"><use href="#i-phone"></use></svg><span>Call</span></a>
+                <a x-show="lead.customerMobile" class="btn btn-light provider-card-whatsapp" :href="whatsappHref(lead.customerMobile)" target="_blank" rel="noopener"><span aria-hidden="true">↗</span><span>WhatsApp</span></a>
+                <a class="btn btn-primary" :href="'/leads/' + lead.leadDistributionId"><span x-text="lead.providerSaleOutcome ? 'Open lead' : 'Update outcome'"></span><svg class="icon"><use href="#i-arrow"></use></svg></a>
+              </div>
+            </div>
+          </template>
         </div>
       </article>
     </template>

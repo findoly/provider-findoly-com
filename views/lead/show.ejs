@@ -99,6 +99,21 @@
         <div><span>Current result</span><strong :class="lead.currentlyConfirmed ? 'is-confirmed' : ''" x-text="lead.currentlyConfirmed ? 'Confirmed by ' + lead.providerConfirmedCount : 'Not confirmed yet'"></strong></div>
       </div>
 
+      <section class="provider-detail-unlock-banner mb-4" x-show="!isUnlocked" x-cloak>
+        <div class="provider-detail-unlock-banner-copy">
+          <span class="provider-eyebrow">CUSTOMER CONTACT</span>
+          <strong>Ready to discuss this requirement?</strong>
+          <small>Unlock the customer phone number and complete lead details for your provider account.</small>
+        </div>
+        <div class="provider-detail-unlock-banner-action">
+          <span><small>UNLOCK COST</small><strong x-text="credits(lead.leadCostCredits)"></strong></span>
+          <button class="btn btn-primary" type="button" @click="hasEnoughBalance ? unlock() : document.getElementById('lead-access-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })" :disabled="unlocking || payingDirect || loading">
+            <span x-text="unlocking ? 'Unlocking…' : (hasEnoughBalance ? 'Unlock lead now' : 'View unlock options')"></span>
+            <svg class="icon"><use href="#i-arrow"></use></svg>
+          </button>
+        </div>
+      </section>
+
       <div id="provider-outcome" class="card portal-card portal-outcome-card workspace-outcome-panel mb-4" x-show="isUnlocked" x-cloak>
         <div class="card-header border-bottom d-flex align-items-center gap-3">
           <div>

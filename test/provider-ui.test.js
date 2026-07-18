@@ -12,7 +12,7 @@ test("lead lists use the cache-busted minimal UI with advanced filters", () => {
   const view = source("views/lead/index.ejs");
   const css = source("public/css/app.css");
 
-  assert.match(head, /app\.css\?v=provider-operations-ux-/);
+  assert.match(head, /app\.css\?v=provider-unlock-conversion-/);
   assert.match(view, /provider-minimal-filter/);
   assert.match(view, /provider-advanced-panel/);
   assert.match(view, /provider-advanced-grid/);
@@ -76,16 +76,16 @@ test("lead cards expose useful context before opening without changing unlock be
   const css = source("public/css/app.css");
 
   assert.match(view, /provider-card-summary/);
-  assert.match(view, /provider-card-facts/);
-  assert.match(view, /Approx\. distance/);
-  assert.match(view, /Preferred timing/);
-  assert.match(view, /Lead age/);
-  assert.match(view, /View opportunity/);
+  assert.match(view, /provider-conversion-highlights/);
+  assert.match(view, /distanceLabel\(lead\)/);
+  assert.match(view, /preferredLabel\(lead\)/);
+  assert.match(view, /relativeAge\(lead\.marketplacePublishedAt/);
+  assert.match(view, /View &amp; unlock lead/);
   assert.match(view, /provider-quick-filters/);
   assert.match(view, /applyQuickFilter/);
   assert.match(view, /WhatsApp/);
   assert.match(view, /phoneHref/);
-  assert.match(css, /\.provider-card-facts/);
+  assert.match(css, /\.provider-conversion-highlights/);
   assert.match(css, /\.provider-opportunity-card/);
 });
 
@@ -214,16 +214,19 @@ test("mobile provider navigation has native click controls and safe drawer layer
   assert.match(css, /pointer-events: auto/);
 });
 
-test("lead marketplace keeps cards below the sticky header and shows a compact dashboard summary", () => {
+test("lead marketplace keeps cards below the fixed header and presents an unlock-focused summary", () => {
   const view = source("views/lead/index.ejs");
   const css = source("public/css/app.css");
 
-  assert.match(view, /workspace-market-dashboard/);
-  assert.match(view, /OPPORTUNITY MARKETPLACE/);
+  assert.match(view, /provider-conversion-hero/);
+  assert.match(view, /LEAD MARKETPLACE/);
   assert.match(view, /AVAILABLE CREDITS/);
   assert.match(view, /ACTIVE FILTERS/);
-  assert.match(css, /workspace-lead-command[\s\S]*z-index: 1020/);
-  assert.match(css, /workspace-topbar\.portal-navbar[\s\S]*z-index: 1100/);
+  assert.match(view, /View &amp; unlock lead/);
+  assert.match(view, /Unlock customer contact/);
+  assert.match(css, /provider-lead-page\.workspace-leads-page[\s\S]*display: block/);
+  assert.match(css, /workspace-topbar\.portal-navbar[\s\S]*z-index: 1300/);
+  assert.match(css, /provider-unlock-cta/);
   assert.match(css, /scroll-padding-top/);
   assert.match(css, /text-transform: uppercase/);
 });
