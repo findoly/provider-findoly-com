@@ -23,9 +23,11 @@ async function get(provider) {
   };
   availableQuery.categorySlug = { $in: categorySlugs };
 
-  const [offered, unlocked, recent, pendingOutcomeResult] = await Promise.all([
+  const [offered, unlocked, followUp, confirmed, recent, pendingOutcomeResult] = await Promise.all([
     LeadDistribution.countDocuments(availableQuery),
     LeadDistribution.countDocuments({ providerId, contactUnlocked: true }),
+    LeadDistribution.countDocuments({ providerId, contactUnlocked: true, providerLeadStatus: "follow_up" }),
+    LeadDistribution.countDocuments({ providerId, contactUnlocked: true, providerSaleOutcome: "confirmed" }),
     LeadDistribution.find({
       providerId,
       $or: [availableQuery, { contactUnlocked: true }],
@@ -40,6 +42,8 @@ async function get(provider) {
     provider: presentProvider(syncedProvider),
     offered,
     unlocked,
+    followUp,
+    confirmed,
     recent: await leadService.presentRows(recent),
     pendingOutcomes: pendingOutcomeResult.data,
     pendingOutcomeCount: pendingOutcomeResult.total,

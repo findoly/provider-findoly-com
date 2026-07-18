@@ -12,7 +12,7 @@ test("lead lists use the cache-busted minimal UI with advanced filters", () => {
   const view = source("views/lead/index.ejs");
   const css = source("public/css/app.css");
 
-  assert.match(head, /app\.css\?v=provider-focused-marketplace-/);
+  assert.match(head, /app\.css\?v=provider-operations-ux-/);
   assert.match(view, /provider-minimal-filter/);
   assert.match(view, /provider-advanced-panel/);
   assert.match(view, /provider-advanced-grid/);
@@ -23,6 +23,10 @@ test("lead lists use the cache-busted minimal UI with advanced filters", () => {
   assert.match(view, /Sale outcome/);
   assert.doesNotMatch(view, /provider-feed-aside/);
   assert.doesNotMatch(view, /provider-transparency-row/);
+
+  assert.match(css, /Findoly Calm Workspace/);
+  assert.match(css, /workspace-sidebar\.portal-sidebar[\s\S]*background: #ffffff/);
+  assert.match(css, /workspace-welcome-card[\s\S]*background: #ffffff/);
 
   for (const selector of [
     ".provider-minimal-filter",
@@ -41,8 +45,11 @@ test("provider dashboard is minimal and keeps the required summaries", () => {
 
   assert.match(dashboard, /provider-dashboard-summary/);
   assert.match(dashboard, /Available leads/);
-  assert.match(dashboard, /Unlocked leads/);
-  assert.match(dashboard, /Credit balance/);
+  assert.match(dashboard, /My leads/);
+  assert.match(dashboard, /Available credits/);
+  assert.match(dashboard, /Priority queue/);
+  assert.match(dashboard, /Follow up/);
+  assert.match(dashboard, /Confirmed/);
   assert.match(dashboard, /Pending outcomes/);
   assert.match(dashboard, /provider-recent-list/);
   assert.doesNotMatch(dashboard, /How unlocking works/);
@@ -74,6 +81,9 @@ test("lead cards expose useful context before opening without changing unlock be
   assert.match(view, /Preferred timing/);
   assert.match(view, /Lead age/);
   assert.match(view, /View opportunity/);
+  assert.match(view, /provider-quick-filters/);
+  assert.match(view, /applyQuickFilter/);
+  assert.match(view, /WhatsApp/);
   assert.match(view, /phoneHref/);
   assert.match(css, /\.provider-card-facts/);
   assert.match(css, /\.provider-opportunity-card/);
@@ -118,6 +128,9 @@ test("provider shell uses a minimal seller-panel layout and mobile navigation", 
   assert.doesNotMatch(navbar, /portal-desktop-nav/);
   assert.match(sidebar, /portal-sidebar-minimal/);
   assert.match(sidebar, /Pending outcomes/);
+  assert.doesNotMatch(sidebar, /Marketplace ready/);
+  assert.doesNotMatch(sidebar, /Your location and categories are active/);
+  assert.doesNotMatch(sidebar, /workspace-sidebar-status/);
   assert.doesNotMatch(sidebar, /portal-provider-card/);
   assert.doesNotMatch(sidebar, /portal-sidebar-help/);
   assert.match(css, /\.portal-navbar-minimal/);
@@ -156,4 +169,77 @@ test("provider location is read-only and CRM managed", () => {
   assert.doesNotMatch(profile, /api\/profile\/location/);
   assert.match(controller, /CRM_MANAGED_LOCATION/);
   assert.match(leadList, /pending in CRM/i);
+});
+
+
+test("provider shell offers three lightweight full-portal themes", () => {
+  const head = source("views/partials/head.ejs");
+  const navbar = source("views/partials/navbar.ejs");
+  const scripts = source("views/partials/scripts.ejs");
+  const css = source("public/css/app.css");
+
+  for (const theme of ["Professional Blue", "Pure Monochrome", "Marketplace Green"]) {
+    assert.match(navbar, new RegExp(theme));
+    assert.match(scripts, new RegExp(theme));
+  }
+
+  for (const id of ["professional-blue", "pure-monochrome", "marketplace-green"]) {
+    assert.match(head, new RegExp(id));
+    assert.match(css, new RegExp(`data-portal-theme=\"${id}\"`));
+  }
+
+  assert.doesNotMatch(navbar, /Network Blue|Social Sky|Calm Chat|Creative Mint|Talent Green|Trade Orange|Local Coral|Care Teal|Clear Neutral|Warm Sand/);
+  assert.match(css, /Three lightweight full-portal themes/);
+  assert.match(css, /--theme-font-body/);
+  assert.match(css, /--theme-font-heading/);
+  assert.match(css, /--theme-header-bg/);
+  assert.match(css, /--theme-sidebar-bg/);
+  assert.match(css, /workspace-topbar\.portal-navbar,[\s\S]*background: var\(--theme-header-bg\)/);
+  assert.match(css, /workspace-sidebar\.portal-sidebar,[\s\S]*background: var\(--theme-sidebar-bg\)/);
+  assert.match(css, /portal-card,[\s\S]*background: var\(--theme-card-bg\)/);
+});
+
+test("mobile provider navigation has native click controls and safe drawer layering", () => {
+  const navbar = source("views/partials/navbar.ejs");
+  const sidebar = source("views/partials/sidebar.ejs");
+  const scripts = source("views/partials/scripts.ejs");
+  const css = source("public/css/app.css");
+
+  assert.match(navbar, /data-portal-menu-toggle/);
+  assert.match(sidebar, /id="providerSidebar"/);
+  assert.match(sidebar, /data-portal-menu-close/);
+  assert.match(scripts, /initializeProviderNavigation/);
+  assert.match(scripts, /setProviderSidebarOpen/);
+  assert.match(css, /body\.portal-sidebar-open \.workspace-sidebar\.portal-sidebar/);
+  assert.match(css, /pointer-events: auto/);
+});
+
+test("lead marketplace keeps cards below the sticky header and shows a compact dashboard summary", () => {
+  const view = source("views/lead/index.ejs");
+  const css = source("public/css/app.css");
+
+  assert.match(view, /workspace-market-dashboard/);
+  assert.match(view, /OPPORTUNITY MARKETPLACE/);
+  assert.match(view, /AVAILABLE CREDITS/);
+  assert.match(view, /ACTIVE FILTERS/);
+  assert.match(css, /workspace-lead-command[\s\S]*z-index: 1020/);
+  assert.match(css, /workspace-topbar\.portal-navbar[\s\S]*z-index: 1100/);
+  assert.match(css, /scroll-padding-top/);
+  assert.match(css, /text-transform: uppercase/);
+});
+
+
+test("provider dashboard exposes task counts and lead detail has productivity actions", () => {
+  const dashboardService = source("services/dashboard/dashboard-service.js");
+  const dashboard = source("views/dashboard/index.ejs");
+  const detail = source("views/lead/show.ejs");
+  const css = source("public/css/app.css");
+
+  assert.match(dashboardService, /followUp/);
+  assert.match(dashboardService, /confirmed/);
+  assert.match(dashboard, /provider-dashboard-command/);
+  assert.match(dashboard, /provider-priority-queue/);
+  assert.match(detail, /provider-detail-breadcrumb/);
+  assert.match(detail, /provider-detail-quick-actions/);
+  assert.match(css, /Findoly Provider Operations UX/);
 });

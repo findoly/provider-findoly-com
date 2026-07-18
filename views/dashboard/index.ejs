@@ -10,38 +10,58 @@
   @portal-notify.window="notify($event.detail)"
 >
 <%- include('../partials/navbar') %>
-<div class="page-content">
+<div class="page-content workspace-page-shell">
   <%- include('../partials/sidebar') %>
   <div class="content-wrapper">
     <div class="content-inner">
-      <div class="page-header portal-page-header border-bottom">
+      <div class="page-header portal-page-header workspace-page-header border-bottom">
         <div class="page-header-content d-flex align-items-center">
           <div class="flex-grow-1 min-w-0">
             <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
             <div class="page-subtitle mt-1" x-show="page.subtitle" x-text="page.subtitle"><%= subtitle || '' %></div>
           </div>
+          <a href="/leads?status=offered" class="btn btn-primary workspace-page-action d-none d-sm-inline-flex"><svg class="icon"><use href="#i-search"></use></svg><span>Find leads</span></a>
         </div>
       </div>
-      <div class="content">
+      <div class="content workspace-content">
         <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
 
-<div class="provider-minimal-dashboard" x-data="dashboardPage()" x-init="load()" :class="loading ? 'portal-loading' : ''">
+<div class="provider-minimal-dashboard workspace-dashboard provider-operations-dashboard" x-data="dashboardPage()" x-init="load()" :class="loading ? 'portal-loading' : ''">
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
-  <div class="portal-location-required mb-3" x-show="data.provider && !data.provider.locationReady" x-cloak>
-    <div><strong>Your service location is pending in CRM</strong><span>Contact Findoly support before nearby leads can appear.</span></div>
-    <a class="btn btn-light btn-sm" href="/profile#marketplace-location">View location</a>
+  <section class="provider-dashboard-command" aria-label="Provider command centre">
+    <div class="provider-dashboard-command-copy">
+      <span class="workspace-eyebrow">Business command centre</span>
+      <h2>Welcome, <span x-text="data.provider?.businessName || data.provider?.name || 'Provider'"></span></h2>
+      <p>Find the right opportunities, contact customers and keep every lead moving.</p>
+      <div class="provider-dashboard-command-actions">
+        <a class="btn btn-primary" href="/leads?status=offered"><svg class="icon"><use href="#i-search"></use></svg>Explore marketplace</a>
+        <a class="btn btn-light" href="/leads?status=unlocked"><svg class="icon"><use href="#i-briefcase"></use></svg>Manage my leads</a>
+      </div>
+    </div>
+    <a class="provider-dashboard-credit" href="/plans">
+      <span class="provider-dashboard-credit-icon"><svg class="icon"><use href="#i-wallet"></use></svg></span>
+      <span><small>Available credits</small><strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong><em>Manage balance and plans</em></span>
+      <svg class="icon provider-dashboard-credit-arrow"><use href="#i-arrow"></use></svg>
+    </a>
+  </section>
+
+  <div class="portal-location-required workspace-alert-card" x-show="data.provider && !data.provider.locationReady" x-cloak>
+    <span class="workspace-alert-icon"><svg class="icon"><use href="#i-location"></use></svg></span>
+    <div><strong>Your service location is pending</strong><span>Contact Findoly support before nearby leads can appear in your marketplace.</span></div>
+    <a class="btn btn-light btn-sm" href="/profile#marketplace-location">View profile</a>
   </div>
 
-  <div class="portal-pending-banner provider-minimal-reminder mb-3" x-show="data.pendingOutcomeCount > 0" x-cloak>
-    <div><strong><span x-text="data.pendingOutcomeCount"></span> outcome update<span x-show="data.pendingOutcomeCount !== 1">s</span> pending</strong><span>Please mark overdue unlocked leads accurately.</span></div>
-    <button class="btn btn-warning btn-sm" type="button" @click="reminderOpen = true">Review</button>
+  <div class="portal-pending-banner workspace-alert-card is-warning" x-show="data.pendingOutcomeCount > 0" x-cloak>
+    <span class="workspace-alert-icon"><svg class="icon"><use href="#i-clock"></use></svg></span>
+    <div><strong><span x-text="data.pendingOutcomeCount"></span> lead outcome<span x-show="data.pendingOutcomeCount !== 1">s</span> need an update</strong><span>Accurate Confirmed or Not Confirmed updates help keep the marketplace trusted.</span></div>
+    <button class="btn btn-warning btn-sm" type="button" @click="reminderOpen = true">Review now</button>
   </div>
 
   <div class="portal-reminder-backdrop" x-show="reminderOpen" x-cloak @keydown.escape.window="reminderOpen = false">
     <section class="portal-reminder-dialog" role="dialog" aria-modal="true" aria-labelledby="pending-outcome-title" @click.outside="dismissReminder()">
       <div class="portal-reminder-header">
-        <div><div class="portal-reminder-kicker">Outcome update required</div><h3 id="pending-outcome-title">Update overdue unlocked leads</h3></div>
+        <div><div class="portal-reminder-kicker">Outcome update required</div><h3 id="pending-outcome-title">Update overdue leads</h3></div>
         <button type="button" aria-label="Remind me later" @click="dismissReminder()">×</button>
       </div>
       <div class="portal-policy-warning">Submit accurate Confirmed or Not Confirmed outcomes. Misleading information may result in account action after Findoly team review.</div>
@@ -53,37 +73,67 @@
           </article>
         </template>
       </div>
-      <div class="portal-reminder-footer"><button class="btn btn-light" type="button" @click="dismissReminder()">Remind me later</button><a class="btn btn-primary" href="/leads?status=unlocked">View unlocked leads</a></div>
+      <div class="portal-reminder-footer"><button class="btn btn-light" type="button" @click="dismissReminder()">Remind me later</button><a class="btn btn-primary" href="/leads?status=unlocked">View my leads</a></div>
     </section>
   </div>
 
-  <div class="provider-dashboard-summary">
-    <a href="/leads?status=offered" class="provider-dashboard-stat"><span>Available leads</span><strong x-text="data.offered || 0">0</strong></a>
-    <a href="/leads?status=unlocked" class="provider-dashboard-stat"><span>Unlocked leads</span><strong x-text="data.unlocked || 0">0</strong></a>
-    <a href="/plans" class="provider-dashboard-stat"><span>Credit balance</span><strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong></a>
-    <button type="button" class="provider-dashboard-stat text-start" @click="data.pendingOutcomeCount > 0 ? reminderOpen = true : null"><span>Pending outcomes</span><strong x-text="data.pendingOutcomeCount || 0">0</strong></button>
-  </div>
-
-  <section class="card portal-card provider-dashboard-recent">
-    <div class="card-header d-flex align-items-center border-bottom">
-      <h5 class="mb-0">Recent leads</h5>
-      <a href="/leads" class="btn btn-light btn-sm ms-auto">View all</a>
-    </div>
-    <div class="provider-recent-list">
-      <template x-for="lead in (data.recent || []).slice(0, 5)" :key="lead.leadDistributionId">
-        <a class="provider-recent-row" :href="'/leads/' + lead.leadDistributionId">
-          <span class="provider-recent-icon"><svg class="icon"><use :href="lead.contactUnlocked ? '#i-unlock' : '#i-lead'"></use></svg></span>
-          <span class="provider-recent-main min-w-0">
-            <strong x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></strong>
-            <small x-text="[lead.city, lead.category || humanize(lead.categorySlug)].filter(Boolean).join(' · ')"></small>
-          </span>
-          <span class="provider-recent-status" :class="statusClass(lead)" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : (lead.contactUnlocked ? 'Outcome pending' : credits(lead.leadCostCredits))"></span>
-        </a>
-      </template>
-      <div class="provider-dashboard-empty" x-show="!loading && !(data.recent || []).length"><strong>No leads yet</strong><span>Matching opportunities will appear here automatically.</span><a class="btn btn-primary btn-sm" href="/leads?status=offered">Open marketplace</a></div>
-      <div class="provider-dashboard-empty" x-show="loading">Loading…</div>
-    </div>
+  <section class="provider-dashboard-summary workspace-metric-grid provider-dashboard-metrics" aria-label="Business summary">
+    <a href="/leads?status=offered" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-lead"></use></svg></span><span class="workspace-metric-label">Available leads</span><strong x-text="data.offered || 0">0</strong><small>Ready to review</small></a>
+    <a href="/leads?status=unlocked" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-briefcase"></use></svg></span><span class="workspace-metric-label">My leads</span><strong x-text="data.unlocked || 0">0</strong><small>Customer contacts</small></a>
+    <button type="button" class="provider-dashboard-stat workspace-metric-card text-start" @click="data.pendingOutcomeCount > 0 ? reminderOpen = true : null"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-clock"></use></svg></span><span class="workspace-metric-label">Action required</span><strong x-text="data.pendingOutcomeCount || 0">0</strong><small>Pending outcomes</small></button>
+    <a href="/leads?status=unlocked&amp;activityStatus=follow_up" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-trend"></use></svg></span><span class="workspace-metric-label">Follow up</span><strong x-text="data.followUp || 0">0</strong><small>Continue conversations</small></a>
+    <a href="/leads?status=unlocked&amp;outcome=confirmed" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-check"></use></svg></span><span class="workspace-metric-label">Confirmed</span><strong x-text="data.confirmed || 0">0</strong><small>Converted leads</small></a>
   </section>
+
+  <div class="provider-dashboard-workgrid">
+    <section class="card portal-card provider-priority-queue">
+      <div class="card-header workspace-panel-header">
+        <div><span class="workspace-eyebrow">Priority queue</span><h3>What needs your attention</h3></div>
+        <span class="provider-queue-state" :class="Number(data.pendingOutcomeCount || 0) ? 'is-attention' : 'is-clear'" x-text="Number(data.pendingOutcomeCount || 0) ? 'Action needed' : 'All clear'"></span>
+      </div>
+      <div class="provider-priority-list">
+        <a href="/leads?status=unlocked&amp;outcome=pending" :class="Number(data.pendingOutcomeCount || 0) ? 'is-urgent' : ''">
+          <span class="provider-priority-icon"><svg class="icon"><use href="#i-clock"></use></svg></span>
+          <span><strong>Complete pending outcomes</strong><small>Mark unlocked leads Confirmed or Not Confirmed.</small></span>
+          <b x-text="data.pendingOutcomeCount || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
+        </a>
+        <a href="/leads?status=unlocked&amp;activityStatus=follow_up">
+          <span class="provider-priority-icon"><svg class="icon"><use href="#i-trend"></use></svg></span>
+          <span><strong>Continue follow-ups</strong><small>Return to customers who need another conversation.</small></span>
+          <b x-text="data.followUp || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
+        </a>
+        <a href="/leads?status=offered">
+          <span class="provider-priority-icon"><svg class="icon"><use href="#i-search"></use></svg></span>
+          <span><strong>Review marketplace leads</strong><small>See nearby opportunities matched to your categories.</small></span>
+          <b x-text="data.offered || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
+        </a>
+        <a href="/leads?status=unlocked&amp;outcome=confirmed">
+          <span class="provider-priority-icon"><svg class="icon"><use href="#i-check"></use></svg></span>
+          <span><strong>Review confirmed business</strong><small>Keep confirmed customer outcomes accurate.</small></span>
+          <b x-text="data.confirmed || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
+        </a>
+      </div>
+    </section>
+
+    <section class="card portal-card provider-dashboard-recent workspace-panel">
+      <div class="card-header workspace-panel-header">
+        <div><span class="workspace-eyebrow">Recent activity</span><h3>Latest leads</h3></div>
+        <a href="/leads" class="workspace-text-link">View all <svg class="icon"><use href="#i-arrow"></use></svg></a>
+      </div>
+      <div class="provider-recent-list workspace-recent-list">
+        <template x-for="lead in (data.recent || []).slice(0, 6)" :key="lead.leadDistributionId">
+          <a class="provider-recent-row workspace-recent-row" :href="'/leads/' + lead.leadDistributionId">
+            <span class="provider-recent-icon"><svg class="icon"><use :href="lead.contactUnlocked ? '#i-briefcase' : '#i-lead'"></use></svg></span>
+            <span class="provider-recent-main min-w-0"><strong x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></strong><small x-text="[lead.city, lead.category || humanize(lead.categorySlug)].filter(Boolean).join(' · ')"></small></span>
+            <span class="provider-recent-status" :class="statusClass(lead)" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : (lead.contactUnlocked ? 'Outcome pending' : credits(lead.leadCostCredits))"></span>
+            <svg class="icon workspace-row-arrow"><use href="#i-arrow"></use></svg>
+          </a>
+        </template>
+        <div class="provider-dashboard-empty" x-show="!loading && !(data.recent || []).length"><span class="workspace-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></span><strong>No leads yet</strong><span>Matching opportunities will appear here automatically.</span><a class="btn btn-primary btn-sm" href="/leads?status=offered">Open marketplace</a></div>
+        <div class="provider-dashboard-empty" x-show="loading">Loading…</div>
+      </div>
+    </section>
+  </div>
 </div>
 
 <script nonce="<%= cspNonce %>">
@@ -109,13 +159,12 @@
     };
   }
 </script>
-
       </div>
       <%- include('../partials/footer') %>
     </div>
   </div>
 </div>
-<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<div class="portal-sidebar-overlay" data-portal-menu-overlay aria-hidden="true"></div>
 <%- include('../partials/scripts') %>
 </body>
 </html>

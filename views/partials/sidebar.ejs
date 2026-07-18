@@ -1,25 +1,30 @@
-<aside class="sidebar sidebar-main sidebar-expand-lg portal-sidebar portal-sidebar-minimal" aria-label="Provider workspace">
-  <div class="sidebar-content">
-    <div class="portal-sidebar-account">
-      <button type="button" class="portal-sidebar-close d-lg-none" aria-label="Close navigation" @click="closeSidebar()">×</button>
+<aside id="providerSidebar" class="sidebar sidebar-main sidebar-expand-lg portal-sidebar portal-sidebar-minimal workspace-sidebar" aria-label="Provider workspace" aria-hidden="false">
+  <div class="sidebar-content workspace-sidebar-content">
+    <div class="portal-sidebar-account workspace-sidebar-account">
+      <button type="button" class="portal-sidebar-close d-lg-none" aria-label="Close navigation" data-portal-menu-close>×</button>
       <span class="portal-sidebar-avatar" x-text="initials(provider.name || provider.businessName || 'Provider')">P</span>
       <div class="min-w-0">
         <strong class="text-truncate" x-text="provider.businessName || provider.name || 'Provider'">Provider</strong>
-        <small class="text-truncate" x-text="provider.locationReady ? ([provider.serviceLocality || provider.city, provider.serviceState || provider.state].filter(Boolean).join(', ') || provider.servicePincode) : 'Location pending'">Provider account</small>
+        <small class="text-truncate" x-text="provider.locationReady ? ([provider.serviceLocality || provider.city, provider.serviceState || provider.state].filter(Boolean).join(', ') || provider.servicePincode) : 'Service location pending'">Provider account</small>
       </div>
     </div>
 
-    <nav class="portal-sidebar-nav" aria-label="Workspace navigation">
-      <a href="/dashboard" :class="{ active: pathIs('/dashboard') }"><svg class="icon"><use href="#i-home"></use></svg><span>Dashboard</span></a>
-      <a href="/leads?status=offered" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }"><svg class="icon"><use href="#i-lead"></use></svg><span>Lead marketplace</span></a>
-      <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' && queryValue('outcome') !== 'pending' }"><svg class="icon"><use href="#i-unlock"></use></svg><span>Unlocked leads</span></a>
-      <a href="/leads?status=unlocked&amp;outcome=pending" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' && queryValue('outcome') === 'pending' }"><svg class="icon"><use href="#i-clock"></use></svg><span>Pending outcomes</span></a>
-      <span class="portal-sidebar-divider" aria-hidden="true"></span>
-      <a href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }"><svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span></a>
-      <a href="/profile" :class="{ active: pathIs('/profile') }"><svg class="icon"><use href="#i-user"></use></svg><span>My profile</span></a>
+    <a class="workspace-primary-nav-action" data-portal-menu-link href="/leads?status=offered"><svg class="icon"><use href="#i-search"></use></svg><span>Find new leads</span><svg class="icon workspace-nav-arrow"><use href="#i-arrow"></use></svg></a>
+
+    <nav class="portal-sidebar-nav workspace-sidebar-nav" aria-label="Workspace navigation">
+      <span class="workspace-nav-label">Workspace</span>
+      <a data-portal-menu-link href="/dashboard" :class="{ active: pathIs('/dashboard') }"><svg class="icon"><use href="#i-home"></use></svg><span>Overview</span></a>
+      <a data-portal-menu-link href="/leads?status=offered" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }"><svg class="icon"><use href="#i-lead"></use></svg><span>Lead marketplace</span></a>
+      <a data-portal-menu-link href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' && queryValue('outcome') !== 'pending' }"><svg class="icon"><use href="#i-briefcase"></use></svg><span>My leads</span></a>
+      <a data-portal-menu-link href="/leads?status=unlocked&amp;outcome=pending" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' && queryValue('outcome') === 'pending' }"><svg class="icon"><use href="#i-clock"></use></svg><span>Pending outcomes</span></a>
+
+      <span class="workspace-nav-label workspace-nav-label-account">Business</span>
+      <a data-portal-menu-link href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }"><svg class="icon"><use href="#i-wallet"></use></svg><span>Credits &amp; plans</span></a>
+      <a data-portal-menu-link href="/profile" :class="{ active: pathIs('/profile') }"><svg class="icon"><use href="#i-user"></use></svg><span>Business profile</span></a>
     </nav>
 
-    <div class="portal-sidebar-footer">
+    <div class="portal-sidebar-footer workspace-sidebar-footer">
+      <a data-portal-menu-link href="/profile" class="workspace-support-link"><svg class="icon"><use href="#i-support"></use></svg><span>Help &amp; account support</span></a>
       <button type="button" @click="logout()"><svg class="icon"><use href="#i-logout"></use></svg><span>Sign out</span></button>
     </div>
   </div>

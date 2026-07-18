@@ -9,7 +9,7 @@
   @portal-notify.window="notify($event.detail)"
 >
 <%- include('../partials/navbar') %>
-<div class="page-content">
+<div class="page-content workspace-page-shell">
   <%- include('../partials/sidebar') %>
   <div class="content-wrapper">
     <div class="content-inner">
@@ -246,7 +246,7 @@
     </div>
   </div>
 </div>
-<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<div class="portal-sidebar-overlay" data-portal-menu-overlay aria-hidden="true"></div>
 <script nonce="<%= cspNonce %>" src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <%- include('../partials/scripts') %>
 <script nonce="<%= cspNonce %>">

@@ -2,7 +2,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta id="portal-theme-color" name="theme-color" content="#172033">
+  <meta id="portal-theme-color" name="theme-color" content="#f5f7f6">
   <meta name="robots" content="noindex,nofollow">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -10,25 +10,47 @@
   <title><%= title ? title + ' · ' : '' %><%= appName %></title>
   <script nonce="<%= cspNonce %>">
     (() => {
-      const allowedThemes = new Set(['professional-blue', 'teal-professional', 'navy-premium']);
+      const allowedThemes = new Set([
+        'professional-blue',
+        'pure-monochrome',
+        'marketplace-green'
+      ]);
+      const legacyThemes = {
+        'network-blue': 'professional-blue',
+        'social-sky': 'professional-blue',
+        'calm-chat': 'marketplace-green',
+        'creative-mint': 'marketplace-green',
+        'talent-green': 'marketplace-green',
+        'trade-orange': 'pure-monochrome',
+        'local-coral': 'pure-monochrome',
+        'care-teal': 'marketplace-green',
+        'clear-neutral': 'pure-monochrome',
+        'warm-sand': 'pure-monochrome',
+        'teal-professional': 'marketplace-green',
+        'navy-premium': 'pure-monochrome'
+      };
       let savedTheme = 'professional-blue';
       try {
         const candidate = localStorage.getItem('providerPortalTheme');
-        if (allowedThemes.has(candidate)) savedTheme = candidate;
+        const migrated = legacyThemes[candidate] || candidate;
+        if (allowedThemes.has(migrated)) {
+          savedTheme = migrated;
+          if (migrated !== candidate) localStorage.setItem('providerPortalTheme', migrated);
+        }
       } catch (_) {}
       document.documentElement.dataset.portalTheme = savedTheme;
       const themeColors = {
-        'professional-blue': '#172033',
-        'teal-professional': '#123c3a',
-        'navy-premium': '#101a30'
+        'professional-blue': '#f4f6f8',
+        'pure-monochrome': '#f6f6f6',
+        'marketplace-green': '#f5f8f6'
       };
       const meta = document.getElementById('portal-theme-color');
       if (meta) meta.setAttribute('content', themeColors[savedTheme]);
     })();
   </script>
-  <link href="/css/inter.css?v=provider-focused-marketplace-20260718-2" rel="stylesheet" type="text/css">
+  <link href="/css/inter.css?v=provider-operations-ux-topfix-20260719-2" rel="stylesheet" type="text/css">
   <link href="/css/styles.min.css" rel="stylesheet" type="text/css">
-  <link href="/css/app.css?v=provider-focused-marketplace-20260718-2" rel="stylesheet" type="text/css">
+  <link href="/css/app.css?v=provider-operations-ux-topfix-20260719-2" rel="stylesheet" type="text/css">
   <script nonce="<%= cspNonce %>" defer src="/js/alpine.min.js"></script>
   <script nonce="<%= cspNonce %>" src="/js/bootstrap.bundle.min.js" defer></script>
 </head>

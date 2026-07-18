@@ -10,11 +10,11 @@
   @portal-notify.window="notify($event.detail)"
 >
 <%- include('../partials/navbar') %>
-<div class="page-content">
+<div class="page-content workspace-page-shell">
   <%- include('../partials/sidebar') %>
   <div class="content-wrapper">
     <div class="content-inner">
-      <div class="page-header portal-page-header border-bottom">
+      <div class="page-header portal-page-header workspace-page-header border-bottom">
         <div class="page-header-content d-flex align-items-center">
           <div class="flex-grow-1 min-w-0">
             <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
@@ -22,15 +22,20 @@
           </div>
         </div>
       </div>
-      <div class="content">
+      <div class="content workspace-content">
         <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
 
-<div x-data="leadShow()" x-init="load()">
+<div class="workspace-lead-detail-page" x-data="leadShow()" x-init="load()">
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
-  <div class="row g-4 align-items-start" :class="loading ? 'portal-loading' : ''">
+  <nav class="provider-detail-breadcrumb" aria-label="Lead navigation">
+    <a :href="isUnlocked ? '/leads?status=unlocked' : '/leads?status=offered'"><span aria-hidden="true">←</span><span x-text="isUnlocked ? 'Back to my leads' : 'Back to marketplace'"></span></a>
+    <span class="provider-detail-breadcrumb-id" x-text="lead.leadDistributionId || ''"></span>
+  </nav>
+
+  <div class="row g-4 align-items-start workspace-lead-detail-grid" :class="loading ? 'portal-loading' : ''">
     <div class="col-xl-8">
-      <div class="card portal-card mb-4">
+      <div class="card portal-card mb-4 workspace-detail-hero">
         <div class="card-header border-bottom portal-lead-header">
           <div class="flex-grow-1 min-w-0">
             <div class="d-flex flex-wrap align-items-center gap-2">
@@ -74,14 +79,27 @@
         </div>
       </div>
 
-      <div class="portal-marketplace-trust mb-4">
+      <div class="provider-detail-quick-actions" x-show="isUnlocked" x-cloak>
+        <div class="provider-detail-quick-copy">
+          <span class="workspace-eyebrow">Customer access</span>
+          <strong x-text="contact.name || 'Customer contact unlocked'"></strong>
+          <small x-text="lead.providerSaleOutcome ? 'Current outcome: ' + humanize(lead.providerSaleOutcome) : 'Outcome update required'"></small>
+        </div>
+        <div class="provider-detail-quick-buttons">
+          <a class="btn btn-primary" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon"><use href="#i-phone"></use></svg>Call</a>
+          <a class="btn btn-light" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'https://wa.me/91' + String(contact.mobile).replace(/\D/g, '').slice(-10) : '#'" target="_blank" rel="noopener">WhatsApp</a>
+          <button class="btn btn-light" type="button" @click="document.getElementById('provider-outcome')?.scrollIntoView({ behavior: 'smooth', block: 'start' })"><svg class="icon"><use href="#i-trend"></use></svg><span x-text="lead.providerSaleOutcome ? 'Edit outcome' : 'Update outcome'"></span></button>
+        </div>
+      </div>
+
+      <div class="portal-marketplace-trust workspace-signal-strip mb-4">
         <div><span>Lead intent</span><strong :class="'is-' + lead.leadIntent" x-text="lead.leadIntent === 'not_assessed' ? 'Not assessed' : humanize(lead.leadIntent) + ' intent'"></strong></div>
         <div><span>Approx. distance</span><strong x-text="distanceLabel(lead.providerDistanceKm)"></strong></div>
         <div><span>Provider interest</span><strong><span x-text="lead.unlockedCount || 0"></span> unlocked</strong></div>
         <div><span>Current result</span><strong :class="lead.currentlyConfirmed ? 'is-confirmed' : ''" x-text="lead.currentlyConfirmed ? 'Confirmed by ' + lead.providerConfirmedCount : 'Not confirmed yet'"></strong></div>
       </div>
 
-      <div id="provider-outcome" class="card portal-card portal-outcome-card mb-4" x-show="isUnlocked" x-cloak>
+      <div id="provider-outcome" class="card portal-card portal-outcome-card workspace-outcome-panel mb-4" x-show="isUnlocked" x-cloak>
         <div class="card-header border-bottom d-flex align-items-center gap-3">
           <div>
             <div class="portal-step-label">Required update</div>
@@ -145,8 +163,8 @@
         </div>
       </div>
 
-      <div class="card portal-card mb-4">
-        <div class="card-header border-bottom"><h5 class="mb-0">Requirement details</h5></div>
+      <div class="card portal-card mb-4 workspace-detail-section">
+        <div class="card-header border-bottom"><div><span class="workspace-eyebrow">Lead information</span><h5 class="mb-0">Requirement details</h5></div></div>
         <div class="table-responsive">
           <table class="table portal-detail-table mb-0">
             <tbody>
@@ -164,7 +182,7 @@
         </div>
       </div>
 
-      <div class="card portal-card mb-4" x-show="isUnlocked" x-cloak>
+      <div class="card portal-card mb-4 workspace-contact-panel" x-show="isUnlocked" x-cloak>
         <div class="card-header border-bottom d-flex align-items-center">
           <div>
             <h5 class="mb-1">Customer contact</h5>
@@ -185,7 +203,7 @@
     </div>
 
     <div class="col-xl-4">
-      <div id="lead-access-panel" class="card portal-card portal-sticky-card">
+      <div id="lead-access-panel" class="card portal-card portal-sticky-card workspace-access-panel">
         <div class="card-header border-bottom">
           <h5 class="mb-0" x-text="isUnlocked ? 'Lead unlocked' : 'Unlock this lead'"></h5>
         </div>
@@ -549,7 +567,7 @@
     </div>
   </div>
 </div>
-<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<div class="portal-sidebar-overlay" data-portal-menu-overlay aria-hidden="true"></div>
 <script nonce="<%= cspNonce %>" src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <%- include('../partials/scripts') %>
 </body>

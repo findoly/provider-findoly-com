@@ -272,3 +272,9 @@ A CRM synchronization failure does not discard the provider update. The lead sho
 An unlocked lead with no Confirmed/Not Confirmed outcome becomes overdue after `PROVIDER_OUTCOME_REMINDER_DAYS` (default 7). The dashboard displays a pending count and a dismissible reminder popup. Dismissal lasts only for the current browser session, and the reminder returns in a later session until the outcome is updated.
 
 The reminder warns that Findoly may verify the status with the customer and provider. Incorrect or misleading outcomes are reviewed manually in CRM and may result in a warning, temporary suspension, or permanent restriction.
+
+## Full-page appearance themes
+
+The provider account menu includes three lightweight appearance choices. A theme applies to the complete portal, including the header, sidebar, dashboard, Marketplace, My Leads, lead detail, Credits, Profile, filters, forms, tables, mobile navigation and typography. Theme preference is stored in the browser and does not change business data or provider permissions.
+
+The sidebar no longer shows the redundant “Marketplace ready” status block. Provider location remains visible in the account summary and is still managed by CRM.

@@ -10,11 +10,11 @@
   @portal-notify.window="notify($event.detail)"
 >
 <%- include('../partials/navbar') %>
-<div class="page-content">
+<div class="page-content workspace-page-shell">
   <%- include('../partials/sidebar') %>
   <div class="content-wrapper">
     <div class="content-inner">
-      <div class="page-header portal-page-header border-bottom">
+      <div class="page-header portal-page-header workspace-page-header border-bottom">
         <div class="page-header-content d-flex align-items-center">
           <div class="flex-grow-1 min-w-0">
             <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
@@ -22,266 +22,149 @@
           </div>
         </div>
       </div>
-      <div class="content">
+      <div class="content workspace-content">
         <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
 
-<div class="provider-lead-page provider-minimal-page" x-data="leadList()" x-init="init()">
+<div class="provider-lead-page provider-minimal-page workspace-leads-page" x-data="leadList()" x-init="init()">
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
-  <div class="portal-location-required provider-location-alert mb-3" x-show="!loading && !locationReady && filters.status !== 'unlocked'" x-cloak>
-    <div class="min-w-0">
-      <strong>Your service location is pending in CRM</strong>
-      <span>Contact Findoly support to complete your provider PIN code before nearby leads can appear.</span>
-    </div>
-    <a href="/profile#marketplace-location" class="btn btn-light btn-sm">View location</a>
+  <div class="portal-location-required workspace-alert-card" x-show="!loading && !locationReady && filters.status !== 'unlocked'" x-cloak>
+    <span class="workspace-alert-icon"><svg class="icon"><use href="#i-location"></use></svg></span>
+    <div class="min-w-0"><strong>Your service location is pending in CRM</strong><span>Contact Findoly support before nearby leads can appear.</span></div>
+    <a href="/profile#marketplace-location" class="btn btn-light btn-sm">View profile</a>
   </div>
 
-  <nav class="provider-lead-tabs provider-minimal-tabs" aria-label="Lead sections">
-    <a href="/leads?status=offered" :class="filters.status !== 'unlocked' ? 'active' : ''">
-      <span class="provider-tab-icon"><svg class="icon"><use href="#i-lead"></use></svg></span>
-      <span class="provider-tab-copy"><strong>Marketplace</strong><small>Available leads</small></span>
-      <span class="provider-tab-count" x-show="filters.status !== 'unlocked' && !loading" x-text="pagination.total || 0"></span>
-    </a>
-    <a href="/leads?status=unlocked" :class="filters.status === 'unlocked' ? 'active' : ''">
-      <span class="provider-tab-icon"><svg class="icon"><use href="#i-unlock"></use></svg></span>
-      <span class="provider-tab-copy"><strong>Unlocked</strong><small>Your contacts</small></span>
-      <span class="provider-tab-count" x-show="filters.status === 'unlocked' && !loading" x-text="pagination.total || 0"></span>
-    </a>
-  </nav>
-
-  <section class="card portal-card provider-minimal-filter" aria-label="Lead filters">
-    <div class="provider-filter-toolbar">
-      <div class="provider-filter-search">
-        <svg class="icon"><use href="#i-search"></use></svg>
-        <input class="form-control" type="search" x-model="filters.q" @keydown.enter.prevent="apply()" placeholder="Search leads" aria-label="Search leads">
-      </div>
-      <button class="btn btn-light provider-advanced-toggle" type="button" @click="filtersOpen = !filtersOpen" :aria-expanded="filtersOpen.toString()">
-        <span>Advanced filters</span>
-        <span class="provider-filter-active-count" x-show="activeFilterCount()" x-cloak x-text="activeFilterCount()"></span>
-      </button>
-      <button class="btn btn-primary provider-filter-apply" type="button" @click="apply()">Search</button>
+  <section class="workspace-market-dashboard workspace-market-dashboard-top" aria-label="Marketplace dashboard" x-show="!loading" x-cloak>
+    <div class="workspace-market-dashboard-copy">
+      <span class="workspace-compact-label" x-text="filters.status === 'unlocked' ? 'MY LEAD WORKSPACE' : 'OPPORTUNITY MARKETPLACE'">OPPORTUNITY MARKETPLACE</span>
+      <strong x-text="filters.status === 'unlocked' ? 'Manage customer outcomes' : 'Find the right opportunity'">Find the right opportunity</strong>
+      <small x-text="filters.status === 'unlocked' ? 'Open customer contacts, update outcomes and continue follow-up.' : 'Review intent, provider activity and cost before opening a lead.'"></small>
     </div>
-
-    <div class="provider-advanced-panel" x-show="filtersOpen" x-cloak>
-      <div class="provider-advanced-grid">
-        <label class="provider-filter-control">
-          <span>Category</span>
-          <select class="form-select" x-model="filters.categorySlug">
-            <option value="">All categories</option>
-            <template x-for="category in categories" :key="category"><option :value="category" x-text="humanize(category)"></option></template>
-          </select>
-        </label>
-        <label class="provider-filter-control">
-          <span>City</span>
-          <input class="form-control" type="text" x-model="filters.city" placeholder="Any city">
-        </label>
-        <label class="provider-filter-control">
-          <span>PIN code</span>
-          <input class="form-control" type="text" inputmode="numeric" maxlength="6" x-model="filters.pincode" placeholder="Any PIN code">
-        </label>
-        <label class="provider-filter-control">
-          <span>Lead intent</span>
-          <select class="form-select" x-model="filters.leadIntent">
-            <option value="">Any intent</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-            <option value="not_assessed">Not assessed</option>
-          </select>
-        </label>
-
-        <template x-if="filters.status !== 'unlocked'">
-          <div class="provider-advanced-subgrid">
-            <label class="provider-filter-control">
-              <span>Provider confirmation</span>
-              <select class="form-select" x-model="filters.confirmation">
-                <option value="">Any confirmation</option>
-                <option value="confirmed">Currently confirmed</option>
-                <option value="not_confirmed">Not confirmed</option>
-              </select>
-            </label>
-            <label class="provider-filter-control">
-              <span>Providers unlocked</span>
-              <select class="form-select" x-model="filters.unlockCount">
-                <option value="">Any number</option>
-                <option value="none">None</option>
-                <option value="one_two">1–2 providers</option>
-                <option value="three_plus">3+ providers</option>
-              </select>
-            </label>
-            <label class="provider-filter-control">
-              <span>Lead age</span>
-              <select class="form-select" x-model="filters.age">
-                <option value="">Any age</option>
-                <option value="today">Last 24 hours</option>
-                <option value="3d">Last 3 days</option>
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-              </select>
-            </label>
-          </div>
-        </template>
-
-        <template x-if="filters.status === 'unlocked'">
-          <div class="provider-advanced-subgrid">
-            <label class="provider-filter-control">
-              <span>Sale outcome</span>
-              <select class="form-select" x-model="filters.outcome">
-                <option value="">Any outcome</option>
-                <option value="pending">Pending</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="not_confirmed">Not confirmed</option>
-              </select>
-            </label>
-            <label class="provider-filter-control">
-              <span>Activity status</span>
-              <select class="form-select" x-model="filters.activityStatus">
-                <option value="">Any activity</option>
-                <option value="contacted">Contacted</option>
-                <option value="valid">Valid</option>
-                <option value="follow_up">Follow up</option>
-                <option value="on_hold">On hold</option>
-                <option value="rejected">Rejected</option>
-                <option value="invalid">Invalid</option>
-                <option value="not_interested">Not interested</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label class="provider-filter-control provider-check-control">
-              <span>Pending follow-up</span>
-              <span class="provider-checkbox-row"><input type="checkbox" x-model="filters.overdue"> Overdue 7+ days</span>
-            </label>
-          </div>
-        </template>
-
-        <label class="provider-filter-control">
-          <span x-text="filters.status === 'unlocked' ? 'Unlocked from' : 'Published from'"></span>
-          <input class="form-control" type="date" x-model="filters.startDate">
-        </label>
-        <label class="provider-filter-control">
-          <span x-text="filters.status === 'unlocked' ? 'Unlocked to' : 'Published to'"></span>
-          <input class="form-control" type="date" x-model="filters.endDate">
-        </label>
-        <label class="provider-filter-control">
-          <span>Minimum credits</span>
-          <input class="form-control" type="number" min="0" step="1" x-model="filters.minCredits" placeholder="No minimum">
-        </label>
-        <label class="provider-filter-control">
-          <span>Maximum credits</span>
-          <input class="form-control" type="number" min="0" step="1" x-model="filters.maxCredits" placeholder="No maximum">
-        </label>
-        <label class="provider-filter-control">
-          <span>Sort by</span>
-          <select class="form-select" x-model="filters.sort">
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="nearest">Nearest first</option>
-            <option value="cost_low">Lowest credits</option>
-            <option value="cost_high">Highest credits</option>
-          </select>
-        </label>
-      </div>
-      <div class="provider-filter-actions">
-        <button class="btn btn-light" type="button" @click="clear()" :disabled="!hasActiveFilters()">Clear all</button>
-        <button class="btn btn-primary" type="button" @click="apply()">Apply filters</button>
-      </div>
+    <div class="workspace-market-dashboard-metrics">
+      <div><span class="workspace-compact-label">RESULTS</span><strong x-text="pagination.total || 0">0</strong></div>
+      <div><span class="workspace-compact-label">AVAILABLE CREDITS</span><strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong></div>
+      <div><span class="workspace-compact-label">ACTIVE FILTERS</span><strong x-text="activeFilterCount() || 'None'">None</strong></div>
     </div>
   </section>
 
-  <div class="provider-active-filters" x-show="activeChips().length" x-cloak>
-    <template x-for="chip in activeChips()" :key="chip.key">
-      <button type="button" @click="removeFilter(chip.key)"><span x-text="chip.label"></span><b aria-hidden="true">×</b></button>
-    </template>
-    <button class="is-clear" type="button" @click="clear()">Clear all</button>
-  </div>
+  <section class="workspace-lead-command">
+    <nav class="provider-lead-tabs provider-minimal-tabs workspace-lead-tabs" aria-label="Lead sections">
+      <a href="/leads?status=offered" :class="filters.status !== 'unlocked' ? 'active' : ''">
+        <span class="provider-tab-icon"><svg class="icon"><use href="#i-search"></use></svg></span>
+        <span class="provider-tab-copy"><strong>Marketplace</strong><small>Discover matching opportunities</small></span>
+        <span class="provider-tab-count" x-show="filters.status !== 'unlocked' && !loading" x-text="pagination.total || 0"></span>
+      </a>
+      <a href="/leads?status=unlocked" :class="filters.status === 'unlocked' ? 'active' : ''">
+        <span class="provider-tab-icon"><svg class="icon"><use href="#i-briefcase"></use></svg></span>
+        <span class="provider-tab-copy"><strong>My leads</strong><small>Customer contacts and outcomes</small></span>
+        <span class="provider-tab-count" x-show="filters.status === 'unlocked' && !loading" x-text="pagination.total || 0"></span>
+      </a>
+    </nav>
 
-  <div class="provider-minimal-results" x-show="!loading" x-cloak>
-    <strong x-text="`${pagination.total || 0} ${filters.status === 'unlocked' ? 'unlocked' : 'available'} lead${Number(pagination.total || 0) === 1 ? '' : 's'}`"></strong>
-  </div>
+    <div class="provider-quick-filters" aria-label="Quick lead filters">
+      <template x-if="filters.status !== 'unlocked'">
+        <div class="provider-quick-filter-track">
+          <button type="button" :class="{ active: quickFilterActive('all') }" @click="applyQuickFilter('all')">All opportunities</button>
+          <button type="button" :class="{ active: quickFilterActive('high_intent') }" @click="applyQuickFilter('high_intent')">High intent</button>
+          <button type="button" :class="{ active: quickFilterActive('fresh') }" @click="applyQuickFilter('fresh')">Fresh today</button>
+          <button type="button" :class="{ active: quickFilterActive('no_unlocks') }" @click="applyQuickFilter('no_unlocks')">No unlocks yet</button>
+          <button type="button" :class="{ active: quickFilterActive('open_result') }" @click="applyQuickFilter('open_result')">Not confirmed yet</button>
+        </div>
+      </template>
+      <template x-if="filters.status === 'unlocked'">
+        <div class="provider-quick-filter-track">
+          <button type="button" :class="{ active: quickFilterActive('all') }" @click="applyQuickFilter('all')">All my leads</button>
+          <button type="button" :class="{ active: quickFilterActive('action_required') }" @click="applyQuickFilter('action_required')">Action required</button>
+          <button type="button" :class="{ active: quickFilterActive('follow_up') }" @click="applyQuickFilter('follow_up')">Follow up</button>
+          <button type="button" :class="{ active: quickFilterActive('confirmed') }" @click="applyQuickFilter('confirmed')">Confirmed</button>
+          <button type="button" :class="{ active: quickFilterActive('not_confirmed') }" @click="applyQuickFilter('not_confirmed')">Not confirmed</button>
+        </div>
+      </template>
+    </div>
 
-  <main class="provider-minimal-list" :class="loading ? 'portal-loading' : ''" aria-live="polite">
+    <section class="card portal-card provider-minimal-filter workspace-filter-card" aria-label="Lead filters">
+      <div class="provider-filter-toolbar workspace-filter-toolbar">
+        <label class="provider-filter-search workspace-search-field">
+          <svg class="icon"><use href="#i-search"></use></svg>
+          <input class="form-control" type="search" x-model="filters.q" @keydown.enter.prevent="apply()" placeholder="Search by requirement, city or lead ID" aria-label="Search leads">
+        </label>
+        <button class="btn btn-light provider-advanced-toggle workspace-filter-toggle" type="button" @click="filtersOpen = !filtersOpen" :aria-expanded="filtersOpen.toString()">
+          <svg class="icon"><use href="#i-filter"></use></svg><span>Filters</span>
+          <span class="provider-filter-active-count" x-show="activeFilterCount()" x-cloak x-text="activeFilterCount()"></span>
+        </button>
+        <button class="btn btn-primary provider-filter-apply" type="button" @click="apply()">Search</button>
+      </div>
+
+      <div class="provider-advanced-panel workspace-filter-panel" x-show="filtersOpen" x-cloak>
+        <div class="workspace-filter-heading"><div><strong>Advanced filters</strong><span>Refine opportunities by location, intent, activity and price.</span></div><button type="button" @click="filtersOpen = false" aria-label="Close filters">×</button></div>
+        <div class="provider-advanced-grid workspace-filter-grid">
+          <label class="provider-filter-control"><span>Category</span><select class="form-select" x-model="filters.categorySlug"><option value="">All categories</option><template x-for="category in categories" :key="category"><option :value="category" x-text="humanize(category)"></option></template></select></label>
+          <label class="provider-filter-control"><span>City</span><input class="form-control" type="text" x-model="filters.city" placeholder="Any city"></label>
+          <label class="provider-filter-control"><span>PIN code</span><input class="form-control" type="text" inputmode="numeric" maxlength="6" x-model="filters.pincode" placeholder="Any PIN code"></label>
+          <label class="provider-filter-control"><span>Lead intent</span><select class="form-select" x-model="filters.leadIntent"><option value="">Any intent</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="not_assessed">Not assessed</option></select></label>
+
+          <template x-if="filters.status !== 'unlocked'"><div class="provider-advanced-subgrid workspace-filter-subgrid">
+            <label class="provider-filter-control"><span>Provider confirmation</span><select class="form-select" x-model="filters.confirmation"><option value="">Any confirmation</option><option value="confirmed">Currently confirmed</option><option value="not_confirmed">Not confirmed</option></select></label>
+            <label class="provider-filter-control"><span>Providers unlocked</span><select class="form-select" x-model="filters.unlockCount"><option value="">Any number</option><option value="none">None</option><option value="one_two">1–2 providers</option><option value="three_plus">3+ providers</option></select></label>
+            <label class="provider-filter-control"><span>Lead age</span><select class="form-select" x-model="filters.age"><option value="">Any age</option><option value="today">Last 24 hours</option><option value="3d">Last 3 days</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select></label>
+          </div></template>
+
+          <template x-if="filters.status === 'unlocked'"><div class="provider-advanced-subgrid workspace-filter-subgrid">
+            <label class="provider-filter-control"><span>Sale outcome</span><select class="form-select" x-model="filters.outcome"><option value="">Any outcome</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="not_confirmed">Not confirmed</option></select></label>
+            <label class="provider-filter-control"><span>Activity status</span><select class="form-select" x-model="filters.activityStatus"><option value="">Any activity</option><option value="contacted">Contacted</option><option value="valid">Valid</option><option value="follow_up">Follow up</option><option value="on_hold">On hold</option><option value="rejected">Rejected</option><option value="invalid">Invalid</option><option value="not_interested">Not interested</option><option value="other">Other</option></select></label>
+            <label class="provider-filter-control provider-check-control"><span>Pending follow-up</span><span class="provider-checkbox-row"><input type="checkbox" x-model="filters.overdue"> Overdue 7+ days</span></label>
+          </div></template>
+
+          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Unlocked from' : 'Published from'"></span><input class="form-control" type="date" x-model="filters.startDate"></label>
+          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Unlocked to' : 'Published to'"></span><input class="form-control" type="date" x-model="filters.endDate"></label>
+          <label class="provider-filter-control"><span>Minimum credits</span><input class="form-control" type="number" min="0" step="1" x-model="filters.minCredits" placeholder="No minimum"></label>
+          <label class="provider-filter-control"><span>Maximum credits</span><input class="form-control" type="number" min="0" step="1" x-model="filters.maxCredits" placeholder="No maximum"></label>
+          <label class="provider-filter-control"><span>Sort by</span><select class="form-select" x-model="filters.sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="nearest">Nearest first</option><option value="cost_low">Lowest credits</option><option value="cost_high">Highest credits</option></select></label>
+        </div>
+        <div class="provider-filter-actions workspace-filter-actions"><button class="btn btn-light" type="button" @click="clear()" :disabled="!hasActiveFilters()">Clear all</button><button class="btn btn-primary" type="button" @click="apply(); filtersOpen = false">Show results</button></div>
+      </div>
+    </section>
+  </section>
+
+  <div class="provider-active-filters workspace-active-filters" x-show="activeChips().length" x-cloak><template x-for="chip in activeChips()" :key="chip.key"><button type="button" @click="removeFilter(chip.key)"><span x-text="chip.label"></span><b aria-hidden="true">×</b></button></template><button class="is-clear" type="button" @click="clear()">Clear all</button></div>
+
+  <div class="provider-minimal-results workspace-results-bar" x-show="!loading" x-cloak><div><strong><span x-text="pagination.total || 0"></span> <span x-text="filters.status === 'unlocked' ? (Number(pagination.total || 0) === 1 ? 'lead' : 'leads') : (Number(pagination.total || 0) === 1 ? 'opportunity' : 'opportunities')"></span></strong><span x-text="filters.status === 'unlocked' ? 'Your unlocked customer leads' : 'Matched to your category and service location'"></span></div><span class="workspace-results-sort" x-text="humanize(filters.sort)"></span></div>
+
+  <main class="provider-minimal-list workspace-lead-grid" :class="loading ? 'portal-loading' : ''" aria-live="polite">
     <template x-for="lead in rows" :key="lead.leadDistributionId">
-      <article class="provider-minimal-card provider-opportunity-card" :class="lead.contactUnlocked ? 'is-unlocked' : 'is-marketplace'">
-        <div class="provider-minimal-card-main">
-          <div class="provider-minimal-title-row">
-            <div class="min-w-0">
-              <span class="provider-minimal-category" x-text="lead.category || humanize(lead.categorySlug) || 'Service category'"></span>
-              <h2><a :href="'/leads/' + lead.leadDistributionId" x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></a></h2>
-              <p class="provider-card-location"><svg class="icon"><use href="#i-location"></use></svg><span x-text="locationLabel(lead)"></span></p>
-            </div>
-            <span class="provider-intent-badge" :class="'is-' + lead.leadIntent" x-text="intentLabel(lead.leadIntent)"></span>
-          </div>
-
+      <article class="provider-minimal-card provider-opportunity-card workspace-lead-card" :class="lead.contactUnlocked ? 'is-unlocked' : 'is-marketplace'">
+        <div class="provider-minimal-card-main workspace-lead-card-main">
+          <div class="workspace-card-topline"><span class="provider-minimal-category" x-text="lead.category || humanize(lead.categorySlug) || 'Service category'"></span><span class="provider-intent-badge" :class="'is-' + lead.leadIntent" x-text="intentLabel(lead.leadIntent)"></span></div>
+          <div class="provider-minimal-title-row workspace-lead-title-row"><div class="min-w-0"><h2><a :href="'/leads/' + lead.leadDistributionId" x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></a></h2><p class="provider-card-location"><svg class="icon"><use href="#i-location"></use></svg><span x-text="locationLabel(lead)"></span></p></div></div>
           <p class="provider-card-summary" x-show="leadSummary(lead)" x-text="leadSummary(lead)"></p>
 
-          <div class="provider-card-facts">
-            <div x-show="!lead.contactUnlocked">
-              <small>Approx. distance</small>
-              <strong x-text="distanceLabel(lead)"></strong>
-            </div>
-            <div x-show="lead.contactUnlocked">
-              <small>Customer</small>
-              <strong x-text="lead.customerName || 'Customer details available'"></strong>
-            </div>
-            <div>
-              <small>Preferred timing</small>
-              <strong x-text="preferredLabel(lead)"></strong>
-            </div>
-            <div x-show="!lead.contactUnlocked">
-              <small>Lead age</small>
-              <strong x-text="relativeAge(lead.marketplacePublishedAt || lead.distributedAt || lead.createdAt)"></strong>
-            </div>
-            <div x-show="lead.contactUnlocked">
-              <small>Contact</small>
-              <strong x-text="lead.customerMobile || 'Open lead to view contact'"></strong>
-            </div>
+          <div class="provider-card-facts workspace-card-facts">
+            <div x-show="!lead.contactUnlocked"><small>Approx. distance</small><strong x-text="distanceLabel(lead)"></strong></div>
+            <div x-show="lead.contactUnlocked"><small>Customer</small><strong x-text="lead.customerName || 'Contact available'"></strong></div>
+            <div><small>Preferred timing</small><strong x-text="preferredLabel(lead)"></strong></div>
+            <div x-show="!lead.contactUnlocked"><small>Lead age</small><strong x-text="relativeAge(lead.marketplacePublishedAt || lead.distributedAt || lead.createdAt)"></strong></div>
+            <div x-show="lead.contactUnlocked"><small>Contact</small><strong x-text="lead.customerMobile || 'Open lead to view'"></strong></div>
           </div>
 
-          <div class="provider-minimal-signals" x-show="!lead.contactUnlocked">
-            <span><svg class="icon"><use href="#i-unlock"></use></svg><b x-text="lead.unlockedCount || 0"></b><span x-text="Number(lead.unlockedCount || 0) === 1 ? 'provider unlocked' : 'providers unlocked'"></span></span>
-            <span :class="lead.currentlyConfirmed ? 'is-confirmed' : ''"><svg class="icon"><use href="#i-check"></use></svg><span x-text="lead.currentlyConfirmed ? `${lead.providerConfirmedCount || 1} provider confirmed` : 'No provider confirmed yet'"></span></span>
-          </div>
-
-          <div class="provider-minimal-signals" x-show="lead.contactUnlocked">
-            <span class="provider-outcome-chip" :class="statusClass(lead)" x-text="outcomeLabel(lead)"></span>
-            <span x-show="lead.providerLeadStatus"><svg class="icon"><use href="#i-lead"></use></svg><span x-text="humanize(lead.providerLeadStatus)"></span></span>
-            <span x-show="isOverdue(lead)" class="is-overdue"><svg class="icon"><use href="#i-clock"></use></svg>Outcome overdue</span>
-          </div>
+          <div class="provider-minimal-signals workspace-lead-signals" x-show="!lead.contactUnlocked"><span><svg class="icon"><use href="#i-unlock"></use></svg><b x-text="lead.unlockedCount || 0"></b><span x-text="Number(lead.unlockedCount || 0) === 1 ? 'provider unlocked' : 'providers unlocked'"></span></span><span :class="lead.currentlyConfirmed ? 'is-confirmed' : ''"><svg class="icon"><use href="#i-check"></use></svg><span x-text="lead.currentlyConfirmed ? `${lead.providerConfirmedCount || 1} provider confirmed` : 'No provider confirmed yet'"></span></span></div>
+          <div class="provider-minimal-signals workspace-lead-signals" x-show="lead.contactUnlocked"><span class="provider-outcome-chip" :class="statusClass(lead)" x-text="outcomeLabel(lead)"></span><span x-show="lead.providerLeadStatus"><svg class="icon"><use href="#i-trend"></use></svg><span x-text="humanize(lead.providerLeadStatus)"></span></span><span x-show="isOverdue(lead)" class="is-overdue"><svg class="icon"><use href="#i-clock"></use></svg>Outcome overdue</span></div>
         </div>
 
-        <div class="provider-minimal-card-action">
-          <div class="provider-card-price-block">
-            <small x-text="lead.contactUnlocked ? 'Unlocked on' : 'Unlock cost'"></small>
-            <strong x-text="lead.contactUnlocked ? formatDateOnly(lead.unlockedAt) : credits(lead.leadCostCredits)"></strong>
-          </div>
+        <div class="provider-minimal-card-action workspace-lead-card-footer">
+          <div class="provider-card-price-block"><small x-text="lead.contactUnlocked ? 'Unlocked on' : 'Unlock cost'"></small><strong x-text="lead.contactUnlocked ? formatDateOnly(lead.unlockedAt) : credits(lead.leadCostCredits)"></strong></div>
           <div class="provider-card-actions">
             <a x-show="lead.contactUnlocked && lead.customerMobile" class="btn btn-light provider-card-call" :href="phoneHref(lead.customerMobile)"><svg class="icon"><use href="#i-phone"></use></svg><span>Call</span></a>
-            <a class="btn btn-primary" :href="'/leads/' + lead.leadDistributionId" x-text="lead.contactUnlocked ? 'Open lead' : 'View opportunity'"></a>
+            <a x-show="lead.contactUnlocked && lead.customerMobile" class="btn btn-light provider-card-whatsapp" :href="whatsappHref(lead.customerMobile)" target="_blank" rel="noopener"><span aria-hidden="true">↗</span><span>WhatsApp</span></a>
+            <a class="btn btn-primary" :href="'/leads/' + lead.leadDistributionId"><span x-text="lead.contactUnlocked ? (lead.providerSaleOutcome ? 'Open lead' : 'Update outcome') : 'View opportunity'"></span><svg class="icon"><use href="#i-arrow"></use></svg></a>
           </div>
         </div>
       </article>
     </template>
 
-    <section class="card portal-card provider-minimal-empty" x-show="loading || (!loading && !rows.length)">
-      <div class="card-body text-center">
-        <div x-show="loading" class="text-muted">Loading leads…</div>
-        <div x-show="!loading && !rows.length">
-          <div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div>
-          <strong x-text="filters.status === 'unlocked' ? 'No unlocked leads found' : (!locationReady ? 'Service location required' : 'No leads match your filters')"></strong>
-          <span x-text="hasActiveFilters() ? 'Clear or change your filters to see more leads.' : (filters.status === 'unlocked' ? 'Successfully unlocked leads will appear here.' : 'New matching leads will appear here automatically.')"></span>
-          <button x-show="hasActiveFilters()" type="button" class="btn btn-light btn-sm" @click="clear()">Clear filters</button>
-        </div>
-      </div>
-    </section>
+    <section class="card portal-card provider-minimal-empty workspace-empty-state" x-show="loading || (!loading && !rows.length)"><div class="card-body text-center"><div x-show="loading" class="text-muted">Loading leads…</div><div x-show="!loading && !rows.length"><div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div><strong x-text="filters.status === 'unlocked' ? 'No unlocked leads found' : (!locationReady ? 'Service location required' : 'No leads match your filters')"></strong><span x-text="hasActiveFilters() ? 'Clear or change your filters to see more leads.' : (filters.status === 'unlocked' ? 'Successfully unlocked leads will appear here.' : 'New matching leads will appear here automatically.')"></span><button x-show="hasActiveFilters()" type="button" class="btn btn-light btn-sm" @click="clear()">Clear filters</button></div></div></section>
   </main>
 
-  <div class="portal-card portal-pagination provider-minimal-pagination" x-show="pagination.pages > 1" x-cloak>
-    <span x-text="`${pagination.page} of ${pagination.pages}`"></span>
-    <div>
-      <button class="btn btn-light btn-sm" :disabled="pagination.page <= 1 || loading" @click="go(pagination.page - 1)">Previous</button>
-      <button class="btn btn-light btn-sm" :disabled="pagination.page >= pagination.pages || loading" @click="go(pagination.page + 1)">Next</button>
-    </div>
-  </div>
+  <div class="portal-card portal-pagination provider-minimal-pagination workspace-pagination" x-show="pagination.pages > 1" x-cloak><span><span x-text="pagination.page"></span> of <span x-text="pagination.pages"></span></span><div><button class="btn btn-light btn-sm" :disabled="pagination.page <= 1 || loading" @click="go(pagination.page - 1)">Previous</button><button class="btn btn-light btn-sm" :disabled="pagination.page >= pagination.pages || loading" @click="go(pagination.page + 1)">Next</button></div></div>
 </div>
 
 <script nonce="<%= cspNonce %>">
@@ -363,7 +246,33 @@
         value = String(value || '').replace(/\s+/g, ' ').trim();
         return value.length > 180 ? `${value.slice(0, 177)}…` : value;
       },
+      quickFilterActive(name) {
+        if (name === 'all') return !['leadIntent','age','unlockCount','confirmation','outcome','activityStatus','overdue'].some((key) => Boolean(this.filters[key]));
+        if (name === 'high_intent') return this.filters.leadIntent === 'high' && !this.filters.age && !this.filters.unlockCount && !this.filters.confirmation;
+        if (name === 'fresh') return this.filters.age === 'today' && !this.filters.leadIntent && !this.filters.unlockCount && !this.filters.confirmation;
+        if (name === 'no_unlocks') return this.filters.unlockCount === 'none';
+        if (name === 'open_result') return this.filters.confirmation === 'not_confirmed';
+        if (name === 'action_required') return this.filters.outcome === 'pending' && !this.filters.activityStatus;
+        if (name === 'follow_up') return this.filters.activityStatus === 'follow_up' && !this.filters.outcome;
+        if (name === 'confirmed') return this.filters.outcome === 'confirmed';
+        if (name === 'not_confirmed') return this.filters.outcome === 'not_confirmed';
+        return false;
+      },
+      applyQuickFilter(name) {
+        ['leadIntent','age','unlockCount','confirmation','outcome','activityStatus'].forEach((key) => { this.filters[key] = ''; });
+        this.filters.overdue = false;
+        if (name === 'high_intent') this.filters.leadIntent = 'high';
+        if (name === 'fresh') this.filters.age = 'today';
+        if (name === 'no_unlocks') this.filters.unlockCount = 'none';
+        if (name === 'open_result') this.filters.confirmation = 'not_confirmed';
+        if (name === 'action_required') this.filters.outcome = 'pending';
+        if (name === 'follow_up') this.filters.activityStatus = 'follow_up';
+        if (name === 'confirmed') this.filters.outcome = 'confirmed';
+        if (name === 'not_confirmed') this.filters.outcome = 'not_confirmed';
+        this.apply();
+      },
       phoneHref(value) { return `tel:${String(value || '').replace(/[^+\d]/g, '')}`; },
+      whatsappHref(value) { return `https://wa.me/91${String(value || '').replace(/\D/g, '').slice(-10)}`; },
       statusClass(lead) {
         if (lead.providerSaleOutcome === 'confirmed') return 'is-success';
         if (lead.providerSaleOutcome === 'not_confirmed') return 'is-neutral';
@@ -391,13 +300,12 @@
     };
   }
 </script>
-
       </div>
       <%- include('../partials/footer') %>
     </div>
   </div>
 </div>
-<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<div class="portal-sidebar-overlay" data-portal-menu-overlay aria-hidden="true"></div>
 <%- include('../partials/scripts') %>
 </body>
 </html>

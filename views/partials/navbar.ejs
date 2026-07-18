@@ -16,59 +16,68 @@
   <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.1a1.9 1.9 0 0 0 1.4-3.2 1.9 1.9 0 0 1 1.4-3.2H18a3 3 0 0 0 3-3A8.6 8.6 0 0 0 12 3z"/><circle cx="7.5" cy="10" r=".8"/><circle cx="10" cy="6.8" r=".8"/><circle cx="14" cy="6.8" r=".8"/><circle cx="16.5" cy="10" r=".8"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5"/></symbol>
+  <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3M3 12h18M10 12v2h4v-2"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16M7 12h10M10 19h4"/></symbol>
+  <symbol id="i-support" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 1 1 4.6 1.4c-.8 1.1-2.3 1.3-2.3 3M12 17h.01"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M4 17 10 11l4 4 6-8"/><path d="M15 7h5v5"/></symbol>
 </svg>
 
-<header class="portal-navbar portal-navbar-minimal" role="banner">
-  <div class="portal-navbar-inner">
-    <button type="button" class="portal-mobile-menu d-lg-none" aria-label="Open navigation" @click="toggleSidebar()">
+<header class="portal-navbar portal-navbar-minimal workspace-topbar" role="banner">
+  <div class="portal-navbar-inner workspace-topbar-inner">
+    <button id="portalMobileMenuButton" type="button" class="portal-mobile-menu d-lg-none" aria-label="Open navigation" aria-controls="providerSidebar" aria-expanded="false" data-portal-menu-toggle>
       <svg class="icon"><use href="#i-menu"></use></svg>
     </button>
 
-    <a href="/dashboard" class="portal-brand" aria-label="Findoly provider dashboard">
+    <a href="/dashboard" class="portal-brand workspace-brand" aria-label="Findoly provider workspace">
       <img src="/images/findoly-logo.png" alt="Findoly" class="portal-brand-logo">
-      <span class="portal-brand-product">Provider</span>
+      <span class="portal-brand-product">Business</span>
     </a>
 
-    <div class="portal-header-context d-none d-md-grid">
-      <strong x-text="page.title || 'Provider workspace'">Provider workspace</strong>
-      <span x-text="page.subtitle || 'Manage leads and outcomes'">Manage leads and outcomes</span>
+    <div class="portal-header-context workspace-page-context d-none d-md-grid">
+      <strong x-text="page.title || 'Business workspace'">Business workspace</strong>
+      <span x-text="page.subtitle || 'Leads, customers and credits in one place'">Leads, customers and credits in one place</span>
     </div>
 
-    <div class="portal-navbar-actions ms-auto">
-      <a class="portal-header-credit" href="/plans" aria-label="Open credits and plans">
+    <div class="portal-navbar-actions workspace-topbar-actions ms-auto">
+      <a class="workspace-marketplace-shortcut d-none d-xl-inline-flex" href="/leads?status=offered">
+        <svg class="icon"><use href="#i-search"></use></svg><span>Find leads</span>
+      </a>
+      <a class="portal-header-action workspace-icon-button d-none d-sm-inline-flex" href="/leads?status=unlocked&amp;outcome=pending" aria-label="Pending outcomes" title="Pending outcomes">
+        <svg class="icon"><use href="#i-bell"></use></svg>
+      </a>
+      <a class="portal-header-credit workspace-credit-chip" href="/plans" aria-label="Open credits and plans">
         <svg class="icon"><use href="#i-wallet"></use></svg>
-        <span class="d-none d-sm-inline">Credits</span>
+        <span class="d-none d-sm-inline">Available</span>
         <strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong>
       </a>
 
-      <a class="portal-header-action d-none d-sm-inline-flex" href="/leads?status=unlocked&amp;outcome=pending" aria-label="Open pending outcomes" title="Pending outcomes">
-        <svg class="icon"><use href="#i-clock"></use></svg>
-      </a>
-
       <div class="dropdown portal-profile-dropdown">
-        <button class="portal-user-button" data-bs-toggle="dropdown" data-bs-display="static" data-bs-auto-close="outside" type="button" aria-expanded="false" aria-label="Open account menu">
+        <button class="portal-user-button workspace-user-button" data-bs-toggle="dropdown" data-bs-display="static" data-bs-auto-close="outside" type="button" aria-expanded="false" aria-label="Open account menu">
           <span x-text="initials(provider.name || provider.businessName || 'Provider')">P</span>
+          <span class="workspace-user-copy d-none d-lg-grid"><strong x-text="provider.businessName || provider.name || 'Provider'">Provider</strong><small>Account</small></span>
           <svg class="portal-user-caret" viewBox="0 0 12 8" aria-hidden="true"><path d="m1 1 5 5 5-5"/></svg>
         </button>
-        <div class="dropdown-menu dropdown-menu-end portal-profile-menu">
+        <div class="dropdown-menu dropdown-menu-end portal-profile-menu workspace-profile-menu">
           <div class="portal-profile-menu-header">
             <span class="portal-profile-menu-avatar" x-text="initials(provider.name || provider.businessName || 'Provider')">P</span>
             <div class="min-w-0">
               <strong class="text-truncate" x-text="provider.businessName || provider.name || 'Provider'">Provider</strong>
-              <small class="text-truncate" x-text="provider.city || 'Findoly provider'">Findoly provider</small>
+              <small class="text-truncate" x-text="provider.city || provider.serviceLocality || 'Findoly provider'">Findoly provider</small>
             </div>
           </div>
           <div class="portal-profile-menu-links">
-            <a class="dropdown-item" href="/profile"><svg class="icon"><use href="#i-user"></use></svg><span>My profile</span></a>
+            <a class="dropdown-item" href="/profile"><svg class="icon"><use href="#i-user"></use></svg><span>Business profile</span></a>
             <a class="dropdown-item" href="/plans"><svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span></a>
             <button class="dropdown-item d-flex align-items-center justify-content-between portal-appearance-toggle" type="button" :aria-expanded="appearanceOpen.toString()" aria-controls="portalThemeChoices" @click.stop="appearanceOpen = !appearanceOpen">
               <span class="portal-menu-item-main"><svg class="icon"><use href="#i-palette"></use></svg><span>Appearance</span></span>
               <span class="portal-appearance-chevron" :class="{ 'is-open': appearanceOpen }" aria-hidden="true">⌄</span>
             </button>
-            <div id="portalThemeChoices" class="portal-inline-themes" x-cloak x-show="appearanceOpen" x-transition.opacity.duration.120ms @click.stop>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'professional-blue' }" @click="setTheme('professional-blue')"><span class="portal-inline-theme-preview portal-theme-preview-blue" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Professional Blue</strong><small>Clean business theme</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'teal-professional' }" @click="setTheme('teal-professional')"><span class="portal-inline-theme-preview portal-theme-preview-teal" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Teal Professional</strong><small>Modern service theme</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'navy-premium' }" @click="setTheme('navy-premium')"><span class="portal-inline-theme-preview portal-theme-preview-navy" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Navy Premium</strong><small>Dark navigation theme</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
+            <div id="portalThemeChoices" class="portal-inline-themes portal-inline-themes-grid" x-cloak x-show="appearanceOpen" x-transition.opacity.duration.120ms @click.stop>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'professional-blue' }" @click="setTheme('professional-blue')"><span class="portal-inline-theme-preview portal-theme-preview-professional" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Professional Blue</strong><small>Structured business workspace</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'pure-monochrome' }" @click="setTheme('pure-monochrome')"><span class="portal-inline-theme-preview portal-theme-preview-monochrome" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Pure Monochrome</strong><small>Black, white and focused</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
+              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'marketplace-green' }" @click="setTheme('marketplace-green')"><span class="portal-inline-theme-preview portal-theme-preview-marketplace" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Marketplace Green</strong><small>Fresh service marketplace</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
             </div>
           </div>
           <div class="dropdown-divider"></div>
@@ -79,10 +88,10 @@
   </div>
 </header>
 
-<nav class="portal-mobile-nav d-lg-none" aria-label="Mobile navigation">
+<nav class="portal-mobile-nav d-lg-none workspace-mobile-nav" aria-label="Mobile navigation">
   <a href="/dashboard" :class="{ active: pathIs('/dashboard') }"><svg class="icon"><use href="#i-home"></use></svg><span>Home</span></a>
-  <a href="/leads?status=offered" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }"><svg class="icon"><use href="#i-lead"></use></svg><span>Leads</span></a>
-  <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' }"><svg class="icon"><use href="#i-unlock"></use></svg><span>Unlocked</span></a>
+  <a href="/leads?status=offered" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }"><svg class="icon"><use href="#i-search"></use></svg><span>Find</span></a>
+  <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' }"><svg class="icon"><use href="#i-briefcase"></use></svg><span>My leads</span></a>
   <a href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }"><svg class="icon"><use href="#i-wallet"></use></svg><span>Credits</span></a>
   <a href="/profile" :class="{ active: pathIs('/profile') }"><svg class="icon"><use href="#i-user"></use></svg><span>Profile</span></a>
 </nav>

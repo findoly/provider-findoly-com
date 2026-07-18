@@ -10,11 +10,11 @@
   @portal-notify.window="notify($event.detail)"
 >
 <%- include('../partials/navbar') %>
-<div class="page-content">
+<div class="page-content workspace-page-shell">
   <%- include('../partials/sidebar') %>
   <div class="content-wrapper">
     <div class="content-inner">
-      <div class="page-header portal-page-header border-bottom">
+      <div class="page-header portal-page-header workspace-page-header border-bottom">
         <div class="page-header-content d-flex align-items-center">
           <div class="flex-grow-1 min-w-0">
             <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
@@ -22,7 +22,7 @@
           </div>
         </div>
       </div>
-      <div class="content">
+      <div class="content workspace-content">
         <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
 
 <div x-data="profilePage()" x-init="load()" :class="loading ? 'portal-loading' : ''">
@@ -152,7 +152,7 @@
     </div>
   </div>
 </div>
-<div class="portal-sidebar-overlay" @click="closeSidebar()"></div>
+<div class="portal-sidebar-overlay" data-portal-menu-overlay aria-hidden="true"></div>
 <%- include('../partials/scripts') %>
 </body>
 </html>

@@ -124,10 +124,66 @@
   }
 
   const portalThemes = Object.freeze({
-    'professional-blue': { label: 'Professional Blue', themeColor: '#172033' },
-    'teal-professional': { label: 'Teal Professional', themeColor: '#123c3a' },
-    'navy-premium': { label: 'Navy Premium', themeColor: '#101a30' }
+    'professional-blue': { label: 'Professional Blue', description: 'Structured business workspace', themeColor: '#f4f6f8' },
+    'pure-monochrome': { label: 'Pure Monochrome', description: 'Black, white and focused', themeColor: '#f6f6f6' },
+    'marketplace-green': { label: 'Marketplace Green', description: 'Fresh service marketplace', themeColor: '#f5f8f6' }
   });
+
+  function setProviderSidebarOpen(open) {
+    const shouldOpen = Boolean(open) && window.matchMedia('(max-width: 991.98px)').matches;
+    document.body.classList.toggle('portal-sidebar-open', shouldOpen);
+    const button = document.querySelector('[data-portal-menu-toggle]');
+    const sidebar = document.getElementById('providerSidebar');
+    const overlay = document.querySelector('[data-portal-menu-overlay]');
+    if (button) {
+      button.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+      button.setAttribute('aria-label', shouldOpen ? 'Close navigation' : 'Open navigation');
+    }
+    if (sidebar) sidebar.setAttribute('aria-hidden', shouldOpen ? 'false' : (window.innerWidth < 992 ? 'true' : 'false'));
+    if (overlay) overlay.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+  }
+
+  let providerNavigationInitialized = false;
+
+  function initializeProviderNavigation() {
+    if (providerNavigationInitialized) return;
+    providerNavigationInitialized = true;
+
+    const button = document.querySelector('[data-portal-menu-toggle]');
+    const closeButton = document.querySelector('[data-portal-menu-close]');
+    const overlay = document.querySelector('[data-portal-menu-overlay]');
+    const sidebarLinks = Array.from(document.querySelectorAll('[data-portal-menu-link]'));
+    const mobileLinks = Array.from(document.querySelectorAll('.portal-mobile-nav a'));
+
+    const toggleNavigation = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setProviderSidebarOpen(!document.body.classList.contains('portal-sidebar-open'));
+    };
+    const closeNavigation = () => setProviderSidebarOpen(false);
+
+    if (button) button.addEventListener('click', toggleNavigation, { capture: true });
+    if (closeButton) closeButton.addEventListener('click', closeNavigation, { capture: true });
+    if (overlay) overlay.addEventListener('click', closeNavigation, { capture: true });
+    sidebarLinks.forEach((link) => link.addEventListener('click', closeNavigation, { capture: true }));
+    mobileLinks.forEach((link) => link.addEventListener('click', closeNavigation, { capture: true }));
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeNavigation();
+    });
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 992) closeNavigation();
+    }, { passive: true });
+    window.addEventListener('pageshow', closeNavigation, { passive: true });
+
+    setProviderSidebarOpen(false);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeProviderNavigation, { once: true });
+  } else {
+    initializeProviderNavigation();
+  }
 
   function providerShell(config = {}) {
     return {
@@ -194,11 +250,11 @@
       },
 
       toggleSidebar() {
-        document.body.classList.toggle('portal-sidebar-open');
+        setProviderSidebarOpen(!document.body.classList.contains('portal-sidebar-open'));
       },
 
       closeSidebar() {
-        document.body.classList.remove('portal-sidebar-open');
+        setProviderSidebarOpen(false);
       },
 
       async logout() {
