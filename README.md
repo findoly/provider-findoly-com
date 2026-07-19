@@ -273,8 +273,11 @@ An unlocked lead with no Confirmed/Not Confirmed outcome becomes overdue after `
 
 The reminder warns that Findoly may verify the status with the customer and provider. Incorrect or misleading outcomes are reviewed manually in CRM and may result in a warning, temporary suspension, or permanent restriction.
 
-## Full-page appearance themes
+## Provider appearance
 
-The provider account menu includes three lightweight appearance choices. A theme applies to the complete portal, including the header, sidebar, dashboard, Marketplace, My Leads, lead detail, Credits, Profile, filters, forms, tables, mobile navigation and typography. Theme preference is stored in the browser and does not change business data or provider permissions.
+The provider portal is locked to the lightweight **Professional Blue** appearance. Providers do not see an appearance selector, and previously saved browser theme preferences are ignored and removed.
 
-The sidebar no longer shows the redundant “Marketplace ready” status block. Provider location remains visible in the account summary and is still managed by CRM.
+
+## Rich Lead Card Refinement
+
+The provider lead list now uses compact, coloured insight tiles to reduce empty space and improve scanning. Marketplace cards show preferred timing, lead age, provider interest, and current result. Unlocked cards show customer, preferred timing, outcome, activity, and unlock/action timing. Lead titles are sentence-cased only when displayed; stored records are not modified.

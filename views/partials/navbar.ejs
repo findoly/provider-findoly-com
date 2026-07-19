@@ -22,6 +22,8 @@
   <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16M7 12h10M10 19h4"/></symbol>
   <symbol id="i-support" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 1 1 4.6 1.4c-.8 1.1-2.3 1.3-2.3 3M12 17h.01"/></symbol>
   <symbol id="i-trend" viewBox="0 0 24 24"><path d="M4 17 10 11l4 4 6-8"/><path d="M15 7h5v5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="18" r="1"/></symbol>
 </svg>
 
 <header class="portal-navbar portal-navbar-minimal workspace-topbar" role="banner">
@@ -70,15 +72,6 @@
           <div class="portal-profile-menu-links">
             <a class="dropdown-item" href="/profile"><svg class="icon"><use href="#i-user"></use></svg><span>Business profile</span></a>
             <a class="dropdown-item" href="/plans"><svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span></a>
-            <button class="dropdown-item d-flex align-items-center justify-content-between portal-appearance-toggle" type="button" :aria-expanded="appearanceOpen.toString()" aria-controls="portalThemeChoices" @click.stop="appearanceOpen = !appearanceOpen">
-              <span class="portal-menu-item-main"><svg class="icon"><use href="#i-palette"></use></svg><span>Appearance</span></span>
-              <span class="portal-appearance-chevron" :class="{ 'is-open': appearanceOpen }" aria-hidden="true">⌄</span>
-            </button>
-            <div id="portalThemeChoices" class="portal-inline-themes portal-inline-themes-grid" x-cloak x-show="appearanceOpen" x-transition.opacity.duration.120ms @click.stop>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'professional-blue' }" @click="setTheme('professional-blue')"><span class="portal-inline-theme-preview portal-theme-preview-professional" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Professional Blue</strong><small>Structured business workspace</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'pure-monochrome' }" @click="setTheme('pure-monochrome')"><span class="portal-inline-theme-preview portal-theme-preview-monochrome" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Pure Monochrome</strong><small>Black, white and focused</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
-              <button type="button" class="portal-inline-theme" :class="{ active: theme === 'marketplace-green' }" @click="setTheme('marketplace-green')"><span class="portal-inline-theme-preview portal-theme-preview-marketplace" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Marketplace Green</strong><small>Fresh service marketplace</small></span><svg class="icon portal-inline-theme-check"><use href="#i-check"></use></svg></button>
-            </div>
           </div>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item text-danger" type="button" @click="logout()"><svg class="icon"><use href="#i-logout"></use></svg><span>Sign out</span></button>

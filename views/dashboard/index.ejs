@@ -68,7 +68,7 @@
       <div class="portal-reminder-list">
         <template x-for="lead in data.pendingOutcomes || []" :key="lead.leadDistributionId">
           <article class="portal-reminder-item">
-            <div class="min-w-0"><strong x-text="lead.leadTitle || lead.serviceType || lead.enquiryId"></strong><span><span x-text="lead.city || 'Location not provided'"></span> · <b x-text="lead.daysPending + ' days pending'"></b></span></div>
+            <div class="min-w-0"><strong x-text="displaySentenceCase(lead.leadTitle || lead.serviceType || lead.enquiryId, 'Service requirement')"></strong><span><span x-text="lead.city || 'Location not provided'"></span> · <b x-text="lead.daysPending + ' days pending'"></b></span></div>
             <a class="btn btn-primary btn-sm" :href="'/leads/' + lead.leadDistributionId + '#provider-outcome'">Update</a>
           </article>
         </template>
@@ -124,7 +124,7 @@
         <template x-for="lead in (data.recent || []).slice(0, 6)" :key="lead.leadDistributionId">
           <a class="provider-recent-row workspace-recent-row" :href="'/leads/' + lead.leadDistributionId">
             <span class="provider-recent-icon"><svg class="icon"><use :href="lead.contactUnlocked ? '#i-briefcase' : '#i-lead'"></use></svg></span>
-            <span class="provider-recent-main min-w-0"><strong x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></strong><small x-text="[lead.city, lead.category || humanize(lead.categorySlug)].filter(Boolean).join(' · ')"></small></span>
+            <span class="provider-recent-main min-w-0"><strong x-text="displaySentenceCase(lead.leadTitle || lead.serviceType, 'Service requirement')"></strong><small x-text="[lead.city, lead.category || humanize(lead.categorySlug)].filter(Boolean).join(' · ')"></small></span>
             <span class="provider-recent-status" :class="statusClass(lead)" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : (lead.contactUnlocked ? 'Outcome pending' : credits(lead.leadCostCredits))"></span>
             <svg class="icon workspace-row-arrow"><use href="#i-arrow"></use></svg>
           </a>

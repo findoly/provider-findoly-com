@@ -12,7 +12,7 @@ test("lead lists use the cache-busted minimal UI with advanced filters", () => {
   const view = source("views/lead/index.ejs");
   const css = source("public/css/app.css");
 
-  assert.match(head, /app\.css\?v=provider-unlock-conversion-/);
+  assert.match(head, /app\.css\?v=provider-grid-row-neutral-/);
   assert.match(view, /provider-minimal-filter/);
   assert.match(view, /provider-advanced-panel/);
   assert.match(view, /provider-advanced-grid/);
@@ -76,7 +76,10 @@ test("lead cards expose useful context before opening without changing unlock be
   const css = source("public/css/app.css");
 
   assert.match(view, /provider-card-summary/);
-  assert.match(view, /provider-conversion-highlights/);
+  assert.match(view, /provider-lead-insight-grid/);
+  assert.match(view, /Provider interest/);
+  assert.match(view, /Current result/);
+  assert.match(view, /displaySentenceCase\(lead\.leadTitle/);
   assert.match(view, /distanceLabel\(lead\)/);
   assert.match(view, /preferredLabel\(lead\)/);
   assert.match(view, /relativeAge\(lead\.marketplacePublishedAt/);
@@ -85,7 +88,7 @@ test("lead cards expose useful context before opening without changing unlock be
   assert.match(view, /applyQuickFilter/);
   assert.match(view, /WhatsApp/);
   assert.match(view, /phoneHref/);
-  assert.match(css, /\.provider-conversion-highlights/);
+  assert.match(css, /\.provider-decision-card/);
   assert.match(css, /\.provider-opportunity-card/);
 });
 
@@ -132,6 +135,8 @@ test("provider shell uses a minimal seller-panel layout and mobile navigation", 
   assert.doesNotMatch(sidebar, /Your location and categories are active/);
   assert.doesNotMatch(sidebar, /workspace-sidebar-status/);
   assert.doesNotMatch(sidebar, /portal-provider-card/);
+  assert.doesNotMatch(sidebar, /portal-sidebar-account workspace-sidebar-account/);
+  assert.match(sidebar, /workspace-sidebar-mobile-head/);
   assert.doesNotMatch(sidebar, /portal-sidebar-help/);
   assert.match(css, /\.portal-navbar-minimal/);
   assert.match(css, /\.portal-sidebar-minimal/);
@@ -172,31 +177,17 @@ test("provider location is read-only and CRM managed", () => {
 });
 
 
-test("provider shell offers three lightweight full-portal themes", () => {
+test("provider shell is locked to the professional blue appearance", () => {
   const head = source("views/partials/head.ejs");
   const navbar = source("views/partials/navbar.ejs");
   const scripts = source("views/partials/scripts.ejs");
   const css = source("public/css/app.css");
 
-  for (const theme of ["Professional Blue", "Pure Monochrome", "Marketplace Green"]) {
-    assert.match(navbar, new RegExp(theme));
-    assert.match(scripts, new RegExp(theme));
-  }
-
-  for (const id of ["professional-blue", "pure-monochrome", "marketplace-green"]) {
-    assert.match(head, new RegExp(id));
-    assert.match(css, new RegExp(`data-portal-theme=\"${id}\"`));
-  }
-
-  assert.doesNotMatch(navbar, /Network Blue|Social Sky|Calm Chat|Creative Mint|Talent Green|Trade Orange|Local Coral|Care Teal|Clear Neutral|Warm Sand/);
-  assert.match(css, /Three lightweight full-portal themes/);
-  assert.match(css, /--theme-font-body/);
-  assert.match(css, /--theme-font-heading/);
-  assert.match(css, /--theme-header-bg/);
-  assert.match(css, /--theme-sidebar-bg/);
-  assert.match(css, /workspace-topbar\.portal-navbar,[\s\S]*background: var\(--theme-header-bg\)/);
-  assert.match(css, /workspace-sidebar\.portal-sidebar,[\s\S]*background: var\(--theme-sidebar-bg\)/);
-  assert.match(css, /portal-card,[\s\S]*background: var\(--theme-card-bg\)/);
+  assert.match(head, /dataset\.portalTheme = 'professional-blue'/);
+  assert.match(head, /removeItem\('providerPortalTheme'\)/);
+  assert.doesNotMatch(navbar, /Appearance|Pure Monochrome|Marketplace Green|portalThemeChoices/);
+  assert.doesNotMatch(scripts, /portalThemes|setTheme\(|themeLabel\(|appearanceOpen/);
+  assert.match(css, /data-portal-theme="professional-blue"/);
 });
 
 test("mobile provider navigation has native click controls and safe drawer layering", () => {
@@ -210,25 +201,29 @@ test("mobile provider navigation has native click controls and safe drawer layer
   assert.match(sidebar, /data-portal-menu-close/);
   assert.match(scripts, /initializeProviderNavigation/);
   assert.match(scripts, /setProviderSidebarOpen/);
+  assert.match(scripts, /providerDrawerState/);
+  assert.match(scripts, /data-drawer-open/);
+  assert.match(scripts, /window\.location\.assign\(href\)/);
+  assert.match(scripts, /document\.documentElement\.style\.overflow/);
   assert.match(css, /body\.portal-sidebar-open \.workspace-sidebar\.portal-sidebar/);
   assert.match(css, /pointer-events: auto/);
+  assert.match(css, /z-index: 2100/);
+  assert.match(css, /z-index: 2090/);
 });
 
-test("lead marketplace keeps cards below the fixed header and presents an unlock-focused summary", () => {
+test("lead pages keep cards below the fixed header without the oversized workspace summary", () => {
   const view = source("views/lead/index.ejs");
   const css = source("public/css/app.css");
 
-  assert.match(view, /provider-conversion-hero/);
-  assert.match(view, /LEAD MARKETPLACE/);
-  assert.match(view, /AVAILABLE CREDITS/);
-  assert.match(view, /ACTIVE FILTERS/);
+  assert.doesNotMatch(view, /provider-conversion-hero/);
+  assert.doesNotMatch(view, /Turn customer leads into business|Find leads worth unlocking/);
+  assert.match(view, /workspace-lead-command/);
   assert.match(view, /View &amp; unlock lead/);
-  assert.match(view, /Unlock customer contact/);
+  assert.match(view, /Customer phone number/);
   assert.match(css, /provider-lead-page\.workspace-leads-page[\s\S]*display: block/);
   assert.match(css, /workspace-topbar\.portal-navbar[\s\S]*z-index: 1300/);
   assert.match(css, /provider-unlock-cta/);
   assert.match(css, /scroll-padding-top/);
-  assert.match(css, /text-transform: uppercase/);
 });
 
 
@@ -245,4 +240,82 @@ test("provider dashboard exposes task counts and lead detail has productivity ac
   assert.match(detail, /provider-detail-breadcrumb/);
   assert.match(detail, /provider-detail-quick-actions/);
   assert.match(css, /Findoly Provider Operations UX/);
+});
+
+
+test("provider navigation omits duplicate account summary and customer labels use safe display formatting", () => {
+  const sidebar = source("views/partials/sidebar.ejs");
+  const scripts = source("views/partials/scripts.ejs");
+  const list = source("views/lead/index.ejs");
+  const detail = source("views/lead/show.ejs");
+
+  assert.doesNotMatch(sidebar, /provider\.businessName \|\| provider\.name/);
+  assert.match(scripts, /function displayTitleCase/);
+  assert.match(scripts, /function displaySentenceCase/);
+  assert.match(scripts, /function displayLocation/);
+  assert.match(list, /displayTitleCase\(lead\.customerName/);
+  assert.match(detail, /displayTitleCase\(contact\.name/);
+});
+
+
+test("unlocked lead cards use compact coloured insight tiles and sentence-cased titles", () => {
+  const list = source("views/lead/index.ejs");
+  const detail = source("views/lead/show.ejs");
+  const dashboard = source("views/dashboard/index.ejs");
+  const css = source("public/css/app.css");
+
+  assert.match(list, /provider-lead-insight-grid/);
+  assert.match(list, /is-customer/);
+  assert.match(list, /is-activity/);
+  assert.match(list, /Outcome overdue/);
+  assert.match(list, /displaySentenceCase\(lead\.leadTitle/);
+  assert.match(detail, /displaySentenceCase\(lead\.leadTitle/);
+  assert.match(dashboard, /displaySentenceCase\(lead\.leadTitle/);
+  assert.match(css, /Findoly rich lead cards/);
+  assert.match(css, /provider-lead-insight-grid\.is-unlocked-grid/);
+  assert.match(css, /provider-lead-insight\.is-confirmed/);
+});
+
+test("provider actions use the friendly call and WhatsApp language with visible common filters", () => {
+  const list = source("views/lead/index.ejs");
+  const detail = source("views/lead/show.ejs");
+  const css = source("public/css/app.css");
+
+  assert.match(list, /provider-visible-filters/);
+  assert.match(list, />City</);
+  assert.match(list, />Lead intent</);
+  assert.match(list, />Sort by</);
+  assert.match(list, /provider-action-call/);
+  assert.match(list, /provider-action-whatsapp/);
+  assert.match(list, /provider-action-primary/);
+  assert.match(detail, /provider-action-call/);
+  assert.match(detail, /provider-action-whatsapp/);
+  assert.match(detail, /provider-action-primary/);
+  assert.match(css, /Provider action language/);
+  assert.match(css, /--provider-mobile-drawer-width/);
+  assert.match(css, /inset: var\(--portal-navbar-height\) 0 0 0/);
+  assert.match(css, /body\.portal-sidebar-open \.workspace-mobile-nav\.portal-mobile-nav[\s\S]*visibility: hidden/);
+});
+
+
+test("lead lists provide persistent grid and row layouts with neutral card edges", () => {
+  const view = source("views/lead/index.ejs");
+  const navbar = source("views/partials/navbar.ejs");
+  const scripts = source("views/partials/scripts.ejs");
+  const css = source("public/css/app.css");
+
+  assert.match(view, /provider-view-switch/);
+  assert.match(view, /setViewMode\('grid'\)/);
+  assert.match(view, /setViewMode\('row'\)/);
+  assert.match(view, /findolyProviderLeadView/);
+  assert.match(view, /is-grid-view/);
+  assert.match(view, /is-row-view/);
+  assert.match(navbar, /id="i-grid"/);
+  assert.match(navbar, /id="i-list"/);
+  assert.match(css, /neutral cards \+ reliable mobile drawer/);
+  assert.match(css, /provider-decision-card::before[\s\S]*display: none/);
+  assert.match(css, /is-grid-view[\s\S]*repeat\(2/);
+  assert.match(css, /is-row-view[\s\S]*minmax\(0, 1fr\)/);
+  assert.match(scripts, /window\.location\.assign\(href\)/);
+  assert.match(css, /left: var\(--provider-mobile-drawer-width\)/);
 });

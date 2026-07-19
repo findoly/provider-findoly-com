@@ -11,6 +11,6 @@ This release keeps the existing provider workflows and CRM synchronization while
 - Lead cards with decision-ready context and direct Call/WhatsApp actions after unlock.
 - Lead-detail quick action rail for customer contact and outcome updates.
 - Responsive desktop, tablet and mobile layouts.
-- Professional Blue, Pure Monochrome and Marketplace Green full-portal themes.
+- One consistent lightweight Professional Blue appearance across the full portal.
 
 No pricing, authentication, radius, wallet, Razorpay, outcome, reminder or CRM synchronization rules were removed.

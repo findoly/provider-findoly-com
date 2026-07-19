@@ -34,35 +34,6 @@
     <a href="/profile#marketplace-location" class="btn btn-light btn-sm">View profile</a>
   </div>
 
-  <section class="provider-conversion-hero" aria-label="Lead workspace summary" x-show="!loading" x-cloak>
-    <div class="provider-conversion-hero-copy">
-      <span class="provider-eyebrow" x-text="filters.status === 'unlocked' ? 'MY LEADS' : 'LEAD MARKETPLACE'">LEAD MARKETPLACE</span>
-      <h1 x-text="filters.status === 'unlocked' ? 'Turn customer leads into business' : 'Find leads worth unlocking'">Find leads worth unlocking</h1>
-      <p x-text="filters.status === 'unlocked' ? 'Contact customers, follow up and keep every outcome up to date.' : 'Compare intent, distance, timing and provider activity before spending credits.'"></p>
-      <div class="provider-conversion-hero-points" x-show="filters.status !== 'unlocked'">
-        <span><svg class="icon"><use href="#i-location"></use></svg>Matched to your service area</span>
-        <span><svg class="icon"><use href="#i-lock"></use></svg>Contact details after unlock</span>
-      </div>
-    </div>
-    <div class="provider-conversion-stats">
-      <div class="provider-conversion-stat">
-        <span>RESULTS</span>
-        <strong x-text="pagination.total || 0">0</strong>
-        <small x-text="filters.status === 'unlocked' ? 'customer leads' : 'matching opportunities'"></small>
-      </div>
-      <a class="provider-conversion-stat provider-conversion-credit" href="/plans">
-        <span>AVAILABLE CREDITS</span>
-        <strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong>
-        <small>Manage credits</small>
-      </a>
-      <div class="provider-conversion-stat">
-        <span>ACTIVE FILTERS</span>
-        <strong x-text="activeFilterCount() || 0">0</strong>
-        <small x-text="activeFilterCount() ? 'refining results' : 'showing all matches'"></small>
-      </div>
-    </div>
-  </section>
-
   <section class="workspace-lead-command">
     <nav class="provider-lead-tabs provider-minimal-tabs workspace-lead-tabs" aria-label="Lead sections">
       <a href="/leads?status=offered" :class="filters.status !== 'unlocked' ? 'active' : ''">
@@ -99,16 +70,50 @@
     </div>
 
     <section class="card portal-card provider-minimal-filter workspace-filter-card" aria-label="Lead filters">
-      <div class="provider-filter-toolbar workspace-filter-toolbar">
+      <div class="provider-filter-toolbar workspace-filter-toolbar provider-conversion-search-row">
         <label class="provider-filter-search workspace-search-field">
           <svg class="icon"><use href="#i-search"></use></svg>
           <input class="form-control" type="search" x-model="filters.q" @keydown.enter.prevent="apply()" placeholder="Search by requirement, city or lead ID" aria-label="Search leads">
         </label>
-        <button class="btn btn-light provider-advanced-toggle workspace-filter-toggle" type="button" @click="filtersOpen = !filtersOpen" :aria-expanded="filtersOpen.toString()">
-          <svg class="icon"><use href="#i-filter"></use></svg><span>Filters</span>
+        <button class="btn btn-light provider-advanced-toggle workspace-filter-toggle provider-action-outline" type="button" @click="filtersOpen = !filtersOpen" :aria-expanded="filtersOpen.toString()">
+          <svg class="icon"><use href="#i-filter"></use></svg><span>More filters</span>
           <span class="provider-filter-active-count" x-show="activeFilterCount()" x-cloak x-text="activeFilterCount()"></span>
         </button>
-        <button class="btn btn-primary provider-filter-apply" type="button" @click="apply()">Search</button>
+        <button class="btn btn-primary provider-filter-apply provider-action-primary" type="button" @click="apply()">Search</button>
+      </div>
+
+      <div class="provider-visible-filters" aria-label="Common lead filters">
+        <label>
+          <span>Category</span>
+          <select class="form-select" x-model="filters.categorySlug" @change="apply()">
+            <option value="">All categories</option>
+            <template x-for="category in categories" :key="category"><option :value="category" x-text="humanize(category)"></option></template>
+          </select>
+        </label>
+        <label>
+          <span>City</span>
+          <input class="form-control" type="text" x-model="filters.city" @keydown.enter.prevent="apply()" placeholder="Any city">
+        </label>
+        <label>
+          <span>Lead intent</span>
+          <select class="form-select" x-model="filters.leadIntent" @change="apply()">
+            <option value="">Any intent</option>
+            <option value="high">High intent</option>
+            <option value="medium">Medium intent</option>
+            <option value="low">Low intent</option>
+            <option value="not_assessed">Not assessed</option>
+          </select>
+        </label>
+        <label>
+          <span>Sort by</span>
+          <select class="form-select" x-model="filters.sort" @change="apply()">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="nearest" x-show="filters.status !== 'unlocked'">Nearest first</option>
+            <option value="credits_asc" x-show="filters.status !== 'unlocked'">Lowest credits</option>
+            <option value="credits_desc" x-show="filters.status !== 'unlocked'">Highest credits</option>
+          </select>
+        </label>
       </div>
 
       <div class="provider-advanced-panel workspace-filter-panel" x-show="filtersOpen" x-cloak>
@@ -144,91 +149,128 @@
 
   <div class="provider-active-filters workspace-active-filters" x-show="activeChips().length" x-cloak><template x-for="chip in activeChips()" :key="chip.key"><button type="button" @click="removeFilter(chip.key)"><span x-text="chip.label"></span><b aria-hidden="true">×</b></button></template><button class="is-clear" type="button" @click="clear()">Clear all</button></div>
 
-  <div class="provider-minimal-results workspace-results-bar" x-show="!loading" x-cloak><div><strong><span x-text="pagination.total || 0"></span> <span x-text="filters.status === 'unlocked' ? (Number(pagination.total || 0) === 1 ? 'lead' : 'leads') : (Number(pagination.total || 0) === 1 ? 'opportunity' : 'opportunities')"></span></strong><span x-text="filters.status === 'unlocked' ? 'Your unlocked customer leads' : 'Matched to your category and service location'"></span></div><span class="workspace-results-sort" x-text="humanize(filters.sort)"></span></div>
+  <div class="provider-minimal-results workspace-results-bar" x-show="!loading" x-cloak>
+    <div class="workspace-results-copy">
+      <strong><span x-text="pagination.total || 0"></span> <span x-text="filters.status === 'unlocked' ? (Number(pagination.total || 0) === 1 ? 'lead' : 'leads') : (Number(pagination.total || 0) === 1 ? 'opportunity' : 'opportunities')"></span></strong>
+      <span x-text="filters.status === 'unlocked' ? 'Your unlocked customer leads' : 'Matched to your category and service location'"></span>
+    </div>
+    <div class="workspace-results-actions">
+      <span class="workspace-results-sort" x-text="humanize(filters.sort)"></span>
+      <div class="provider-view-switch" role="group" aria-label="Lead display layout">
+        <button type="button" :class="{ active: viewMode === 'grid' }" @click="setViewMode('grid')" :aria-pressed="(viewMode === 'grid').toString()" title="Grid view">
+          <svg class="icon"><use href="#i-grid"></use></svg><span>Grid</span>
+        </button>
+        <button type="button" :class="{ active: viewMode === 'row' }" @click="setViewMode('row')" :aria-pressed="(viewMode === 'row').toString()" title="Row view">
+          <svg class="icon"><use href="#i-list"></use></svg><span>Row</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
-  <main class="provider-minimal-list workspace-lead-grid" :class="loading ? 'portal-loading' : ''" aria-live="polite">
+  <main class="provider-minimal-list workspace-lead-grid provider-conversion-list" :class="[loading ? 'portal-loading' : '', viewMode === 'grid' ? 'is-grid-view' : 'is-row-view']" aria-live="polite">
     <template x-for="lead in rows" :key="lead.leadDistributionId">
-      <article class="provider-minimal-card provider-opportunity-card workspace-lead-card provider-conversion-card" :class="[lead.contactUnlocked ? 'is-unlocked' : 'is-marketplace', lead.leadIntent === 'high' ? 'is-high-intent' : '', (!lead.contactUnlocked && Number(lead.unlockedCount || 0) <= 1 && lead.leadIntent === 'high') ? 'is-recommended' : '']">
-        <div class="provider-conversion-card-main">
+      <article class="provider-minimal-card provider-opportunity-card workspace-lead-card provider-conversion-card provider-decision-card" :class="[lead.contactUnlocked ? 'is-unlocked' : 'is-marketplace', 'is-intent-' + (lead.leadIntent || 'not_assessed'), lead.leadIntent === 'high' ? 'is-high-intent' : '', (!lead.contactUnlocked && Number(lead.unlockedCount || 0) <= 1 && lead.leadIntent === 'high') ? 'is-recommended' : '', lead.contactUnlocked ? statusClass(lead) : '', isOverdue(lead) ? 'is-overdue' : '']">
+        <div class="provider-decision-main">
           <div class="provider-conversion-card-top">
             <div class="provider-conversion-card-labels">
               <span class="provider-minimal-category" x-text="lead.category || humanize(lead.categorySlug) || 'Service category'"></span>
-              <span class="provider-recommended-badge" x-show="!lead.contactUnlocked && Number(lead.unlockedCount || 0) <= 1 && lead.leadIntent === 'high'" x-cloak>Recommended</span>
+              <span class="provider-recommended-badge" x-show="!lead.contactUnlocked && Number(lead.unlockedCount || 0) <= 1 && lead.leadIntent === 'high'" x-cloak>Best match</span>
             </div>
             <span class="provider-intent-badge" :class="'is-' + lead.leadIntent" x-text="intentLabel(lead.leadIntent)"></span>
           </div>
 
-          <h2 class="provider-conversion-title"><a :href="'/leads/' + lead.leadDistributionId" x-text="lead.leadTitle || lead.serviceType || 'Service requirement'"></a></h2>
+          <h2 class="provider-conversion-title"><a :href="'/leads/' + lead.leadDistributionId" x-text="displaySentenceCase(lead.leadTitle || lead.serviceType, 'Service requirement')"></a></h2>
           <p class="provider-card-summary provider-conversion-summary" x-show="leadSummary(lead)" x-text="leadSummary(lead)"></p>
 
-          <div class="provider-conversion-location">
+          <div class="provider-decision-location">
             <svg class="icon"><use href="#i-location"></use></svg>
             <span x-text="locationLabel(lead)"></span>
             <b x-show="!lead.contactUnlocked" x-text="distanceLabel(lead)"></b>
           </div>
 
-          <div class="provider-conversion-highlights">
-            <div>
-              <span>WHEN</span>
+          <div class="provider-lead-insight-grid" :class="lead.contactUnlocked ? 'is-unlocked-grid' : 'is-marketplace-grid'">
+            <div class="provider-lead-insight is-preferred">
+              <span><svg class="icon"><use href="#i-calendar"></use></svg>Preferred</span>
               <strong x-text="preferredLabel(lead)"></strong>
             </div>
-            <div x-show="!lead.contactUnlocked">
-              <span>POSTED</span>
-              <strong x-text="relativeAge(lead.marketplacePublishedAt || lead.distributedAt || lead.createdAt)"></strong>
-            </div>
-            <div x-show="lead.contactUnlocked">
-              <span>CUSTOMER</span>
-              <strong x-text="lead.customerName || 'Contact available'"></strong>
-            </div>
-          </div>
 
-          <div class="provider-conversion-market-signals" x-show="!lead.contactUnlocked">
-            <div>
-              <svg class="icon"><use href="#i-unlock"></use></svg>
-              <span><b x-text="lead.unlockedCount || 0"></b> <span x-text="Number(lead.unlockedCount || 0) === 1 ? 'provider has unlocked' : 'providers have unlocked'"></span></span>
-            </div>
-            <div :class="lead.currentlyConfirmed ? 'is-confirmed' : ''">
-              <svg class="icon"><use href="#i-check"></use></svg>
-              <span x-text="lead.currentlyConfirmed ? `${lead.providerConfirmedCount || 1} provider confirmed` : 'No provider confirmed yet'"></span>
-            </div>
-          </div>
+            <template x-if="!lead.contactUnlocked">
+              <div class="provider-lead-insight is-age">
+                <span><svg class="icon"><use href="#i-clock"></use></svg>Lead age</span>
+                <strong x-text="relativeAge(lead.marketplacePublishedAt || lead.distributedAt || lead.createdAt)"></strong>
+              </div>
+            </template>
+            <template x-if="!lead.contactUnlocked">
+              <div class="provider-lead-insight is-interest">
+                <span><svg class="icon"><use href="#i-unlock"></use></svg>Provider interest</span>
+                <strong><b x-text="lead.unlockedCount || 0"></b> <span x-text="Number(lead.unlockedCount || 0) === 1 ? 'provider unlocked' : 'providers unlocked'"></span></strong>
+              </div>
+            </template>
+            <template x-if="!lead.contactUnlocked">
+              <div class="provider-lead-insight" :class="lead.currentlyConfirmed ? 'is-confirmed' : 'is-open-result'">
+                <span><svg class="icon"><use href="#i-check"></use></svg>Current result</span>
+                <strong x-text="lead.currentlyConfirmed ? `${lead.providerConfirmedCount || 1} provider confirmed` : 'Open for conversion'"></strong>
+              </div>
+            </template>
 
-          <div class="provider-unlock-preview" x-show="!lead.contactUnlocked">
-            <span class="provider-unlock-preview-icon"><svg class="icon"><use href="#i-lock"></use></svg></span>
-            <div><strong>Unlock customer contact</strong><small>Get the phone number and full lead details instantly.</small></div>
-          </div>
-
-          <div class="provider-unlocked-status" x-show="lead.contactUnlocked">
-            <span class="provider-outcome-chip" :class="statusClass(lead)" x-text="outcomeLabel(lead)"></span>
-            <span x-show="lead.providerLeadStatus"><svg class="icon"><use href="#i-trend"></use></svg><span x-text="humanize(lead.providerLeadStatus)"></span></span>
-            <span x-show="isOverdue(lead)" class="is-overdue"><svg class="icon"><use href="#i-clock"></use></svg>Outcome overdue</span>
+            <template x-if="lead.contactUnlocked">
+              <div class="provider-lead-insight is-customer">
+                <span><svg class="icon"><use href="#i-user"></use></svg>Customer</span>
+                <strong x-text="displayTitleCase(lead.customerName, 'Contact available')"></strong>
+              </div>
+            </template>
+            <template x-if="lead.contactUnlocked">
+              <div class="provider-lead-insight" :class="statusClass(lead)">
+                <span><svg class="icon"><use href="#i-check"></use></svg>Outcome</span>
+                <strong x-text="outcomeLabel(lead)"></strong>
+              </div>
+            </template>
+            <template x-if="lead.contactUnlocked">
+              <div class="provider-lead-insight is-activity">
+                <span><svg class="icon"><use href="#i-trend"></use></svg>Activity</span>
+                <strong x-text="lead.providerLeadStatus ? humanize(lead.providerLeadStatus) : 'No activity update'"></strong>
+              </div>
+            </template>
+            <template x-if="lead.contactUnlocked">
+              <div class="provider-lead-insight" :class="isOverdue(lead) ? 'is-overdue' : 'is-unlocked-date'">
+                <span><svg class="icon"><use href="#i-clock"></use></svg><span x-text="isOverdue(lead) ? 'Action due' : 'Unlocked'"></span></span>
+                <strong x-text="isOverdue(lead) ? 'Outcome overdue' : formatDateOnly(lead.unlockedAt)"></strong>
+              </div>
+            </template>
           </div>
         </div>
 
-        <div class="provider-conversion-card-footer">
+        <aside class="provider-decision-action" :class="[lead.contactUnlocked ? 'is-unlocked-action' : 'is-unlock-action', lead.contactUnlocked ? statusClass(lead) : '']">
           <template x-if="!lead.contactUnlocked">
-            <div class="provider-conversion-unlock-row">
-              <div class="provider-conversion-price">
-                <span>UNLOCK COST</span>
-                <strong x-text="credits(lead.leadCostCredits)"></strong>
+            <div class="provider-decision-action-inner">
+              <span class="provider-action-kicker">Unlock this opportunity</span>
+              <div class="provider-action-cost"><strong x-text="credits(lead.leadCostCredits)"></strong><small>one-time lead access</small></div>
+              <div class="provider-action-benefits">
+                <span><svg class="icon"><use href="#i-phone"></use></svg>Customer phone number</span>
+                <span><svg class="icon"><use href="#i-lead"></use></svg>Full requirement details</span>
               </div>
-              <a class="btn btn-primary provider-unlock-cta" :href="'/leads/' + lead.leadDistributionId">
-                <span><b>View &amp; unlock lead</b><small>Customer contact inside</small></span>
+              <a class="btn btn-primary provider-unlock-cta provider-decision-primary provider-action-button provider-action-primary" :href="'/leads/' + lead.leadDistributionId">
+                <span><b>View &amp; unlock lead</b><small x-text="`Use ${credits(lead.leadCostCredits)}`"></small></span>
                 <svg class="icon"><use href="#i-arrow"></use></svg>
               </a>
+              <small class="provider-action-balance" x-text="`Available balance: ${credits(provider.availableCredits ?? provider.walletCredits)}`"></small>
             </div>
           </template>
+
           <template x-if="lead.contactUnlocked">
-            <div class="provider-conversion-unlocked-row">
-              <div class="provider-conversion-price"><span>UNLOCKED ON</span><strong x-text="formatDateOnly(lead.unlockedAt)"></strong></div>
-              <div class="provider-card-actions provider-conversion-actions">
-                <a x-show="lead.customerMobile" class="btn btn-light" :href="phoneHref(lead.customerMobile)"><svg class="icon"><use href="#i-phone"></use></svg><span>Call</span></a>
-                <a x-show="lead.customerMobile" class="btn btn-light provider-card-whatsapp" :href="whatsappHref(lead.customerMobile)" target="_blank" rel="noopener"><span aria-hidden="true">↗</span><span>WhatsApp</span></a>
-                <a class="btn btn-primary" :href="'/leads/' + lead.leadDistributionId"><span x-text="lead.providerSaleOutcome ? 'Open lead' : 'Update outcome'"></span><svg class="icon"><use href="#i-arrow"></use></svg></a>
+            <div class="provider-decision-action-inner provider-customer-action-panel">
+              <span class="provider-action-kicker" x-text="lead.providerSaleOutcome ? 'Customer lead' : 'Action required'"></span>
+              <strong class="provider-customer-name" x-text="displayTitleCase(lead.customerName, 'Customer contact unlocked')"></strong>
+              <small class="provider-customer-mobile" x-show="lead.customerMobile" x-text="lead.customerMobile"></small>
+              <div class="provider-decision-contact-actions">
+                <a x-show="lead.customerMobile" class="btn btn-light provider-action-button provider-action-call" :href="phoneHref(lead.customerMobile)"><svg class="icon"><use href="#i-phone"></use></svg><span>Call</span></a>
+                <a x-show="lead.customerMobile" class="btn btn-light provider-card-whatsapp provider-action-button provider-action-whatsapp" :href="whatsappHref(lead.customerMobile)" target="_blank" rel="noopener"><span aria-hidden="true">↗</span><span>WhatsApp</span></a>
               </div>
+              <a class="btn btn-primary provider-decision-primary provider-action-button provider-action-primary" :href="'/leads/' + lead.leadDistributionId"><span x-text="lead.providerSaleOutcome ? 'Open customer lead' : 'Update outcome now'"></span><svg class="icon"><use href="#i-arrow"></use></svg></a>
+              <small class="provider-action-balance" x-text="`Unlocked ${formatDateOnly(lead.unlockedAt)}`"></small>
             </div>
           </template>
-        </div>
+        </aside>
       </article>
     </template>
 
@@ -244,7 +286,7 @@
     const initialStatus = query.get('status') === 'unlocked' ? 'unlocked' : 'offered';
     const queryValue = (key, fallback = '') => query.get(key) ?? fallback;
     return {
-      rows: [], categories: [], locationReady: true, loading: true, error: '', filtersOpen: false,
+      rows: [], categories: [], locationReady: true, loading: true, error: '', filtersOpen: false, viewMode: 'row',
       pagination: { page: Number(queryValue('page', 1)), pages: 1, total: 0 },
       filters: {
         q: queryValue('q'), status: initialStatus, categorySlug: queryValue('categorySlug'), city: queryValue('city'),
@@ -254,7 +296,22 @@
         endDate: queryValue('endDate'), minCredits: queryValue('minCredits'), maxCredits: queryValue('maxCredits'),
         sort: queryValue('sort', 'newest'), limit: Number(queryValue('limit', 20))
       },
-      init() { this.updatePageTitle(); this.load(); },
+      init() { this.restoreViewMode(); this.updatePageTitle(); this.load(); },
+      viewScope() {
+        if (this.filters.status !== 'unlocked') return 'marketplace';
+        return this.filters.outcome === 'pending' ? 'pending' : 'unlocked';
+      },
+      viewStorageKey() { return `findolyProviderLeadView:${this.viewScope()}`; },
+      restoreViewMode() {
+        let saved = '';
+        try { saved = localStorage.getItem(this.viewStorageKey()) || ''; } catch (_) {}
+        this.viewMode = ['grid', 'row'].includes(saved) ? saved : (window.innerWidth < 768 ? 'grid' : 'row');
+      },
+      setViewMode(mode) {
+        if (!['grid', 'row'].includes(mode)) return;
+        this.viewMode = mode;
+        try { localStorage.setItem(this.viewStorageKey(), mode); } catch (_) {}
+      },
       updatePageTitle() {
         const unlocked = this.filters.status === 'unlocked';
         this.$dispatch('portal-page', { title: unlocked ? 'Unlocked leads' : 'Lead marketplace', subtitle: unlocked ? 'Customer contacts and outcome updates' : 'Nearby category-matched opportunities' });
@@ -281,7 +338,8 @@
       removeFilter(key) { this.filters[key] = key === 'overdue' ? false : ''; this.apply(); },
       intentLabel(value) { return value === 'not_assessed' ? 'Not assessed' : `${humanize(value)} intent`; },
       locationLabel(lead) {
-        return [lead.city, lead.state, lead.pincode].filter(Boolean).join(', ') || 'Location available in lead details';
+        const values = [lead.city, lead.state, lead.pincode].filter(Boolean);
+        return values.length ? displayLocation(values) : 'Location available in lead details';
       },
       distanceLabel(lead) {
         const value = Number(lead.providerDistanceKm);

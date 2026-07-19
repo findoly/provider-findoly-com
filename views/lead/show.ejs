@@ -39,7 +39,7 @@
         <div class="card-header border-bottom portal-lead-header">
           <div class="flex-grow-1 min-w-0">
             <div class="d-flex flex-wrap align-items-center gap-2">
-              <h3 class="mb-0" x-text="lead.leadTitle || lead.serviceType || 'Service requirement'">Service requirement</h3>
+              <h3 class="mb-0" x-text="displaySentenceCase(lead.leadTitle || lead.serviceType, 'Service requirement')">Service requirement</h3>
               <span class="badge" :class="statusClass" x-text="displayStatus"></span>
             </div>
             <div class="text-muted mt-2">
@@ -61,11 +61,11 @@
           <div class="row g-0 portal-facts">
             <div class="col-sm-6 col-lg-3">
               <span>City</span>
-              <strong x-text="lead.city || '—'"></strong>
+              <strong x-text="displayTitleCase(lead.city, '—')"></strong>
             </div>
             <div class="col-sm-6 col-lg-3">
               <span>State</span>
-              <strong x-text="lead.state || '—'"></strong>
+              <strong x-text="displayTitleCase(lead.state, '—')"></strong>
             </div>
             <div class="col-sm-6 col-lg-3">
               <span>Preferred date</span>
@@ -82,13 +82,13 @@
       <div class="provider-detail-quick-actions" x-show="isUnlocked" x-cloak>
         <div class="provider-detail-quick-copy">
           <span class="workspace-eyebrow">Customer access</span>
-          <strong x-text="contact.name || 'Customer contact unlocked'"></strong>
+          <strong x-text="displayTitleCase(contact.name, 'Customer contact unlocked')"></strong>
           <small x-text="lead.providerSaleOutcome ? 'Current outcome: ' + humanize(lead.providerSaleOutcome) : 'Outcome update required'"></small>
         </div>
         <div class="provider-detail-quick-buttons">
-          <a class="btn btn-primary" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon"><use href="#i-phone"></use></svg>Call</a>
-          <a class="btn btn-light" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'https://wa.me/91' + String(contact.mobile).replace(/\D/g, '').slice(-10) : '#'" target="_blank" rel="noopener">WhatsApp</a>
-          <button class="btn btn-light" type="button" @click="document.getElementById('provider-outcome')?.scrollIntoView({ behavior: 'smooth', block: 'start' })"><svg class="icon"><use href="#i-trend"></use></svg><span x-text="lead.providerSaleOutcome ? 'Edit outcome' : 'Update outcome'"></span></button>
+          <a class="btn btn-light provider-action-button provider-action-call" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon"><use href="#i-phone"></use></svg>Call</a>
+          <a class="btn btn-light provider-action-button provider-action-whatsapp" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'https://wa.me/91' + String(contact.mobile).replace(/\D/g, '').slice(-10) : '#'" target="_blank" rel="noopener">WhatsApp</a>
+          <button class="btn btn-primary provider-action-button provider-action-primary" type="button" @click="document.getElementById('provider-outcome')?.scrollIntoView({ behavior: 'smooth', block: 'start' })"><svg class="icon"><use href="#i-trend"></use></svg><span x-text="lead.providerSaleOutcome ? 'Edit outcome' : 'Update outcome'"></span></button>
         </div>
       </div>
 
@@ -107,7 +107,7 @@
         </div>
         <div class="provider-detail-unlock-banner-action">
           <span><small>UNLOCK COST</small><strong x-text="credits(lead.leadCostCredits)"></strong></span>
-          <button class="btn btn-primary" type="button" @click="hasEnoughBalance ? unlock() : document.getElementById('lead-access-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })" :disabled="unlocking || payingDirect || loading">
+          <button class="btn btn-primary provider-action-button provider-action-primary" type="button" @click="hasEnoughBalance ? unlock() : document.getElementById('lead-access-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })" :disabled="unlocking || payingDirect || loading">
             <span x-text="unlocking ? 'Unlocking…' : (hasEnoughBalance ? 'Unlock lead now' : 'View unlock options')"></span>
             <svg class="icon"><use href="#i-arrow"></use></svg>
           </button>
@@ -270,8 +270,8 @@
 
           <template x-if="isUnlocked">
             <div>
-              <a class="btn btn-primary w-100" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon me-2"><use href="#i-phone"></use></svg>Call customer</a>
-              <a class="btn btn-light w-100 mt-2" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'https://wa.me/91' + String(contact.mobile).replace(/\D/g, '').slice(-10) : '#'" target="_blank" rel="noopener">WhatsApp customer</a>
+              <a class="btn btn-light w-100 provider-action-button provider-action-call" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon me-2"><use href="#i-phone"></use></svg>Call customer</a>
+              <a class="btn btn-light w-100 mt-2 provider-action-button provider-action-whatsapp" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'https://wa.me/91' + String(contact.mobile).replace(/\D/g, '').slice(-10) : '#'" target="_blank" rel="noopener">WhatsApp customer</a>
               <a class="btn btn-outline-primary w-100 mt-2" href="/leads?status=unlocked">All unlocked leads</a>
               <p class="text-muted fs-sm mt-3 mb-0" x-text="lead.unlockMethod === 'direct_payment' ? 'Unlocked with a verified direct payment.' : 'The credit deduction is recorded in your transaction history.'"></p>
             </div>
@@ -283,15 +283,15 @@
 
   <div class="portal-mobile-lead-action d-xl-none" x-cloak x-show="!loading">
     <template x-if="!isUnlocked">
-      <button type="button" class="btn btn-primary" @click="document.getElementById('lead-access-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">
+      <button type="button" class="btn btn-primary provider-action-button provider-action-primary" @click="document.getElementById('lead-access-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">
         <span>Unlock options</span><strong x-text="credits(lead.leadCostCredits)"></strong>
       </button>
     </template>
     <template x-if="isUnlocked && !lead.providerSaleOutcome">
-      <button type="button" class="btn btn-primary" @click="document.getElementById('provider-outcome')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Update required outcome</button>
+      <button type="button" class="btn btn-primary provider-action-button provider-action-primary" @click="document.getElementById('provider-outcome')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Update required outcome</button>
     </template>
     <template x-if="isUnlocked && lead.providerSaleOutcome">
-      <a class="btn btn-primary" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'">Call customer</a>
+      <a class="btn btn-light provider-action-button provider-action-call" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'">Call customer</a>
     </template>
   </div>
 </div>

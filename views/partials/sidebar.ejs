@@ -1,12 +1,8 @@
 <aside id="providerSidebar" class="sidebar sidebar-main sidebar-expand-lg portal-sidebar portal-sidebar-minimal workspace-sidebar" aria-label="Provider workspace" aria-hidden="false">
   <div class="sidebar-content workspace-sidebar-content">
-    <div class="portal-sidebar-account workspace-sidebar-account">
-      <button type="button" class="portal-sidebar-close d-lg-none" aria-label="Close navigation" data-portal-menu-close>×</button>
-      <span class="portal-sidebar-avatar" x-text="initials(provider.name || provider.businessName || 'Provider')">P</span>
-      <div class="min-w-0">
-        <strong class="text-truncate" x-text="provider.businessName || provider.name || 'Provider'">Provider</strong>
-        <small class="text-truncate" x-text="provider.locationReady ? ([provider.serviceLocality || provider.city, provider.serviceState || provider.state].filter(Boolean).join(', ') || provider.servicePincode) : 'Service location pending'">Provider account</small>
-      </div>
+    <div class="workspace-sidebar-mobile-head d-lg-none">
+      <strong>Menu</strong>
+      <button type="button" class="portal-sidebar-close" aria-label="Close navigation" data-portal-menu-close>×</button>
     </div>
 
     <a class="workspace-primary-nav-action" data-portal-menu-link href="/leads?status=offered"><svg class="icon"><use href="#i-search"></use></svg><span>Find new leads</span><svg class="icon workspace-nav-arrow"><use href="#i-arrow"></use></svg></a>
