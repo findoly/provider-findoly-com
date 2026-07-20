@@ -319,3 +319,21 @@ test("lead lists provide persistent grid and row layouts with neutral card edges
   assert.match(scripts, /window\.location\.assign\(href\)/);
   assert.match(css, /left: var\(--provider-mobile-drawer-width\)/);
 });
+
+test("provider mobile UI follows the approved Findoly logo palette without recolouring cards", () => {
+  const navbar = source("views/partials/navbar.ejs");
+  const sidebar = source("views/partials/sidebar.ejs");
+  const head = source("views/partials/head.ejs");
+  const css = source("public/css/app.css");
+
+  assert.match(navbar, /\/images\/findoly-logo\.png/);
+  assert.match(sidebar, /workspace-sidebar-drawer-brand/);
+  assert.match(sidebar, /\/images\/findoly-logo\.png/);
+  assert.match(head, /provider-grid-row-neutral-findoly-logo-/);
+  assert.match(css, /Findoly logo-aligned mobile UI/);
+  assert.match(css, /--findoly-navy: #072f5f/);
+  assert.match(css, /--findoly-orange: #fe6821/);
+  assert.match(css, /--findoly-sky: #35b9ef/);
+  assert.match(css, /provider-decision-card[\s\S]*background: #fff/);
+  assert.match(css, /workspace-mobile-nav\.portal-mobile-nav a\.active::before[\s\S]*var\(--findoly-orange\)/);
+});
