@@ -259,13 +259,16 @@ COMMUNICATION_EVENT_API_TOKEN=<shared-random-secret>
 COMMUNICATION_EVENT_API_TOKEN=<same-shared-random-secret>
 ```
 
-The provider call is sent to:
+The provider backend sends these events:
 
 ```text
+POST /api/communication/events/provider_lead_unlocked
 POST /api/communication/events/provider_feedback_updated
 ```
 
-A CRM synchronization failure does not discard the provider update. The lead shows the pending synchronization state, and saving the outcome again retries the integration.
+A successful credit or direct-payment unlock sends an internal Slack event and an email confirmation to the provider email stored in CRM. A successful provider outcome/status update does the same. The provider portal never supplies the destination email address.
+
+A CRM communication failure does not discard an unlock or provider update. The API response includes a pending/failed communication warning, and the CRM Communication Center retains per-channel delivery status for review and retry.
 
 ## Seven-day outcome reminder
 

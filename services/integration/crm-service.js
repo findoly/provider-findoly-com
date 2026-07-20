@@ -12,12 +12,12 @@ function integrationUrl(eventName) {
   return `${base}${process.env.CRM_COMMUNICATION_EVENT_PATH || "/api/communication/events"}/${encodeURIComponent(eventName)}`;
 }
 
-async function sendProviderFeedback(payload = {}) {
+async function sendEvent(eventName, payload = {}) {
   if (!configured()) {
-    return { synced: false, skipped: true, reason: "CRM integration is not configured" };
+    return { synced: false, skipped: true, reason: "CRM communication integration is not configured" };
   }
 
-  const { response, body } = await fetchJson(integrationUrl("provider_feedback_updated"), {
+  const { response, body } = await fetchJson(integrationUrl(eventName), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -28,13 +28,48 @@ async function sendProviderFeedback(payload = {}) {
   });
 
   if (!response.ok || body?.success === false) {
-    const error = new Error(body?.message || "CRM could not synchronize the provider update");
+    const error = new Error(body?.message || `CRM could not process the ${eventName} communication event`);
     error.status = 502;
-    error.code = "CRM_SYNC_FAILED";
+    error.code = "CRM_COMMUNICATION_FAILED";
     throw error;
   }
 
-  return { synced: true, data: body?.data || null };
+  const data = body?.data || null;
+  const channelDeliveries = Array.isArray(data?.channelDeliveries)
+    ? data.channelDeliveries
+    : [];
+  const failedDeliveries = channelDeliveries.filter(function (delivery) {
+    return delivery && delivery.success === false && delivery.skipped !== true;
+  });
+  const deliveryWarning = failedDeliveries.length
+    ? failedDeliveries
+      .map(function (delivery) {
+        return `${delivery.channel || "communication"}: ${delivery.error || delivery.reason || "delivery failed"}`;
+      })
+      .join("; ")
+      .slice(0, 1000)
+    : "";
+
+  return {
+    synced: true,
+    data,
+    channelDeliveries,
+    deliveryFailed: failedDeliveries.length > 0,
+    deliveryWarning,
+  };
 }
 
-module.exports = { configured, sendProviderFeedback };
+async function sendProviderFeedback(payload = {}) {
+  return sendEvent("provider_feedback_updated", payload);
+}
+
+async function sendProviderUnlock(payload = {}) {
+  return sendEvent("provider_lead_unlocked", payload);
+}
+
+module.exports = {
+  configured,
+  sendEvent,
+  sendProviderFeedback,
+  sendProviderUnlock,
+};

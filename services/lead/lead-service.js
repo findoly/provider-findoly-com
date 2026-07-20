@@ -357,7 +357,7 @@ async function unlock(provider, leadDistributionId) {
   const categories = providerCategories(provider);
 
   try {
-    return await withTransaction(async (session) => {
+    const result = await withTransaction(async (session) => {
       const lead = await LeadDistribution.findOne({
         providerId,
         ...distributionQuery(leadDistributionId),
@@ -370,7 +370,10 @@ async function unlock(provider, leadDistributionId) {
         });
       }
       if (lead.contactUnlocked || lead.status === "unlocked") {
-        return (await presentRows([lead], session))[0];
+        return {
+          lead: (await presentRows([lead], session))[0],
+          notifyCommunication: false,
+        };
       }
       if (lead.status !== "offered") {
         throw Object.assign(new Error(`This lead is ${String(lead.status || "unavailable")}`), {
@@ -470,8 +473,48 @@ async function unlock(provider, leadDistributionId) {
         { $inc: { unlockedCount: 1 }, $set: { updatedAt: now } },
         { session },
       );
-      return (await presentRows([unlocked], session))[0];
+      return {
+        lead: (await presentRows([unlocked], session))[0],
+        notifyCommunication: true,
+        eventPayload: {
+          leadDistributionId: unlocked.leadDistributionId || leadDistributionId,
+          enquiryId: unlocked.enquiryId || unlocked.requirementId,
+          providerId,
+          providerName:
+            unlocked.providerBusinessName ||
+            unlocked.providerName ||
+            provider.businessName ||
+            provider.name ||
+            "",
+          unlockMethod: "credits",
+          creditsUsed: pricing.effectiveCredits,
+          unlockedAt: now.toISOString(),
+          eventAt: now.toISOString(),
+        },
+      };
     });
+
+    if (result.notifyCommunication) {
+      try {
+        const communication = await crmService.sendProviderUnlock(result.eventPayload);
+        result.lead.communicationSync = communication.skipped
+          ? "pending"
+          : communication.deliveryFailed
+            ? "partial"
+            : "sent";
+        if (communication.skipped) {
+          result.lead.communicationWarning = communication.reason;
+        } else if (communication.deliveryFailed) {
+          result.lead.communicationWarning = communication.deliveryWarning;
+        }
+      } catch (error) {
+        console.error("Provider unlock communication event failed:", error.message);
+        result.lead.communicationSync = "failed";
+        result.lead.communicationWarning =
+          "The lead was unlocked, but its email and Slack notifications are pending retry.";
+      }
+    }
+    return result.lead;
   } catch (error) {
     if (error?.code === 11000) {
       const latest = await LeadDistribution.findOne({ providerId, ...distributionQuery(leadDistributionId) }).lean();
@@ -545,6 +588,7 @@ async function updateFeedback(provider, leadDistributionId, input = {}) {
   await LeadDistribution.updateOne({ leadDistributionId: existing.leadDistributionId }, update);
 
   let syncError = null;
+  let syncWarning = "";
   try {
     const sync = await crmService.sendProviderFeedback({
       leadDistributionId: existing.leadDistributionId,
@@ -557,10 +601,19 @@ async function updateFeedback(provider, leadDistributionId, input = {}) {
       reason: feedback.reason,
       note: feedback.note,
       updatedAt: now.toISOString(),
+      eventAt: now.toISOString(),
+      source: "provider-portal",
     });
+    syncWarning = sync.deliveryFailed ? sync.deliveryWarning : "";
     await LeadDistribution.updateOne(
       { leadDistributionId: existing.leadDistributionId },
-      { $set: { crmSyncStatus: sync.skipped ? "pending" : "synced", crmSyncError: sync.reason || "", crmSyncUpdatedAt: new Date() } },
+      {
+        $set: {
+          crmSyncStatus: sync.skipped ? "pending" : "synced",
+          crmSyncError: sync.reason || syncWarning || "",
+          crmSyncUpdatedAt: new Date(),
+        },
+      },
     );
   } catch (error) {
     syncError = error;
@@ -574,6 +627,8 @@ async function updateFeedback(provider, leadDistributionId, input = {}) {
   const presented = (await presentRows([updated]))[0];
   if (syncError) {
     presented.syncWarning = "Your update was saved, but CRM notification is pending and will need retry.";
+  } else if (syncWarning) {
+    presented.syncWarning = `Your update was saved, but one communication channel failed: ${syncWarning}`;
   }
   return presented;
 }

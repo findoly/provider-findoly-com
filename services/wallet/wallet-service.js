@@ -29,6 +29,7 @@ const {
   listPlans,
 } = require("../../config/plans");
 const creditService = require("../billing/credit-service");
+const crmService = require("../integration/crm-service");
 
 function getGateway() {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -809,7 +810,7 @@ async function fulfillPlanOrder(paymentOrder, paymentId) {
 }
 
 async function fulfillLeadOrder(paymentOrder, paymentId) {
-  return withTransaction(async (session) => {
+  const result = await withTransaction(async (session) => {
     const order = await PaymentOrder.findOne({
       paymentOrderId: paymentOrder.paymentOrderId,
     }).session(session);
@@ -968,10 +969,39 @@ async function fulfillLeadOrder(paymentOrder, paymentId) {
         fulfillmentStatus: "completed",
         fulfilledAt: now,
       }),
+      _communicationEvent: {
+        leadDistributionId: unlocked.leadDistributionId || order.leadDistributionId,
+        enquiryId: unlocked.enquiryId || unlocked.requirementId,
+        providerId: order.providerId,
+        providerName: provider.businessName || provider.name || "",
+        unlockMethod: "direct_payment",
+        creditsUsed: Number(order.effectiveLeadCostCredits ?? creditsFromPaise(order.subtotalPaise || 0)),
+        unlockedAt: now.toISOString(),
+        eventAt: now.toISOString(),
+      },
     };
   });
-}
 
+  if (result._communicationEvent) {
+    try {
+      const communication = await crmService.sendProviderUnlock(result._communicationEvent);
+      result.communicationSync = communication.skipped
+        ? "pending"
+        : communication.deliveryFailed
+          ? "partial"
+          : "sent";
+      if (communication.skipped) result.communicationWarning = communication.reason;
+      else if (communication.deliveryFailed) result.communicationWarning = communication.deliveryWarning;
+    } catch (error) {
+      console.error("Direct-payment unlock communication event failed:", error.message);
+      result.communicationSync = "failed";
+      result.communicationWarning =
+        "The lead was unlocked, but its email and Slack notifications are pending retry.";
+    }
+    delete result._communicationEvent;
+  }
+  return result;
+}
 async function fulfillPaymentOrder(paymentOrder, paymentId) {
   if (paymentOrder.fulfilled || paymentOrder.walletCredited) {
     if (paymentOrder.purpose === "lead_unlock") {
