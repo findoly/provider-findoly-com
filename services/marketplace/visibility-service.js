@@ -6,9 +6,16 @@ const {
 } = require("../../utils/marketplace-radius");
 const { providerIdentity } = require("../../utils/provider");
 
+function hasCoordinateValue(value) {
+  return value !== null
+    && value !== undefined
+    && String(value).trim() !== ""
+    && Number.isFinite(Number(value));
+}
+
 function hasCoordinates(record = {}, prefix = "service") {
-  return Number.isFinite(Number(record[`${prefix}Latitude`]))
-    && Number.isFinite(Number(record[`${prefix}Longitude`]));
+  return hasCoordinateValue(record[`${prefix}Latitude`])
+    && hasCoordinateValue(record[`${prefix}Longitude`]);
 }
 
 function visibilityFor({ enquiry = {}, provider = {}, fallbackPublishedAt = null }) {

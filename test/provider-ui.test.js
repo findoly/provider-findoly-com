@@ -77,7 +77,8 @@ test("lead cards expose useful context before opening without changing unlock be
 
   assert.match(view, /provider-card-summary/);
   assert.match(view, /provider-lead-insight-grid/);
-  assert.match(view, /Provider interest/);
+  assert.match(view, /unlocks used/);
+  assert.match(view, /unlocks remaining/);
   assert.match(view, /Current result/);
   assert.match(view, /displaySentenceCase\(lead\.leadTitle/);
   assert.match(view, /distanceLabel\(lead\)/);
@@ -149,11 +150,13 @@ test("provider UI retains synchronized marketplace and outcome features", () => 
   const dashboard = source("views/dashboard/index.ejs");
   const profile = source("views/profile/index.ejs");
   const leadService = source("services/lead/lead-service.js");
+  const offerService = source("services/marketplace/offer-service.js");
 
   assert.match(listView, /lead\.leadIntent/);
   assert.match(listView, /lead\.unlockedCount/);
   assert.match(listView, /lead\.currentlyConfirmed/);
-  assert.match(leadService, /marketplaceVisibleAt/);
+  assert.match(offerService, /marketplaceVisibleAt/);
+  assert.match(leadService, /marketplacePublishedAt/);
   assert.match(leadService, /providerDistanceKm/);
   assert.match(detailView, /providerSaleOutcome/);
   assert.match(detailView, /Confirmed/);

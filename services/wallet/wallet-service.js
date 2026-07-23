@@ -21,8 +21,12 @@ const {
   paiseFromCredits,
 } = require("../../utils/credits");
 const { presentLead } = require("../../utils/lead");
-const { isMarketplaceVisible } = require("../../utils/marketplace-radius");
-const { hasCoordinates } = require("../marketplace/visibility-service");
+const {
+  DEFAULT_MAX_PROVIDER_UNLOCKS,
+  ensureMarketplaceOffer,
+  marketplaceEnquiryId,
+  marketplaceLeadId,
+} = require("../marketplace/offer-service");
 const {
   directPaymentQuote,
   getPlan,
@@ -30,6 +34,10 @@ const {
 } = require("../../config/plans");
 const creditService = require("../billing/credit-service");
 const crmService = require("../integration/crm-service");
+const {
+  decrementPending,
+  releaseExpiredUnlockReservations,
+} = require("../marketplace/reservation-service");
 
 function getGateway() {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -70,6 +78,102 @@ function distributionQuery(leadDistributionId) {
 
 function enquiryQuery(enquiryId) {
   return { $or: [{ enquiryId }, { id: enquiryId }] };
+}
+
+function marketplaceCapacityExpression() {
+  return {
+    $lt: [
+      {
+        $add: [
+          { $ifNull: ["$unlockedCount", 0] },
+          { $ifNull: ["$pendingUnlockCount", 0] },
+        ],
+      },
+      { $ifNull: ["$maxProviderUnlocks", DEFAULT_MAX_PROVIDER_UNLOCKS] },
+    ],
+  };
+}
+
+async function resolveLeadOffer(provider, leadIdentifier, session = null) {
+  const providerId = providerIdentity(provider);
+  let query = LeadDistribution.findOne({
+    providerId,
+    ...distributionQuery(leadIdentifier),
+  });
+  if (session) query = query.session(session);
+  let lead = await query;
+
+  if (!lead && marketplaceEnquiryId(leadIdentifier)) {
+    lead = await ensureMarketplaceOffer(provider, leadIdentifier, { session });
+  }
+  if (!lead) return null;
+  if (lead.contactUnlocked || lead.status === "unlocked") return lead;
+
+  const enquiryId = String(lead.enquiryId || lead.requirementId || "").trim();
+  if (!enquiryId) return null;
+  return ensureMarketplaceOffer(provider, marketplaceLeadId(enquiryId), { session });
+}
+
+async function reserveDirectUnlockSlot(enquiryId) {
+  await releaseExpiredUnlockReservations({ enquiryId, limit: 25 });
+  const enquiry = await Enquiry.findOneAndUpdate(
+    {
+      ...enquiryQuery(enquiryId),
+      $expr: marketplaceCapacityExpression(),
+    },
+    {
+      $inc: { pendingUnlockCount: 1 },
+      $set: { updatedAt: new Date() },
+    },
+    { new: true },
+  ).lean();
+
+  if (!enquiry) {
+    throw Object.assign(new Error("This lead has reached its provider unlock limit"), {
+      status: 409,
+      code: "LEAD_UNLOCK_LIMIT_REACHED",
+    });
+  }
+  return enquiry;
+}
+
+async function convertDirectReservationToUnlock(enquiryId, hasReservation, session) {
+  let enquiry = null;
+  if (hasReservation) {
+    enquiry = await Enquiry.findOneAndUpdate(
+      {
+        ...enquiryQuery(enquiryId),
+        pendingUnlockCount: { $gt: 0 },
+      },
+      {
+        $inc: { pendingUnlockCount: -1, unlockedCount: 1 },
+        $set: { updatedAt: new Date() },
+      },
+      { new: true, session },
+    );
+  }
+
+  if (!enquiry) {
+    enquiry = await Enquiry.findOneAndUpdate(
+      {
+        ...enquiryQuery(enquiryId),
+        $expr: marketplaceCapacityExpression(),
+      },
+      {
+        $inc: { unlockedCount: 1 },
+        $set: { updatedAt: new Date() },
+      },
+      { new: true, session },
+    );
+  }
+
+  if (!enquiry) {
+    throw Object.assign(new Error("This paid lead has reached its provider unlock limit and needs manual review"), {
+      status: 409,
+      code: "PAID_LEAD_REVIEW_REQUIRED",
+    });
+  }
+  return enquiry;
 }
 
 function addDays(date, days) {
@@ -335,11 +439,7 @@ async function cancelPlanOrder(provider, input = {}) {
 }
 
 async function findLeadForDirectPayment(provider, leadDistributionId) {
-  const providerId = providerIdentity(provider);
-  const lead = await LeadDistribution.findOne({
-    providerId,
-    ...distributionQuery(leadDistributionId),
-  }).lean();
+  const lead = await resolveLeadOffer(provider, leadDistributionId);
 
   if (!lead) {
     throw Object.assign(new Error("Lead offer not found"), {
@@ -365,26 +465,16 @@ async function findLeadForDirectPayment(provider, leadDistributionId) {
       code: "CATEGORY_MISMATCH",
     });
   }
-  if (!hasCoordinates(provider, "service")) {
-    throw Object.assign(new Error("Your service location is not configured in CRM. Contact Findoly support before unlocking leads."), {
-      status: 409,
-      code: "PROVIDER_LOCATION_REQUIRED",
-    });
-  }
-  if (!isMarketplaceVisible(lead)) {
-    throw Object.assign(new Error("This lead is not available in your service radius yet"), {
-      status: 404,
-      code: "LEAD_NOT_AVAILABLE_IN_RADIUS",
-    });
-  }
   return lead;
 }
 
 async function createLeadOrder(provider, leadDistributionId) {
   const providerId = providerIdentity(provider);
   const lead = await findLeadForDirectPayment(provider, leadDistributionId);
+  const canonicalLeadId = lead.leadDistributionId;
+  const enquiryId = lead.enquiryId || lead.requirementId;
   const syncedProvider = await creditService.syncCredits(providerId);
-  const enquiry = await Enquiry.findOne(enquiryQuery(lead.enquiryId || lead.requirementId)).lean();
+  const enquiry = await Enquiry.findOne(enquiryQuery(enquiryId)).lean();
   const baseCredits = leadCostCredits(lead);
   const pricing = {
     baseCredits,
@@ -405,7 +495,7 @@ async function createLeadOrder(provider, leadDistributionId) {
   const existing = await PaymentOrder.findOne({
     providerId,
     purpose: "lead_unlock",
-    leadDistributionId: lead.leadDistributionId || leadDistributionId,
+    leadDistributionId: canonicalLeadId,
     fulfilled: { $ne: true },
     status: { $in: ["created", "authorized", "verified"] },
     createdAt: { $gte: pendingCutoff },
@@ -431,8 +521,8 @@ async function createLeadOrder(provider, leadDistributionId) {
         previousUnlocks: Number(existing.unlockCountAtPurchase || 0),
       },
       lead: {
-        leadDistributionId: lead.leadDistributionId || leadDistributionId,
-        enquiryId: lead.enquiryId || "",
+        leadDistributionId: canonicalLeadId,
+        enquiryId: enquiryId || "",
         title: lead.leadTitle || lead.serviceType || "Lead unlock",
       },
       provider: checkoutProvider(provider),
@@ -440,8 +530,7 @@ async function createLeadOrder(provider, leadDistributionId) {
     };
   }
 
-  const baseAmountPaise = costMinor;
-  const quote = directPaymentQuote(baseAmountPaise);
+  const quote = directPaymentQuote(costMinor);
   if (quote.totalAmountPaise < 100) {
     throw Object.assign(new Error("This lead does not require direct payment"), {
       status: 400,
@@ -449,106 +538,115 @@ async function createLeadOrder(provider, leadDistributionId) {
     });
   }
 
+  const reservedEnquiry = await reserveDirectUnlockSlot(enquiryId);
   const paymentOrderId = uuid();
   const receipt = `lead_${paymentOrderId}`;
-  const order = await createRazorpayOrder({
-    provider,
-    paymentOrderId,
-    receipt,
-    amountPaise: quote.totalAmountPaise,
-    notes: {
-      purpose: "lead_unlock",
-      leadDistributionId: lead.leadDistributionId || leadDistributionId,
-      enquiryId: lead.enquiryId || "",
-    },
-  });
+  let paymentOrderCreated = false;
 
-  await PaymentOrder.create({
-    paymentOrderId,
-    providerId,
-    purpose: "lead_unlock",
-    razorpayOrderId: order.id,
-    amountPaise: quote.totalAmountPaise,
-    listedPricePaise: quote.subtotalPaise,
-    subtotalPaise: quote.subtotalPaise,
-    gstAmountPaise: quote.gstAmountPaise,
-    totalAmountPaise: quote.totalAmountPaise,
-    gstRatePercent: quote.gstRatePercent,
-    gstIncluded: false,
-    leadDistributionId: lead.leadDistributionId || leadDistributionId,
-    enquiryId: lead.enquiryId || "",
-    currency: "INR",
-    status: "created",
-    fulfillmentStatus: "pending",
-    baseLeadCostCredits: pricing.baseCredits,
-    effectiveLeadCostCredits: pricing.effectiveCredits,
-    unlockDiscountPercent: 0,
-    unlockCountAtPurchase: pricing.previousUnlocks,
-    receipt,
-  });
-
-  const reservation = await LeadDistribution.updateOne(
-    {
-      providerId,
-      status: "offered",
-      contactUnlocked: { $ne: true },
-      $and: [
-        distributionQuery(leadDistributionId),
-        {
-          $or: [
-            { directPaymentPendingOrderId: "" },
-            { directPaymentPendingOrderId: { $exists: false } },
-            { directPaymentPendingUntil: { $lte: new Date() } },
-          ],
-        },
-      ],
-    },
-    {
-      $set: {
-        directPaymentPendingOrderId: paymentOrderId,
-        directPaymentPendingUntil: new Date(Date.now() + 30 * 60 * 1000),
-        updatedAt: new Date(),
+  try {
+    const order = await createRazorpayOrder({
+      provider,
+      paymentOrderId,
+      receipt,
+      amountPaise: quote.totalAmountPaise,
+      notes: {
+        purpose: "lead_unlock",
+        leadDistributionId: canonicalLeadId,
+        enquiryId: enquiryId || "",
       },
-    },
-  );
+    });
 
-  if (!reservation.modifiedCount) {
-    await PaymentOrder.updateOne(
-      { paymentOrderId },
+    await PaymentOrder.create({
+      paymentOrderId,
+      providerId,
+      purpose: "lead_unlock",
+      razorpayOrderId: order.id,
+      amountPaise: quote.totalAmountPaise,
+      listedPricePaise: quote.subtotalPaise,
+      subtotalPaise: quote.subtotalPaise,
+      gstAmountPaise: quote.gstAmountPaise,
+      totalAmountPaise: quote.totalAmountPaise,
+      gstRatePercent: quote.gstRatePercent,
+      gstIncluded: false,
+      leadDistributionId: canonicalLeadId,
+      enquiryId: enquiryId || "",
+      currency: "INR",
+      status: "created",
+      fulfillmentStatus: "pending",
+      baseLeadCostCredits: pricing.baseCredits,
+      effectiveLeadCostCredits: pricing.effectiveCredits,
+      unlockDiscountPercent: 0,
+      unlockCountAtPurchase: pricing.previousUnlocks,
+      maxProviderUnlocks: Number(reservedEnquiry.maxProviderUnlocks || DEFAULT_MAX_PROVIDER_UNLOCKS),
+      receipt,
+    });
+    paymentOrderCreated = true;
+
+    const reservation = await LeadDistribution.updateOne(
+      {
+        providerId,
+        leadDistributionId: canonicalLeadId,
+        status: "offered",
+        contactUnlocked: { $ne: true },
+        $or: [
+          { directPaymentPendingOrderId: "" },
+          { directPaymentPendingOrderId: { $exists: false } },
+          { directPaymentPendingUntil: { $lte: new Date() } },
+        ],
+      },
       {
         $set: {
-          status: "cancelled",
-          fulfillmentStatus: "cancelled",
+          directPaymentPendingOrderId: paymentOrderId,
+          directPaymentPendingUntil: new Date(Date.now() + 30 * 60 * 1000),
+          maxProviderUnlocks: Number(reservedEnquiry.maxProviderUnlocks || DEFAULT_MAX_PROVIDER_UNLOCKS),
           updatedAt: new Date(),
         },
       },
     );
-    throw Object.assign(
-      new Error("Another unlock checkout is already active for this lead"),
-      { status: 409, code: "DIRECT_PAYMENT_PENDING" },
-    );
-  }
 
-  return {
-    keyId: process.env.RAZORPAY_KEY_ID,
-    paymentOrderId,
-    razorpayOrderId: order.id,
-    amountPaise: quote.totalAmountPaise,
-    currency: "INR",
-    quote: {
-      ...quote,
-      baseCredits: pricing.baseCredits,
-      effectiveCredits: pricing.effectiveCredits,
-      discountPercent: 0,
-      previousUnlocks: pricing.previousUnlocks,
-    },
-    lead: {
-      leadDistributionId: lead.leadDistributionId || leadDistributionId,
-      enquiryId: lead.enquiryId || "",
-      title: lead.leadTitle || lead.serviceType || "Lead unlock",
-    },
-    provider: checkoutProvider(provider),
-  };
+    if (!reservation.modifiedCount) {
+      throw Object.assign(
+        new Error("Another unlock checkout is already active for this lead"),
+        { status: 409, code: "DIRECT_PAYMENT_PENDING" },
+      );
+    }
+
+    return {
+      keyId: process.env.RAZORPAY_KEY_ID,
+      paymentOrderId,
+      razorpayOrderId: order.id,
+      amountPaise: quote.totalAmountPaise,
+      currency: "INR",
+      quote: {
+        ...quote,
+        baseCredits: pricing.baseCredits,
+        effectiveCredits: pricing.effectiveCredits,
+        discountPercent: 0,
+        previousUnlocks: pricing.previousUnlocks,
+      },
+      lead: {
+        leadDistributionId: canonicalLeadId,
+        enquiryId: enquiryId || "",
+        title: lead.leadTitle || lead.serviceType || "Lead unlock",
+      },
+      provider: checkoutProvider(provider),
+    };
+  } catch (error) {
+    await decrementPending(enquiryId, 1);
+    if (paymentOrderCreated) {
+      await PaymentOrder.updateOne(
+        { paymentOrderId, fulfilled: { $ne: true } },
+        {
+          $set: {
+            status: "cancelled",
+            fulfillmentStatus: "cancelled",
+            updatedAt: new Date(),
+          },
+        },
+      );
+    }
+    throw error;
+  }
 }
 
 async function cancelLeadOrder(provider, leadDistributionId, input = {}) {
@@ -556,12 +654,7 @@ async function cancelLeadOrder(provider, leadDistributionId, input = {}) {
   const paymentOrderId = String(input.paymentOrderId || "").trim();
   if (!paymentOrderId) return { cancelled: false };
 
-  const lead = await LeadDistribution.findOne({
-    providerId,
-    ...distributionQuery(leadDistributionId),
-  })
-    .select({ leadDistributionId: 1 })
-    .lean();
+  const lead = await resolveLeadOffer(provider, leadDistributionId);
   const canonicalLeadId = lead?.leadDistributionId || leadDistributionId;
   const order = await PaymentOrder.findOne({
     paymentOrderId,
@@ -574,33 +667,36 @@ async function cancelLeadOrder(provider, leadDistributionId, input = {}) {
   }
 
   const now = new Date();
-  await Promise.all([
-    PaymentOrder.updateOne(
-      { paymentOrderId, providerId, fulfilled: false },
-      {
-        $set: {
-          status: "cancelled",
-          fulfillmentStatus: "cancelled",
-          updatedAt: now,
-        },
+  const release = await LeadDistribution.updateOne(
+    {
+      providerId,
+      leadDistributionId: canonicalLeadId,
+      directPaymentPendingOrderId: paymentOrderId,
+      contactUnlocked: { $ne: true },
+    },
+    {
+      $set: {
+        directPaymentPendingOrderId: "",
+        directPaymentPendingUntil: null,
+        updatedAt: now,
       },
-    ),
-    LeadDistribution.updateOne(
-      {
-        providerId,
-        ...distributionQuery(leadDistributionId),
-        directPaymentPendingOrderId: paymentOrderId,
-        contactUnlocked: { $ne: true },
+    },
+  );
+
+  await PaymentOrder.updateOne(
+    { paymentOrderId, providerId, fulfilled: false },
+    {
+      $set: {
+        status: "cancelled",
+        fulfillmentStatus: "cancelled",
+        updatedAt: now,
       },
-      {
-        $set: {
-          directPaymentPendingOrderId: "",
-          directPaymentPendingUntil: null,
-          updatedAt: now,
-        },
-      },
-    ),
-  ]);
+    },
+  );
+
+  if (release.modifiedCount && order.enquiryId) {
+    await decrementPending(order.enquiryId, 1);
+  }
   return { cancelled: true };
 }
 
@@ -845,6 +941,14 @@ async function fulfillLeadOrder(paymentOrder, paymentId) {
     }
 
     if (existingLead.contactUnlocked || existingLead.status === "unlocked") {
+      if (existingLead.directPaymentPendingOrderId === order.paymentOrderId) {
+        await decrementPending(existingLead.enquiryId || existingLead.requirementId, 1, session);
+        await LeadDistribution.updateOne(
+          { leadDistributionId: existingLead.leadDistributionId },
+          { $set: { directPaymentPendingOrderId: "", directPaymentPendingUntil: null, updatedAt: new Date() } },
+          { session },
+        );
+      }
       await PaymentOrder.updateOne(
         { paymentOrderId: order.paymentOrderId },
         {
@@ -896,6 +1000,12 @@ async function fulfillLeadOrder(paymentOrder, paymentId) {
     }
 
     const now = new Date();
+    const hasReservation = existingLead.directPaymentPendingOrderId === order.paymentOrderId;
+    const claimedEnquiry = await convertDirectReservationToUnlock(
+      existingLead.enquiryId || existingLead.requirementId,
+      hasReservation,
+      session,
+    );
     const unlocked = await LeadDistribution.findOneAndUpdate(
       {
         providerId: order.providerId,
@@ -919,6 +1029,7 @@ async function fulfillLeadOrder(paymentOrder, paymentId) {
           effectiveLeadCostCredits: Number(order.effectiveLeadCostCredits ?? creditsFromPaise(order.subtotalPaise || 0)),
           unlockDiscountPercent: 0,
           unlockCountAtPurchase: Number(order.unlockCountAtPurchase || 0),
+          maxProviderUnlocks: Number(claimedEnquiry.maxProviderUnlocks || DEFAULT_MAX_PROVIDER_UNLOCKS),
           updatedAt: now,
         },
       },
@@ -931,12 +1042,6 @@ async function fulfillLeadOrder(paymentOrder, paymentId) {
         code: "UNLOCK_CONFLICT",
       });
     }
-
-    await Enquiry.updateOne(
-      enquiryQuery(existingLead.enquiryId || existingLead.requirementId),
-      { $inc: { unlockedCount: 1 }, $set: { updatedAt: now } },
-      { session },
-    );
 
     await PaymentOrder.updateOne(
       { paymentOrderId: order.paymentOrderId, fulfilled: false },
@@ -1155,13 +1260,7 @@ async function verify(provider, input = {}, expected = {}) {
 }
 
 async function verifyLead(provider, leadDistributionId, input = {}) {
-  const providerId = providerIdentity(provider);
-  const lead = await LeadDistribution.findOne({
-    providerId,
-    ...distributionQuery(leadDistributionId),
-  })
-    .select({ leadDistributionId: 1 })
-    .lean();
+  const lead = await resolveLeadOffer(provider, leadDistributionId);
   const canonicalLeadId = lead?.leadDistributionId || leadDistributionId;
   return verify(provider, input, {
     purpose: "lead_unlock",

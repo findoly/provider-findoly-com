@@ -95,7 +95,7 @@
       <div class="portal-marketplace-trust workspace-signal-strip mb-4">
         <div><span>Lead intent</span><strong :class="'is-' + lead.leadIntent" x-text="lead.leadIntent === 'not_assessed' ? 'Not assessed' : humanize(lead.leadIntent) + ' intent'"></strong></div>
         <div><span>Approx. distance</span><strong x-text="distanceLabel(lead.providerDistanceKm)"></strong></div>
-        <div><span>Provider interest</span><strong><span x-text="lead.unlockedCount || 0"></span> unlocked</strong></div>
+        <div><span>Unlock availability</span><strong>🔓 <span x-text="lead.unlockedCount || 0"></span> of <span x-text="lead.maxProviderUnlocks || 5"></span> used</strong><small><span x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></span> remaining</small></div>
         <div><span>Current result</span><strong :class="lead.currentlyConfirmed ? 'is-confirmed' : ''" x-text="lead.currentlyConfirmed ? 'Confirmed by ' + lead.providerConfirmedCount : 'Not confirmed yet'"></strong></div>
       </div>
 
@@ -412,9 +412,11 @@
       },
 
       distanceLabel(value) {
+        if (value === null || value === undefined || String(value).trim() === '') return 'Distance unavailable';
         const distance = Number(value);
-        if (!Number.isFinite(distance)) return 'Location is being verified';
-        return distance < 1 ? `${Math.max(1, Math.round(distance * 1000))} m away` : `${distance.toFixed(distance < 10 ? 1 : 0)} km away`;
+        if (!Number.isFinite(distance)) return 'Distance unavailable';
+        const displayKm = Math.max(1, distance);
+        return `${displayKm.toFixed(displayKm < 10 && displayKm !== 1 ? 1 : 0)} km away`;
       },
 
       displayValue(value) {

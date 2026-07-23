@@ -19,12 +19,25 @@ function sanitizeDetails(value, depth = 0) {
   return clean;
 }
 
+function nullableNumber(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function presentLead(row = {}) {
   const unlocked = row.contactUnlocked === true || row.status === "unlocked";
   const unlockedCount = safeCount(row.marketplaceUnlockedCount ?? row.unlockedCount);
   const confirmedCount = safeCount(
     row.marketplaceConfirmedCount ?? row.providerConfirmedCount,
   );
+  const maxUnlocksRaw = Number(row.maxProviderUnlocks);
+  const maxProviderUnlocks = Number.isInteger(maxUnlocksRaw) && maxUnlocksRaw > 0
+    ? maxUnlocksRaw
+    : 5;
+  const pendingUnlockCount = safeCount(row.pendingUnlockCount);
+  const remainingUnlocks = Math.max(0, maxProviderUnlocks - unlockedCount);
+  const availableUnlockSlots = Math.max(0, remainingUnlocks - pendingUnlockCount);
   const baseCredits = Math.max(0, Number(
     row.baseLeadCostCredits ?? row.marketplaceBaseCredits ?? leadCostCredits(row),
   ));
@@ -55,9 +68,14 @@ function presentLead(row = {}) {
     priority: row.priority || "normal",
     leadIntent: normalizeIntent(row.leadIntent || row.marketplaceLeadIntent),
     unlockedCount,
+    pendingUnlockCount,
+    maxProviderUnlocks,
+    remainingUnlocks,
+    availableUnlockSlots,
+    unlockCapacityReached: availableUnlockSlots <= 0,
     providerConfirmedCount: confirmedCount,
     currentlyConfirmed: confirmedCount > 0,
-    providerDistanceKm: Number.isFinite(Number(row.providerDistanceKm)) ? Number(row.providerDistanceKm) : null,
+    providerDistanceKm: nullableNumber(row.providerDistanceKm),
     marketplacePublishedAt: row.marketplacePublishedAt || null,
     marketplaceVisibleAt: row.marketplaceVisibleAt || null,
     additionalDetails: unlocked

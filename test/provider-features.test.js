@@ -15,6 +15,8 @@ const { presentLead } = require("../utils/lead");
 const { normalizeIntent } = require("../utils/marketplace");
 const {
   haversineDistanceKm,
+  isMarketplaceVisible,
+  isMarketplaceWithinAge,
   marketplaceVisibleAt,
   stageForDistance,
 } = require("../utils/marketplace-radius");
@@ -75,24 +77,69 @@ test("sale outcome is mandatory while activity status remains optional", () => {
   );
 });
 
-test("marketplace uses CRM lead intent and progressive distance visibility", () => {
+test("marketplace uses the approved 20 km to open-network visibility stages", () => {
   assert.equal(normalizeIntent("HIGH"), "high");
   assert.equal(normalizeIntent("unknown"), "not_assessed");
 
-  assert.equal(stageForDistance(4.9).delayMinutes, 0);
-  assert.equal(stageForDistance(8).delayMinutes, 5);
-  assert.equal(stageForDistance(20).delayMinutes, 15);
-  assert.equal(stageForDistance(40).delayMinutes, 30);
-  assert.equal(stageForDistance(75).delayMinutes, 60);
-  assert.equal(stageForDistance(150).delayMinutes, 120);
-  assert.equal(stageForDistance(350).delayMinutes, 240);
-  assert.equal(stageForDistance(450).delayMinutes, 480);
+  assert.equal(stageForDistance(20).delayMinutes, 0);
+  assert.equal(stageForDistance(20.1).delayMinutes, 10);
+  assert.equal(stageForDistance(50).delayMinutes, 10);
+  assert.equal(stageForDistance(50.1).delayMinutes, 30);
+  assert.equal(stageForDistance(100).delayMinutes, 30);
+  assert.equal(stageForDistance(100.1).delayMinutes, 60);
+  assert.equal(stageForDistance(null), null);
 
   const publishedAt = new Date("2026-07-18T10:00:00.000Z");
   assert.equal(
     marketplaceVisibleAt(publishedAt, 20).toISOString(),
-    "2026-07-18T10:15:00.000Z",
+    "2026-07-18T10:00:00.000Z",
   );
+  assert.equal(
+    marketplaceVisibleAt(publishedAt, 50).toISOString(),
+    "2026-07-18T10:10:00.000Z",
+  );
+  assert.equal(
+    marketplaceVisibleAt(publishedAt, 100).toISOString(),
+    "2026-07-18T10:30:00.000Z",
+  );
+  assert.equal(
+    marketplaceVisibleAt(publishedAt, 101).toISOString(),
+    "2026-07-18T11:00:00.000Z",
+  );
+  assert.equal(
+    marketplaceVisibleAt(publishedAt, null).toISOString(),
+    "2026-07-18T11:00:00.000Z",
+  );
+
+  assert.equal(
+    isMarketplaceVisible(
+      { marketplacePublishedAt: publishedAt, providerDistanceKm: null },
+      new Date("2026-07-18T10:59:59.000Z"),
+    ),
+    false,
+  );
+  assert.equal(
+    isMarketplaceVisible(
+      { marketplacePublishedAt: publishedAt, providerDistanceKm: null },
+      new Date("2026-07-18T11:00:00.000Z"),
+    ),
+    true,
+  );
+  assert.equal(
+    isMarketplaceWithinAge(
+      new Date("2026-01-18T10:00:00.000Z"),
+      new Date("2026-07-18T10:00:00.000Z"),
+    ),
+    true,
+  );
+  assert.equal(
+    isMarketplaceWithinAge(
+      new Date("2026-01-17T23:59:59.000Z"),
+      new Date("2026-07-18T10:00:00.000Z"),
+    ),
+    false,
+  );
+  assert.equal(haversineDistanceKm(null, null, 19.076, 72.8777), null);
   assert.ok(haversineDistanceKm(19.076, 72.8777, 19.076, 72.8777) < 0.1);
 });
 

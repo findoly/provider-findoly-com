@@ -30,7 +30,7 @@
 
   <div class="portal-location-required workspace-alert-card" x-show="!loading && !locationReady && filters.status !== 'unlocked'" x-cloak>
     <span class="workspace-alert-icon"><svg class="icon"><use href="#i-location"></use></svg></span>
-    <div class="min-w-0"><strong>Your service location is pending in CRM</strong><span>Contact Findoly support before nearby leads can appear.</span></div>
+    <div class="min-w-0"><strong>Your service location is pending in CRM</strong><span>Add your service PIN code through Findoly support to receive nearby leads earlier. Open-network leads can still appear after 60 minutes.</span></div>
     <a href="/profile#marketplace-location" class="btn btn-light btn-sm">View profile</a>
   </div>
 
@@ -95,6 +95,17 @@
           <input class="form-control" type="text" x-model="filters.city" @keydown.enter.prevent="apply()" placeholder="Any city">
         </label>
         <label>
+          <span>Distance</span>
+          <select class="form-select" x-model="filters.maxDistanceKm" @change="apply()">
+            <option value="">Any distance</option>
+            <option value="5">Within 5 km</option>
+            <option value="10">Within 10 km</option>
+            <option value="25">Within 25 km</option>
+            <option value="50">Within 50 km</option>
+            <option value="100">Within 100 km</option>
+          </select>
+        </label>
+        <label>
           <span>Lead intent</span>
           <select class="form-select" x-model="filters.leadIntent" @change="apply()">
             <option value="">Any intent</option>
@@ -110,8 +121,8 @@
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
             <option value="nearest" x-show="filters.status !== 'unlocked'">Nearest first</option>
-            <option value="credits_asc" x-show="filters.status !== 'unlocked'">Lowest credits</option>
-            <option value="credits_desc" x-show="filters.status !== 'unlocked'">Highest credits</option>
+            <option value="cost_low" x-show="filters.status !== 'unlocked'">Lowest credits</option>
+            <option value="cost_high" x-show="filters.status !== 'unlocked'">Highest credits</option>
           </select>
         </label>
       </div>
@@ -122,6 +133,7 @@
           <label class="provider-filter-control"><span>Category</span><select class="form-select" x-model="filters.categorySlug"><option value="">All categories</option><template x-for="category in categories" :key="category"><option :value="category" x-text="humanize(category)"></option></template></select></label>
           <label class="provider-filter-control"><span>City</span><input class="form-control" type="text" x-model="filters.city" placeholder="Any city"></label>
           <label class="provider-filter-control"><span>PIN code</span><input class="form-control" type="text" inputmode="numeric" maxlength="6" x-model="filters.pincode" placeholder="Any PIN code"></label>
+          <label class="provider-filter-control"><span>Distance</span><select class="form-select" x-model="filters.maxDistanceKm"><option value="">Any distance</option><option value="5">Within 5 km</option><option value="10">Within 10 km</option><option value="25">Within 25 km</option><option value="50">Within 50 km</option><option value="100">Within 100 km</option></select></label>
           <label class="provider-filter-control"><span>Lead intent</span><select class="form-select" x-model="filters.leadIntent"><option value="">Any intent</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="not_assessed">Not assessed</option></select></label>
 
           <template x-if="filters.status !== 'unlocked'"><div class="provider-advanced-subgrid workspace-filter-subgrid">
@@ -201,9 +213,10 @@
               </div>
             </template>
             <template x-if="!lead.contactUnlocked">
-              <div class="provider-lead-insight is-interest">
-                <span><svg class="icon"><use href="#i-unlock"></use></svg>Provider interest</span>
-                <strong><b x-text="lead.unlockedCount || 0"></b> <span x-text="Number(lead.unlockedCount || 0) === 1 ? 'provider unlocked' : 'providers unlocked'"></span></strong>
+              <div class="provider-lead-insight is-interest provider-unlock-availability">
+                <span><svg class="icon"><use href="#i-unlock"></use></svg>Unlock availability</span>
+                <strong>🔓 <b x-text="lead.unlockedCount || 0"></b> of <b x-text="lead.maxProviderUnlocks || 5"></b> unlocks used</strong>
+                <small><b x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></b> unlocks remaining</small>
               </div>
             </template>
             <template x-if="!lead.contactUnlocked">
@@ -274,7 +287,7 @@
       </article>
     </template>
 
-    <section class="card portal-card provider-minimal-empty workspace-empty-state" x-show="loading || (!loading && !rows.length)"><div class="card-body text-center"><div x-show="loading" class="text-muted">Loading leads…</div><div x-show="!loading && !rows.length"><div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div><strong x-text="filters.status === 'unlocked' ? 'No unlocked leads found' : (!locationReady ? 'Service location required' : 'No leads match your filters')"></strong><span x-text="hasActiveFilters() ? 'Clear or change your filters to see more leads.' : (filters.status === 'unlocked' ? 'Successfully unlocked leads will appear here.' : 'New matching leads will appear here automatically.')"></span><button x-show="hasActiveFilters()" type="button" class="btn btn-light btn-sm" @click="clear()">Clear filters</button></div></div></section>
+    <section class="card portal-card provider-minimal-empty workspace-empty-state" x-show="loading || (!loading && !rows.length)"><div class="card-body text-center"><div x-show="loading" class="text-muted">Loading leads…</div><div x-show="!loading && !rows.length"><div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div><strong x-text="filters.status === 'unlocked' ? 'No unlocked leads found' : (!locationReady ? 'No open-network leads available yet' : 'No leads match your filters')"></strong><span x-text="hasActiveFilters() ? 'Clear or change your filters to see more leads.' : (filters.status === 'unlocked' ? 'Successfully unlocked leads will appear here.' : (!locationReady ? 'Add your service location to receive nearby leads before the open-network stage.' : 'New matching leads will appear here automatically.'))"></span><button x-show="hasActiveFilters()" type="button" class="btn btn-light btn-sm" @click="clear()">Clear filters</button></div></div></section>
   </main>
 
   <div class="portal-card portal-pagination provider-minimal-pagination workspace-pagination" x-show="pagination.pages > 1" x-cloak><span><span x-text="pagination.page"></span> of <span x-text="pagination.pages"></span></span><div><button class="btn btn-light btn-sm" :disabled="pagination.page <= 1 || loading" @click="go(pagination.page - 1)">Previous</button><button class="btn btn-light btn-sm" :disabled="pagination.page >= pagination.pages || loading" @click="go(pagination.page + 1)">Next</button></div></div>
@@ -290,7 +303,7 @@
       pagination: { page: Number(queryValue('page', 1)), pages: 1, total: 0 },
       filters: {
         q: queryValue('q'), status: initialStatus, categorySlug: queryValue('categorySlug'), city: queryValue('city'),
-        pincode: queryValue('pincode'), leadIntent: queryValue('leadIntent'), confirmation: queryValue('confirmation'),
+        pincode: queryValue('pincode'), maxDistanceKm: queryValue('maxDistanceKm'), leadIntent: queryValue('leadIntent'), confirmation: queryValue('confirmation'),
         unlockCount: queryValue('unlockCount'), age: queryValue('age'), outcome: queryValue('outcome'),
         activityStatus: queryValue('activityStatus'), overdue: queryValue('overdue') === 'true', startDate: queryValue('startDate'),
         endDate: queryValue('endDate'), minCredits: queryValue('minCredits'), maxCredits: queryValue('maxCredits'),
@@ -325,13 +338,13 @@
         return params;
       },
       filterKeys() {
-        const common = ['q','categorySlug','city','pincode','leadIntent','startDate','endDate','minCredits','maxCredits'];
+        const common = ['q','categorySlug','city','pincode','maxDistanceKm','leadIntent','startDate','endDate','minCredits','maxCredits'];
         return this.filters.status === 'unlocked' ? [...common,'outcome','activityStatus','overdue'] : [...common,'confirmation','unlockCount','age'];
       },
       hasActiveFilters() { return this.filterKeys().some((key) => Boolean(this.filters[key])); },
       activeFilterCount() { return this.filterKeys().filter((key) => Boolean(this.filters[key])).length; },
       chipText(key, value) {
-        const labels = { q: `Search: ${value}`, categorySlug: humanize(value), city: value, pincode: `PIN ${value}`, leadIntent: `${humanize(value)} intent`, confirmation: value === 'confirmed' ? 'Currently confirmed' : 'Not confirmed', unlockCount: { none: 'No unlocks', one_two: '1–2 unlocks', three_plus: '3+ unlocks' }[value], age: { today: 'Last 24 hours', '3d': 'Last 3 days', '7d': 'Last 7 days', '30d': 'Last 30 days' }[value], outcome: `Outcome: ${humanize(value)}`, activityStatus: `Activity: ${humanize(value)}`, overdue: 'Overdue 7+ days', startDate: `From ${value}`, endDate: `To ${value}`, minCredits: `Min ${value} credits`, maxCredits: `Max ${value} credits` };
+        const labels = { q: `Search: ${value}`, categorySlug: humanize(value), city: value, pincode: `PIN ${value}`, maxDistanceKm: `Within ${value} km`, leadIntent: `${humanize(value)} intent`, confirmation: value === 'confirmed' ? 'Currently confirmed' : 'Not confirmed', unlockCount: { none: 'No unlocks', one_two: '1–2 unlocks', three_plus: '3+ unlocks' }[value], age: { today: 'Last 24 hours', '3d': 'Last 3 days', '7d': 'Last 7 days', '30d': 'Last 30 days' }[value], outcome: `Outcome: ${humanize(value)}`, activityStatus: `Activity: ${humanize(value)}`, overdue: 'Overdue 7+ days', startDate: `From ${value}`, endDate: `To ${value}`, minCredits: `Min ${value} credits`, maxCredits: `Max ${value} credits` };
         return labels[key] || humanize(value);
       },
       activeChips() { return this.filterKeys().filter((key) => Boolean(this.filters[key])).map((key) => ({ key, label: this.chipText(key, this.filters[key]) })); },
@@ -342,9 +355,12 @@
         return values.length ? displayLocation(values) : 'Location available in lead details';
       },
       distanceLabel(lead) {
-        const value = Number(lead.providerDistanceKm);
-        if (!Number.isFinite(value)) return 'Nearby matched area';
-        return value < 1 ? `${Math.max(1, Math.round(value * 1000))} m away` : `${value.toFixed(value < 10 ? 1 : 0)} km away`;
+        const raw = lead.providerDistanceKm;
+        if (raw === null || raw === undefined || String(raw).trim() === '') return 'Distance unavailable';
+        const value = Number(raw);
+        if (!Number.isFinite(value)) return 'Distance unavailable';
+        const displayKm = Math.max(1, value);
+        return `${displayKm.toFixed(displayKm < 10 && displayKm !== 1 ? 1 : 0)} km away`;
       },
       preferredLabel(lead) {
         const date = lead.preferredDate ? formatDateOnly(lead.preferredDate) : '';
@@ -421,7 +437,7 @@
       },
       apply() { this.pagination.page = 1; history.replaceState({}, '', '/leads?' + this.params().toString()); this.load(); },
       clear() {
-        ['q','categorySlug','city','pincode','leadIntent','confirmation','unlockCount','age','outcome','activityStatus','startDate','endDate','minCredits','maxCredits'].forEach((key) => { this.filters[key] = ''; });
+        ['q','categorySlug','city','pincode','maxDistanceKm','leadIntent','confirmation','unlockCount','age','outcome','activityStatus','startDate','endDate','minCredits','maxCredits'].forEach((key) => { this.filters[key] = ''; });
         this.filters.overdue = false; this.filters.sort = 'newest'; this.pagination.page = 1; this.filtersOpen = false;
         history.replaceState({}, '', '/leads?' + this.params().toString()); this.load();
       },

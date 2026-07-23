@@ -8308,3 +8308,89 @@ body { background: #f5f8fc; }
   .provider-lead-insight-grid.is-unlocked-grid,
   .provider-lead-insight-grid.is-marketplace-grid { grid-template-columns: 1fr !important; }
 }
+
+/* 2026 marketplace refinement: compact filters and flatter lead information. */
+.provider-visible-filters {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  align-items: end;
+}
+.provider-lead-insight-grid,
+.provider-lead-insight-grid.is-marketplace-grid,
+.provider-lead-insight-grid.is-unlocked-grid {
+  gap: 0 !important;
+  overflow: hidden;
+  border-top: 1px solid #e5ebf1;
+  border-bottom: 1px solid #e5ebf1;
+  border-radius: 0;
+}
+.provider-lead-insight,
+.provider-lead-insight.is-preferred,
+.provider-lead-insight.is-age,
+.provider-lead-insight.is-unlocked-date,
+.provider-lead-insight.is-interest,
+.provider-lead-insight.is-open-result,
+.provider-lead-insight.is-customer,
+.provider-lead-insight.is-activity,
+.provider-lead-insight.is-neutral,
+.provider-lead-insight.is-confirmed,
+.provider-lead-insight.is-success,
+.provider-lead-insight.is-pending,
+.provider-lead-insight.is-warning,
+.provider-lead-insight.is-overdue,
+.provider-lead-insight.is-danger {
+  min-height: 4rem !important;
+  padding: .72rem .8rem !important;
+  border: 0 !important;
+  border-right: 1px solid #e5ebf1 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.provider-lead-insight:last-child { border-right: 0 !important; }
+.provider-unlock-availability > strong {
+  display: block;
+  line-height: 1.25;
+}
+.provider-unlock-availability > small {
+  display: block;
+  margin-top: .22rem;
+  color: #667085;
+  font-size: .69rem;
+  font-weight: 650;
+}
+.provider-decision-location {
+  border: 0 !important;
+  border-top: 1px solid #edf1f5 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: .58rem 0 !important;
+}
+
+@media (max-width: 1199.98px) {
+  .provider-visible-filters { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 991.98px) {
+  .provider-visible-filters { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .provider-lead-insight { border-bottom: 1px solid #e5ebf1 !important; }
+}
+@media (max-width: 575.98px) {
+  .provider-visible-filters { grid-template-columns: 1fr 1fr !important; }
+  .provider-lead-insight,
+  .provider-lead-insight.is-preferred,
+  .provider-lead-insight.is-age,
+  .provider-lead-insight.is-unlocked-date,
+  .provider-lead-insight.is-interest,
+  .provider-lead-insight.is-open-result,
+  .provider-lead-insight.is-customer,
+  .provider-lead-insight.is-activity,
+  .provider-lead-insight.is-neutral,
+  .provider-lead-insight.is-confirmed,
+  .provider-lead-insight.is-success,
+  .provider-lead-insight.is-pending,
+  .provider-lead-insight.is-warning,
+  .provider-lead-insight.is-overdue,
+  .provider-lead-insight.is-danger {
+    min-height: 3.6rem !important;
+    padding: .58rem .62rem !important;
+  }
+}

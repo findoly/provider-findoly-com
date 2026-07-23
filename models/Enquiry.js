@@ -48,7 +48,9 @@ const enquirySchema = new mongoose.Schema(
     metadata: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     timeline: { type: [mongoose.Schema.Types.Mixed], default: [] },
     distributionCount: { type: Number, default: 0 },
-    unlockedCount: { type: Number, default: 0 },
+    unlockedCount: { type: Number, default: 0, min: 0 },
+    pendingUnlockCount: { type: Number, default: 0, min: 0 },
+    maxProviderUnlocks: { type: Number, default: 5, min: 1, max: 1000 },
     providerConfirmedCount: { type: Number, default: 0, min: 0 },
     distributedAt: { type: Date, default: null },
   },
@@ -60,5 +62,6 @@ const enquirySchema = new mongoose.Schema(
 );
 
 enquirySchema.index({ status: 1, categorySlug: 1, createdAt: -1 });
+enquirySchema.index({ status: 1, categorySlug: 1, marketplacePublishedAt: -1 });
 
 module.exports = mongoose.model("Enquiry", enquirySchema, "enquiries");
