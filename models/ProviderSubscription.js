@@ -1,17 +1,23 @@
 const mongoose = require("mongoose");
+const uuid = require("../utils/uuid");
 
 const providerSubscriptionSchema = new mongoose.Schema(
   {
-    providerSubscriptionId: { type: String, required: true, unique: true, index: true },
+    providerSubscriptionId: {
+      type: String,
+      default: uuid,
+      unique: true,
+      index: true,
+    },
     providerId: { type: String, required: true, index: true },
     paymentOrderId: { type: String, required: true, unique: true, index: true },
     planCode: { type: String, required: true, index: true },
     planName: { type: String, required: true },
     billingCycle: { type: String, required: true, index: true },
     status: { type: String, default: "active", index: true },
-    startsAt: { type: Date, required: true, index: true },
+    startsAt: { type: Date, required: true },
     expiresAt: { type: Date, required: true, index: true },
-    purchasedAt: { type: Date, default: Date.now, index: true },
+    purchasedAt: { type: Date, default: Date.now },
     listedPricePaise: { type: Number, required: true, min: 0 },
     subtotalPaise: { type: Number, required: true, min: 0 },
     gstAmountPaise: { type: Number, required: true, min: 0 },
@@ -28,8 +34,8 @@ const providerSubscriptionSchema = new mongoose.Schema(
   },
 );
 
-providerSubscriptionSchema.index({ providerId: 1, purchasedAt: -1, _id: -1 });
-providerSubscriptionSchema.index({ status: 1, expiresAt: 1 });
+providerSubscriptionSchema.index({ providerId: 1, expiresAt: -1 });
+providerSubscriptionSchema.index({ providerId: 1, status: 1, expiresAt: 1 });
 
 module.exports = mongoose.model(
   "ProviderSubscription",

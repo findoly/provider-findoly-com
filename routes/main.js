@@ -1,48 +1,19 @@
-const router = require("express").Router();
+const express = require("express");
 const { apiAuth } = require("../middleware/auth");
-const enquiryController = require("../controllers/enquiryController");
-const { optionalIntakeToken, publicIntakeRateLimit, communicationOtpAccess, communicationEventAccess } = require("../middleware/public-api");
+const dashboardController = require("../controllers/dashboardController");
+const profileController = require("../controllers/profileController");
+const { verifyCsrf } = require("../middleware/security");
+
+const router = express.Router();
+
 router.use("/auth", require("./auth"));
-// Public intake aliases retained for website/agent integrations. A token is
-// enforced when PUBLIC_INTAKE_API_TOKEN is configured; rate limiting is always
-// active to protect the database from accidental or abusive submission bursts.
-router.post("/enquiries", publicIntakeRateLimit, optionalIntakeToken, enquiryController.createPublic);
-router.post("/requirements", publicIntakeRateLimit, optionalIntakeToken, enquiryController.createPublic);
-router.post("/leads", publicIntakeRateLimit, optionalIntakeToken, enquiryController.createPublic);
-const communicationController = require("../controllers/communicationController");
-router.post("/communication/otp/send", communicationOtpAccess, communicationController.sendOtp);
-router.post("/communication/otp/verify", communicationOtpAccess, communicationController.verifyOtp);
-router.post("/communications/otp/send", communicationOtpAccess, communicationController.sendOtp);
-router.post("/communications/otp/verify", communicationOtpAccess, communicationController.verifyOtp);
-router.post("/communication/events/:event", communicationEventAccess, communicationController.integrationEvent);
-router.post("/communications/events/:event", communicationEventAccess, communicationController.integrationEvent);
-router.use("/customer-portal", require("./customer-portal"));
 router.use(apiAuth);
-router.use("/dashboard", require("./dashboard"));
-router.use("/employee", require("./employee"));
-router.use("/employees", require("./employee"));
-router.use("/role", require("./role"));
-router.use("/roles", require("./role"));
-router.use("/catalog", require("./catalog"));
-router.use("/location", require("./location"));
-router.use("/enquiry", require("./enquiry"));
-router.use("/enquiries", require("./enquiry"));
-router.use("/requirements", require("./enquiry"));
-router.use("/leads", require("./enquiry"));
-router.use("/provider", require("./provider"));
-router.use("/agent", require("./agent"));
-router.use("/partner-payouts", require("./partner-payout"));
-router.use("/withdrawals", require("./partner-payout"));
-router.use("/agents", require("./agent"));
-router.use("/providers", require("./provider"));
-router.use("/follow-up", require("./follow-up"));
-router.use("/follow-ups", require("./follow-up"));
-router.use("/communication", require("./communication"));
-router.use("/communications", require("./communication"));
-router.use("/provider-subscriptions", require("./provider-subscription"));
-router.use("/invoice", require("./invoice"));
-router.use("/invoices", require("./invoice"));
-router.use("/distribution", require("./distribution"));
-router.use("/distributions", require("./distribution"));
-router.use("/storage", require("./storage"));
+router.get("/dashboard", dashboardController.get);
+router.get("/profile", profileController.get);
+router.patch("/profile/location", verifyCsrf, profileController.updateLocation);
+router.use("/lead", require("./lead"));
+router.use("/leads", require("./lead"));
+router.use("/wallet", require("./wallet"));
+router.use("/billing", require("./wallet"));
+
 module.exports = router;

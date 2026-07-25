@@ -11,6 +11,7 @@ const walletTransactionSchema = new mongoose.Schema(
     },
     providerId: { type: String, required: true, index: true },
     type: { type: String, required: true, index: true },
+    // Stored in credit minor units for compatibility: 100 = 1 credit.
     amountPaise: { type: Number, required: true, min: 1 },
     currency: { type: String, default: "INR" },
     balanceBeforePaise: { type: Number, required: true, min: 0 },
@@ -30,7 +31,7 @@ const walletTransactionSchema = new mongoose.Schema(
   },
 );
 
-walletTransactionSchema.index({ providerId: 1, createdAt: -1, _id: -1 });
+walletTransactionSchema.index({ providerId: 1, createdAt: -1 });
 
 module.exports = mongoose.model(
   "WalletTransaction",

@@ -1,4 +1,4 @@
-<script>
+<script nonce="<%= cspNonce %>">
   function pathParts() {
     return location.pathname.split('/').filter(Boolean);
   }
@@ -8,231 +8,301 @@
     return editPage ? (parts[parts.length - 2] || '') : (parts[parts.length - 1] || '');
   }
 
-  function pageMode() {
-    return location.pathname.endsWith('/new') ? 'create' : 'edit';
-  }
-
   function queryValue(name, fallback = '') {
     return new URLSearchParams(location.search).get(name) || fallback;
   }
 
+  function cookieValue(name) {
+    const prefix = encodeURIComponent(name) + '=';
+    const item = document.cookie.split('; ').find((value) => value.startsWith(prefix));
+    return item ? decodeURIComponent(item.slice(prefix.length)) : '';
+  }
+
+  function safeReturnTo(value, fallback = '/dashboard') {
+    const target = String(value || '');
+    if (!target.startsWith('/') || target.startsWith('//')) return fallback;
+    if (target.startsWith('/api') || target.startsWith('/login')) return fallback;
+    return target;
+  }
+
   async function apiFetch(url, options = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    const headers = {
+      Accept: 'application/json',
+      ...(options.headers || {})
+    };
+
+    if (options.body !== undefined && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+      headers['X-CSRF-Token'] = cookieValue(<%- JSON.stringify(csrfCookieName || 'provider_csrf') %>);
+    }
+
     const response = await fetch(url, {
       credentials: 'same-origin',
+      cache: 'no-store',
       ...options,
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+      method,
+      headers
     });
-    const body = await response.json().catch(() => ({ success: false, message: 'Invalid server response' }));
-    if (response.status === 401) {
-      window.location.href = '/login?returnTo=' + encodeURIComponent(location.pathname + location.search);
-      throw new Error('Authentication required');
+
+    const body = await response.json().catch(() => ({
+      success: false,
+      message: 'The server returned an invalid response'
+    }));
+
+    const authCodes = [
+      'AUTHENTICATION_REQUIRED',
+      'SESSION_INVALID',
+      'PROVIDER_NOT_FOUND',
+      'PROVIDER_INACTIVE',
+      'PORTAL_ACCESS_DISABLED',
+      'PROVIDER_ID_MISSING'
+    ];
+
+    if ((response.status === 401 || response.status === 403) && authCodes.includes(body.code)) {
+      const returnTo = safeReturnTo(location.pathname + location.search);
+      location.href = '/login?returnTo=' + encodeURIComponent(returnTo) + '&reason=' + encodeURIComponent(body.code || 'SESSION_INVALID');
+      throw Object.assign(new Error(body.message || 'Authentication required'), { code: body.code, status: response.status });
     }
-    if (!response.ok || body.success === false) throw new Error(body.message || 'Request failed');
+
+    if (!response.ok || body.success === false) {
+      throw Object.assign(new Error(body.message || 'Request failed'), {
+        code: body.code || 'REQUEST_FAILED',
+        status: response.status,
+        requestId: body.requestId || response.headers.get('x-request-id') || ''
+      });
+    }
+
     return body;
   }
 
-  function recordId(record, field) {
-    if (!record) return '';
-    const value = record[field] || record.id || record._id || '';
-    if (value && typeof value === 'object') return value.$oid || value.toString?.() || '';
-    return String(value || '');
-  }
-
-  function leadName(lead) {
-    return lead?.name || lead?.customer?.name || '—';
-  }
-
-  function leadMobile(lead) {
-    return lead?.mobile || lead?.customer?.mobile || '—';
-  }
-
-  function leadCity(lead) {
-    return lead?.city || lead?.address?.city || '—';
-  }
-
-  function leadState(lead) {
-    return lead?.state || lead?.address?.state || '';
-  }
-
-  function leadCategory(lead) {
-    if (!lead) return '—';
-    if (typeof lead.category === 'string' && lead.category) return lead.category;
-    if (lead.category && typeof lead.category === 'object' && lead.category.name) return lead.category.name;
-    return humanize(lead.categorySlug || lead.category?.slug || '');
-  }
-
   function money(paise) {
-    const amount = Number(paise);
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(Number.isFinite(amount) ? amount / 100 : 0);
+    }).format(Number(paise || 0) / 100);
   }
 
-  function credits(minorUnits) {
-    const amount = Number(minorUnits);
-    const value = Number.isFinite(amount) ? Math.max(0, amount) / 100 : 0;
-    return new Intl.NumberFormat('en-IN', {
-      minimumFractionDigits: 0,
+  function credits(value) {
+    const amount = Number(value || 0);
+    const formatted = new Intl.NumberFormat('en-IN', {
+      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
       maximumFractionDigits: 2
-    }).format(value) + ' credits';
-  }
-
-  function safeDate(value) {
-    if (!value) return null;
-    const date = new Date(value);
-    return Number.isFinite(date.getTime()) ? date : null;
+    }).format(amount);
+    return `${formatted} ${amount === 1 ? 'Credit' : 'Credits'}`;
   }
 
   function formatDate(value) {
-    const date = safeDate(value);
-    return date
-      ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
-      : '—';
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
   }
 
   function formatDateOnly(value) {
-    const date = safeDate(value);
-    return date
-      ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(date)
-      : '—';
+    if (!value) return 'Flexible';
+    const date = new Date(String(value).length === 10 ? `${value}T00:00:00` : value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(date);
   }
 
-  function formatDateTimeLocal(value) {
-    const date = safeDate(value);
-    if (!date) return '';
-    const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-    return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-  }
+  const PROVIDER_TEXT_EMOJI_PATTERN = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\uFE0F\u20E3]/u;
+  const PROVIDER_TEXT_HTML_PATTERN = /<\/?[A-Za-z][^>]*>|&(?:#\d+|#x[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);/u;
 
-  const HUMAN_TEXT_EMOJI_PATTERN = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\uFE0F\u20E3]/u;
-  const HUMAN_TEXT_HTML_PATTERN = /<\/?[A-Za-z][^>]*>|&(?:#\d+|#x[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);/u;
-
-  function assertPlainHumanText(value, label = 'Text') {
+  function assertProviderPlainText(value, label = 'Text') {
     const text = String(value || '');
-    if (HUMAN_TEXT_EMOJI_PATTERN.test(text)) throw new Error(label + ' must not contain emoji');
-    if (HUMAN_TEXT_HTML_PATTERN.test(text)) throw new Error(label + ' must not contain HTML tags or encoded HTML');
+    if (PROVIDER_TEXT_EMOJI_PATTERN.test(text)) throw new Error(label + ' must not contain emoji');
+    if (PROVIDER_TEXT_HTML_PATTERN.test(text)) throw new Error(label + ' must not contain HTML tags or encoded HTML');
     return text;
   }
 
   function humanize(value) {
-    return String(value || '—').replace(/[_-]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+    return String(value || '—')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[_-]/g, ' ')
+      .replace(/\b\w/g, (character) => character.toUpperCase());
   }
 
-  function statusClass(value) {
-    return 'status-' + String(value || 'unknown').toLowerCase().replace(/_/g, '-');
+  function initials(value) {
+    const parts = String(value || 'Provider').trim().split(/\s+/).filter(Boolean);
+    return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'P';
   }
 
-  function showCrmToast(message, type = 'success', durationMs) {
-    const text = String(message || '').trim();
-    if (!text) return;
-    let region = document.getElementById('crm-toast-region');
-    if (!region) {
-      region = document.createElement('div');
-      region.id = 'crm-toast-region';
-      region.className = 'crm-toast-region';
-      region.setAttribute('aria-live', 'polite');
-      region.setAttribute('aria-atomic', 'false');
-      document.body.appendChild(region);
-    }
-    const normalizedType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
-    const toast = document.createElement('div');
-    toast.className = 'crm-toast crm-toast-' + normalizedType;
-    toast.setAttribute('role', normalizedType === 'error' ? 'alert' : 'status');
-    const icon = document.createElement('span');
-    icon.className = 'crm-toast-icon';
-    icon.textContent = normalizedType === 'success' ? '✓' : normalizedType === 'error' ? '!' : normalizedType === 'warning' ? '!' : 'i';
-    const content = document.createElement('div');
-    content.className = 'crm-toast-content';
-    const title = document.createElement('strong');
-    title.textContent = normalizedType === 'success' ? 'Success' : normalizedType === 'error' ? 'Unable to complete action' : normalizedType === 'warning' ? 'Attention' : 'Information';
-    const body = document.createElement('span');
-    body.textContent = text;
-    content.append(title, body);
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'crm-toast-close';
-    close.setAttribute('aria-label', 'Close notification');
-    close.textContent = '×';
-    const dismiss = () => {
-      toast.classList.add('is-leaving');
-      window.setTimeout(() => toast.remove(), 180);
-    };
-    close.addEventListener('click', dismiss);
-    toast.append(icon, content, close);
-    region.appendChild(toast);
-    const lifetime = Number(durationMs) || (normalizedType === 'error' ? 9000 : 6000);
-    window.setTimeout(dismiss, lifetime);
+  function displayTitleCase(value, fallback = '—') {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return fallback;
+    return text.split(' ').map((word) => {
+      if (/^[A-Z0-9&.+-]{2,6}$/.test(word)) return word;
+      if (/^\d+$/.test(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLocaleLowerCase('en-IN');
+    }).join(' ');
   }
 
-  function createCursorPagination(limit = 20) {
+  function displaySentenceCase(value, fallback = '—') {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return fallback;
+    const firstLetterIndex = text.search(/[A-Za-z]/);
+    if (firstLetterIndex < 0) return text;
+    return text.slice(0, firstLetterIndex)
+      + text.charAt(firstLetterIndex).toLocaleUpperCase('en-IN')
+      + text.slice(firstLetterIndex + 1);
+  }
+
+  function displayLocation(...parts) {
+    const values = parts.flat().filter((value) => String(value || '').trim());
+    if (!values.length) return '—';
+    return values.map((value) => {
+      const text = String(value).trim();
+      return /^\d{5,6}$/.test(text) ? text : displayTitleCase(text, text);
+    }).join(', ');
+  }
+
+  const providerDrawerState = {
+    open: false,
+    lastFocused: null,
+    scrollY: 0
+  };
+
+  function providerDrawerElements() {
     return {
-      limit,
-      page: 1,
-      cursor: '',
-      nextCursor: '',
-      hasNext: false,
-      returned: 0,
-      history: []
+      button: document.querySelector('[data-portal-menu-toggle]'),
+      sidebar: document.getElementById('providerSidebar'),
+      overlay: document.querySelector('[data-portal-menu-overlay]'),
+      closeButton: document.querySelector('[data-portal-menu-close]')
     };
   }
 
-  function resetCursorPagination(pagination) {
-    pagination.page = 1;
-    pagination.cursor = '';
-    pagination.nextCursor = '';
-    pagination.hasNext = false;
-    pagination.returned = 0;
-    pagination.history = [];
-  }
+  function setProviderSidebarOpen(open, { restoreFocus = true } = {}) {
+    const mobile = window.matchMedia('(max-width: 991.98px)').matches;
+    const shouldOpen = Boolean(open) && mobile;
+    const wasOpen = providerDrawerState.open;
+    const { button, sidebar, overlay } = providerDrawerElements();
 
-  function applyCursorPagination(pagination, response = {}) {
-    const requestedLimit = Number(response.limit || pagination.limit || 20);
-    pagination.limit = Number.isInteger(requestedLimit) && requestedLimit > 0
-      ? Math.min(100, requestedLimit)
-      : 20;
-    pagination.nextCursor = typeof response.nextCursor === 'string' ? response.nextCursor : '';
-    pagination.hasNext = Boolean(response.hasNext && pagination.nextCursor);
-    const returned = Number(response.returned || 0);
-    pagination.returned = Number.isFinite(returned) && returned >= 0 ? returned : 0;
-  }
+    if (shouldOpen && !wasOpen) {
+      providerDrawerState.lastFocused = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : button;
+      providerDrawerState.scrollY = window.scrollY || window.pageYOffset || 0;
+    }
 
-  function cursorNext(pagination) {
-    if (!pagination.hasNext || !pagination.nextCursor) return false;
-    pagination.history.push(pagination.cursor || '');
-    pagination.cursor = pagination.nextCursor;
-    pagination.page += 1;
-    return true;
-  }
+    providerDrawerState.open = shouldOpen;
+    document.body.classList.toggle('portal-sidebar-open', shouldOpen);
+    document.documentElement.classList.toggle('portal-sidebar-open', shouldOpen);
 
-  function cursorPrevious(pagination) {
-    if (pagination.page <= 1 || !pagination.history.length) return false;
-    pagination.cursor = pagination.history.pop() || '';
-    pagination.page -= 1;
-    return true;
-  }
+    document.body.style.overflow = shouldOpen ? 'hidden' : '';
+    document.documentElement.style.overflow = shouldOpen ? 'hidden' : '';
+    if (!shouldOpen && wasOpen) providerDrawerState.scrollY = 0;
 
-  const CRM_SIDEBAR_COLLAPSED_KEY = 'leadops.crm.sidebar.collapsed.v1';
+    if (button) {
+      button.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+      button.setAttribute('aria-label', shouldOpen ? 'Close navigation' : 'Open navigation');
+    }
+    if (sidebar) {
+      sidebar.setAttribute('aria-hidden', shouldOpen ? 'false' : (mobile ? 'true' : 'false'));
+      sidebar.toggleAttribute('data-drawer-open', shouldOpen);
+    }
+    if (overlay) {
+      overlay.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+      overlay.toggleAttribute('data-overlay-open', shouldOpen);
+    }
 
-  function readSidebarCollapsed() {
-    try {
-      return window.localStorage.getItem(CRM_SIDEBAR_COLLAPSED_KEY) === '1';
-    } catch (error) {
-      return false;
+    if (shouldOpen) {
+      window.requestAnimationFrame(() => {
+        const firstTarget = sidebar?.querySelector('[data-portal-menu-close], [data-portal-menu-link]');
+        firstTarget?.focus({ preventScroll: true });
+      });
+    } else if (restoreFocus && providerDrawerState.lastFocused instanceof HTMLElement) {
+      providerDrawerState.lastFocused.focus({ preventScroll: true });
+      providerDrawerState.lastFocused = null;
     }
   }
 
-  function syncSidebarDocumentState(collapsed) {
-    document.documentElement.classList.toggle('crm-sidebar-saved-collapsed', Boolean(collapsed));
+  let providerNavigationInitialized = false;
+
+  function initializeProviderNavigation() {
+    if (providerNavigationInitialized) return;
+    providerNavigationInitialized = true;
+
+    const { button, closeButton, overlay, sidebar } = providerDrawerElements();
+    const closeNavigation = (restoreFocus = true) => setProviderSidebarOpen(false, { restoreFocus });
+
+    if (button) {
+      button.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setProviderSidebarOpen(!providerDrawerState.open);
+      };
+    }
+
+    if (closeButton) {
+      closeButton.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeNavigation();
+      };
+    }
+
+    if (overlay) {
+      overlay.onclick = (event) => {
+        event.preventDefault();
+        closeNavigation();
+      };
+    }
+
+    if (sidebar) {
+      sidebar.querySelectorAll('a[data-portal-menu-link]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+          if (!window.matchMedia('(max-width: 991.98px)').matches) return;
+          const href = link.getAttribute('href');
+          if (!href) return;
+          event.preventDefault();
+          event.stopPropagation();
+          closeNavigation(false);
+          window.setTimeout(() => window.location.assign(href), 0);
+        }, true);
+      });
+    }
+
+    document.querySelectorAll('.portal-mobile-nav a').forEach((link) => {
+      link.addEventListener('click', () => closeNavigation(false));
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && providerDrawerState.open) closeNavigation();
+      if (event.key !== 'Tab' || !providerDrawerState.open || !sidebar) return;
+
+      const focusable = Array.from(sidebar.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )).filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 992) closeNavigation(false);
+    }, { passive: true });
+    window.addEventListener('pageshow', () => closeNavigation(false), { passive: true });
+
+    closeNavigation(false);
   }
 
-  function enableSidebarTransitionsAfterInitialLayout() {
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        document.documentElement.classList.remove('crm-sidebar-no-transition');
-      });
-    });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeProviderNavigation, { once: true });
+  } else {
+    initializeProviderNavigation();
   }
 
   document.addEventListener('submit', (event) => {
@@ -240,9 +310,9 @@
     if (!(form instanceof HTMLFormElement) || form.dataset.allowRichText === 'true') return;
     const fields = form.querySelectorAll('input[type="text"], input[type="search"], textarea');
     for (const field of fields) {
-      if (field.disabled || field.dataset.allowRichText === 'true' || field.classList.contains('crm-json')) continue;
+      if (field.disabled || field.dataset.allowRichText === 'true') continue;
       try {
-        assertPlainHumanText(field.value, field.labels?.[0]?.textContent?.trim() || field.placeholder || 'Text');
+        assertProviderPlainText(field.value, field.labels?.[0]?.textContent?.trim() || field.placeholder || 'Text');
       } catch (error) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -250,50 +320,72 @@
         field.setCustomValidity(error.message);
         field.reportValidity();
         window.setTimeout(() => field.setCustomValidity(''), 0);
-        showCrmToast(error.message, 'error');
         return;
       }
     }
   }, true);
 
-  function crmShell() {
+  function providerShell(config = {}) {
     return {
-      admin: {},
+      provider: {},
       shellError: '',
-      sidebarOpen: false,
-      sidebarCollapsed: readSidebarCollapsed(),
+      shellSearch: new URLSearchParams(location.search).get('q') || '',
+      page: { title: config.title || '', subtitle: config.subtitle || '' },
+      queryStatus: new URLSearchParams(location.search).get('status') || '',
+      notice: { show: false, type: 'success', message: '' },
+      noticeTimer: null,
+
       async initShell() {
-        syncSidebarDocumentState(this.sidebarCollapsed);
-        enableSidebarTransitionsAfterInitialLayout();
+        await this.refreshProfile();
+      },
+
+      async refreshProfile() {
         try {
-          this.admin = (await apiFetch('/api/auth/me')).data || {};
+          this.provider = (await apiFetch('/api/profile')).data;
+          this.shellError = '';
         } catch (error) {
           this.shellError = error.message;
-          showCrmToast(error.message, 'error');
         }
       },
-      toggleSidebar() {
-        this.sidebarCollapsed = !this.sidebarCollapsed;
-        syncSidebarDocumentState(this.sidebarCollapsed);
-        try {
-          window.localStorage.setItem(CRM_SIDEBAR_COLLAPSED_KEY, this.sidebarCollapsed ? '1' : '0');
-        } catch (error) {
-          // The sidebar still works when browser storage is unavailable.
-        }
-      },
-      can(permission) {
-        const permissions = Array.isArray(this.admin.permissions) ? this.admin.permissions : [];
-        return permissions.includes('*') || permissions.includes(permission);
-      },
+
       pathIs(path) {
         return location.pathname === path || location.pathname.startsWith(path + '/');
       },
+
+      setPage(detail = {}) {
+        if (detail.title) this.page.title = detail.title;
+        this.page.subtitle = detail.subtitle || '';
+        if (detail.documentTitle) document.title = detail.documentTitle;
+      },
+
+      notify(detail = {}) {
+        clearTimeout(this.noticeTimer);
+        this.notice = {
+          show: true,
+          type: detail.type || 'success',
+          message: detail.message || ''
+        };
+        this.noticeTimer = setTimeout(() => { this.notice.show = false; }, 4500);
+      },
+
+      runSearch() {
+        const query = String(this.shellSearch || '').trim();
+        location.href = query ? `/leads?q=${encodeURIComponent(query)}` : '/leads';
+      },
+
+      toggleSidebar() {
+        setProviderSidebarOpen(!document.body.classList.contains('portal-sidebar-open'));
+      },
+
+      closeSidebar() {
+        setProviderSidebarOpen(false);
+      },
+
       async logout() {
         try {
           await apiFetch('/api/auth/logout', { method: 'POST', body: '{}' });
+        } finally {
           location.href = '/login';
-        } catch (error) {
-          this.shellError = error.message;
         }
       }
     };

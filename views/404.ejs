@@ -1,10 +1,12 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en" dir="ltr">
-  <%- include('partials/head') %>
-  <body>
-    <div class="container py-5 text-center">
-      <h1>Page not found</h1>
-      <a href="/dashboard" class="btn btn-primary">Dashboard</a>
-    </div>
-  </body>
+<%- include('partials/head') %>
+<body class="portal-error-body">
+  <main class="portal-error-card">
+    <span class="portal-error-mark">404</span>
+    <h1>Page not found</h1>
+    <p>The requested provider portal page does not exist.</p>
+    <a href="/dashboard" class="btn btn-primary mt-3">Back to dashboard</a>
+  </main>
+</body>
 </html>

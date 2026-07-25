@@ -1,28 +1,41 @@
-#!/usr/bin/env node
 "use strict";
 require("dotenv").config();
 const mongoose = require("mongoose");
 const connectDatabase = require("../db/connection");
-const Category = require("../models/Category");
-const ServiceType = require("../models/ServiceType");
 const Enquiry = require("../models/Enquiry");
-const LeadDistribution = require("../models/LeadDistribution");
+const ProviderLeadUnlock = require("../models/ProviderLeadUnlock");
+const PaymentOrder = require("../models/PaymentOrder");
+const WalletTransaction = require("../models/WalletTransaction");
 const ProviderSubscription = require("../models/ProviderSubscription");
+
+function indexedModels() {
+  return [
+    Enquiry,
+    ProviderLeadUnlock,
+    PaymentOrder,
+    WalletTransaction,
+    ProviderSubscription,
+  ];
+}
 
 async function run() {
   await connectDatabase();
-  const models = [Category, ServiceType, Enquiry, LeadDistribution, ProviderSubscription];
-  for (const model of models) {
+  for (const model of indexedModels()) {
     await model.createIndexes();
-    console.log(`Indexes ensured: ${model.collection.collectionName}`);
+    console.log(`Indexes ensured: ${model.modelName}`);
   }
 }
 
-run()
-  .catch((error) => {
-    console.error(error.stack || error.message);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await mongoose.disconnect().catch(() => {});
-  });
+if (require.main === module) {
+  run()
+    .catch((error) => {
+      console.error(error.stack || error.message);
+      process.exitCode = 1;
+    })
+    .finally(async () => mongoose.disconnect().catch(() => {}));
+}
+
+module.exports = {
+  indexedModels,
+  run,
+};

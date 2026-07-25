@@ -2,37 +2,23 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta id="portal-theme-color" name="theme-color" content="#ffffff">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" href="/images/findoly-logo.png">
   <title><%= title ? title + ' · ' : '' %><%= appName %></title>
-  <script>
-    (function restoreSidebarBeforePaint() {
-      const storageKey = 'leadops.crm.sidebar.collapsed.v1';
-      const root = document.documentElement;
-
-      root.classList.add('crm-sidebar-no-transition');
-
-      try {
-        const isDesktop = window.matchMedia('(min-width: 992px)').matches;
-        const isCollapsed = window.localStorage.getItem(storageKey) === '1';
-        root.classList.toggle('crm-sidebar-saved-collapsed', isDesktop && isCollapsed);
-      } catch (error) {
-        root.classList.remove('crm-sidebar-saved-collapsed');
-      }
-
-      window.addEventListener('load', () => {
-        root.classList.remove('crm-sidebar-no-transition');
-      }, { once: true });
+  <script nonce="<%= cspNonce %>">
+    (() => {
+      document.documentElement.dataset.portalTheme = 'professional-blue';
+      try { localStorage.removeItem('providerPortalTheme'); } catch (_) {}
+      const meta = document.getElementById('portal-theme-color');
+      if (meta) meta.setAttribute('content', '#ffffff');
     })();
   </script>
-  <script>
-    window.__crmServerUser = <%- JSON.stringify(((typeof currentAdmin !== "undefined") && currentAdmin && (currentAdmin.employeeId || currentAdmin.mobile)) || "guest").replace(/</g, "\\u003c") %>;
-    document.documentElement.dataset.crmUser = window.__crmServerUser;
-  </script>
-  <link href="/css/inter.css" rel="stylesheet" type="text/css">
+  <link href="/css/inter.css?v=provider-blue-locked-20260719-1" rel="stylesheet" type="text/css">
   <link href="/css/styles.min.css" rel="stylesheet" type="text/css">
-  <link href="/css/all.min.css" rel="stylesheet" type="text/css">
-  <link href="/css/app.css" rel="stylesheet" type="text/css">
-  <script src="/js/appearance.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <script src="/js/bootstrap.bundle.min.js" defer></script>
-  <style>[x-cloak]{display:none!important}.api-error{white-space:pre-wrap}.crm-loading{opacity:.55;pointer-events:none}.crm-table-actions{white-space:nowrap}.crm-filter-toolbar .form-control,.crm-filter-toolbar .form-select{min-height:38px}.crm-stat-value{font-size:1.65rem;font-weight:700}.crm-json{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.78rem;white-space:pre-wrap}</style>
+  <link href="/css/app.css?v=provider-grid-row-neutral-findoly-logo-20260720-1" rel="stylesheet" type="text/css">
+  <script nonce="<%= cspNonce %>" defer src="/js/alpine.min.js"></script>
+  <script nonce="<%= cspNonce %>" src="/js/bootstrap.bundle.min.js" defer></script>
 </head>

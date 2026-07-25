@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body
+  x-data='providerShell({ title: <%- JSON.stringify(title || "") %>, subtitle: <%- JSON.stringify(subtitle || "") %> })'
+  x-init="initShell()"
+  @wallet-updated.window="refreshProfile()"
+  @credits-updated.window="refreshProfile()"
+  @portal-notify.window="notify($event.detail)"
+>
+<%- include('../partials/navbar') %>
+<div class="page-content workspace-page-shell">
+  <%- include('../partials/sidebar') %>
+  <div class="content-wrapper">
+    <div class="content-inner">
+      <div class="content provider-plans-content" x-data="plansPage()" x-init="load()">
+        <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
+        <div x-show="error" x-cloak class="alert alert-danger portal-flash" role="alert">
+          <span x-text="error"></span>
+          <small class="d-block mt-1" x-show="errorRequestId" x-text="`Reference: ${errorRequestId}`"></small>
+        </div>
+        <div x-show="success" x-cloak class="alert alert-success portal-flash" x-text="success"></div>
+
+        <section class="provider-plans-intro mb-3" aria-labelledby="plans-title">
+          <div>
+            <span class="provider-section-kicker">Wallet &amp; subscription</span>
+            <h1 id="plans-title">Plans &amp; credits</h1>
+            <p>Choose a plan, manage credits and review payment activity.</p>
+          </div>
+          <a class="btn btn-light" href="/leads?status=marketplace">Browse leads</a>
+        </section>
+
+        <div class="row g-3 mb-4 provider-wallet-overview">
+          <div class="col-lg-5">
+            <div class="card portal-card portal-credit-balance-card provider-credit-overview h-100">
+              <div class="card-body">
+                <div class="provider-credit-overview-heading">
+                  <span class="provider-credit-overview-icon"><svg class="icon"><use href="#i-wallet"></use></svg></span>
+                  <div>
+                    <span>Available credits</span>
+                    <small>Ready to unlock matched leads</small>
+                  </div>
+                </div>
+                <strong class="provider-credit-overview-value" x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong>
+                <div class="provider-credit-overview-meta">
+                  <span x-show="data.provider?.currentPlanExpiresAt" x-text="`Valid through ${formatDateOnly(data.provider.currentPlanExpiresAt)}`"></span>
+                  <span x-show="!data.provider?.currentPlanExpiresAt">No expiry shown for your current balance</span>
+                </div>
+                <div class="provider-credit-overview-actions">
+                  <a class="btn btn-light btn-sm" href="/leads?status=marketplace">Use credits</a>
+                  <button class="btn btn-outline-light btn-sm" type="button" @click="$refs.creditActivity?.scrollIntoView({ behavior: 'smooth', block: 'start' })">View activity</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-7">
+            <div class="card portal-card provider-current-plan-card h-100">
+              <div class="card-body portal-current-plan">
+                <div class="d-flex align-items-start gap-3">
+                  <div class="portal-current-plan-icon"><svg class="icon"><use href="#i-plan"></use></svg></div>
+                  <div class="flex-grow-1 min-w-0">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                      <h5 class="mb-0" x-text="currentPlanTitle"></h5>
+                      <span class="badge bg-success-subtle text-success" x-show="data.currentSubscription" x-cloak>Active</span>
+                      <span class="badge bg-primary-subtle text-primary" x-show="data.upcomingSubscription" x-cloak>Renewal scheduled</span>
+                    </div>
+                    <div class="text-muted provider-current-plan-description" x-text="currentPlanDescription"></div>
+                    <div class="portal-plan-dates mt-3" x-show="data.currentSubscription || data.upcomingSubscription" x-cloak>
+                      <div x-show="data.currentSubscription">
+                        <span>Current validity</span>
+                        <strong x-text="`${formatDateOnly(data.currentSubscription?.startsAt)} – ${formatDateOnly(data.currentSubscription?.expiresAt)}`"></strong>
+                      </div>
+                      <div x-show="data.upcomingSubscription">
+                        <span>Next plan starts</span>
+                        <strong x-text="formatDateOnly(data.upcomingSubscription?.startsAt)"></strong>
+                      </div>
+                    </div>
+                    <button x-show="!data.currentSubscription" class="btn btn-primary btn-sm mt-3" type="button" @click="document.getElementById('provider-plan-options')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Choose a plan</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="provider-plan-options" class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-3 provider-plan-section-heading">
+          <div>
+            <h4 class="mb-1">Choose your plan</h4>
+            <p class="text-muted mb-0">Monthly prices add 18% GST at checkout. Yearly prices already include GST.</p>
+          </div>
+          <div class="portal-billing-toggle" role="group" aria-label="Billing period">
+            <button type="button" :class="billingCycle === 'monthly' ? 'active' : ''" @click="billingCycle = 'monthly'">Monthly</button>
+            <button type="button" :class="billingCycle === 'yearly' ? 'active' : ''" @click="billingCycle = 'yearly'">
+              Yearly
+              <span>More bonus credits</span>
+            </button>
+          </div>
+        </div>
+
+        <div x-show="data.razorpay && !data.razorpay.enabled" x-cloak class="alert alert-warning mb-4">
+          Plan checkout is temporarily unavailable because Razorpay is not configured.
+        </div>
+
+        <div class="row g-4 portal-plan-grid mb-4" :class="loading ? 'portal-loading' : ''">
+          <template x-for="plan in plans" :key="plan.code">
+            <div class="col-lg-4">
+              <div class="card portal-card portal-plan-card h-100" :class="plan.recommended ? 'is-recommended' : ''">
+                <div class="portal-plan-ribbon" x-show="plan.recommended">Most Popular</div>
+                <div class="card-body d-flex flex-column">
+                  <div class="mb-3">
+                    <h4 class="mb-1" x-text="plan.name"></h4>
+                    <p class="text-muted mb-0" x-text="plan.tagline"></p>
+                  </div>
+
+                  <div class="portal-plan-price">
+                    <strong x-text="money(cycleFor(plan).listedPricePaise)"></strong>
+                    <span x-text="billingCycle === 'monthly' ? '/ month' : '/ year'"></span>
+                  </div>
+                  <div class="portal-tax-label" :class="cycleFor(plan).gstIncluded ? 'is-included' : ''">
+                    <span x-text="cycleFor(plan).gstIncluded ? 'GST included' : '+ 18% GST at checkout'"></span>
+                    <strong x-show="!cycleFor(plan).gstIncluded" x-text="`Total ${money(cycleFor(plan).totalAmountPaise)}`"></strong>
+                  </div>
+
+                  <div class="portal-credit-total my-4">
+                    <span>Total plan credits</span>
+                    <strong x-text="credits(cycleFor(plan).totalCredits)"></strong>
+                    <small x-show="cycleFor(plan).bonusCredits > 0" x-text="`${credits(cycleFor(plan).bonusCredits)} bonus (${cycleFor(plan).bonusPercent}%)`"></small>
+                    <small x-show="cycleFor(plan).bonusCredits === 0" x-text="`${credits(cycleFor(plan).baseCredits)} base credits`"></small>
+                  </div>
+
+                  <ul class="portal-plan-features">
+                    <template x-for="feature in plan.features" :key="feature">
+                      <li><svg class="icon"><use href="#i-check"></use></svg><span x-text="feature"></span></li>
+                    </template>
+                  </ul>
+
+                  <div class="portal-plan-value mt-auto pt-3">
+                    <span x-text="`${money(Math.round(cycleFor(plan).totalAmountPaise / cycleFor(plan).totalCredits))} per credit`"></span>
+                    <span x-text="`${cycleFor(plan).durationDays} days validity`"></span>
+                  </div>
+
+                  <button
+                    class="btn w-100 mt-3"
+                    :class="plan.recommended ? 'btn-primary' : 'btn-outline-primary'"
+                    type="button"
+                    @click="purchase(plan)"
+                    :disabled="submitting || loading || !data.razorpay?.enabled"
+                  >
+                    <span class="spinner-border spinner-border-sm me-2" x-show="submittingPlan === plan.code" x-cloak></span>
+                    <span x-text="buttonLabel(plan)"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <div class="row g-4 align-items-start">
+          <div class="col-xl-7">
+            <div class="card portal-card" x-ref="creditActivity">
+              <div class="card-header border-bottom d-flex align-items-center">
+                <div>
+                  <h5 class="mb-1">Credit activity</h5>
+                  <div class="text-muted fs-sm">Plan credits, lead deductions and expired credits remain visible here.</div>
+                </div>
+                <span class="badge bg-light text-body border ms-auto" x-text="`${pagination.returned || 0}${pagination.hasNext ? '+' : ''} shown`"></span>
+              </div>
+              <div class="table-responsive">
+                <table class="table portal-table mb-0">
+                  <thead>
+                    <tr>
+                      <th>Activity</th>
+                      <th>Description</th>
+                      <th>Credits</th>
+                      <th>Balance</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="transaction in transactions" :key="transaction.walletTransactionId">
+                      <tr>
+                        <td><span class="badge" :class="transactionBadgeClass(transaction)" x-text="humanize(transaction.type)"></span></td>
+                        <td>
+                          <div class="fw-semibold" x-text="transaction.description || humanize(transaction.source)"></div>
+                          <div class="text-muted fs-sm" x-show="transaction.expiresAt" x-text="`Validity: ${formatDateOnly(transaction.expiresAt)}`"></div>
+                        </td>
+                        <td class="fw-semibold" :class="transaction.type === 'credit' ? 'text-success' : (transaction.type === 'debit' ? 'text-danger' : 'text-muted')" x-text="transactionAmount(transaction)"></td>
+                        <td x-text="credits(transaction.balanceAfterCredits)"></td>
+                        <td x-text="formatDate(transaction.createdAt)"></td>
+                      </tr>
+                    </template>
+                    <tr x-show="loading"><td colspan="5" class="text-center text-muted py-5">Loading credit activity…</td></tr>
+                    <tr x-show="!loading && !transactions.length">
+                      <td colspan="5" class="text-center py-5">
+                        <div class="portal-empty-icon"><svg class="icon"><use href="#i-credit"></use></svg></div>
+                        <div class="fw-semibold mt-2">No credit activity yet</div>
+                        <div class="text-muted fs-sm mt-1">Purchased plan credits, Findoly credit adjustments and lead deductions will appear here.</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="card-footer portal-pagination" x-show="cursorHistory.length || pagination.hasNext">
+                <button class="btn btn-light btn-sm" :disabled="!cursorHistory.length || loading" @click="goPrevious()">Previous</button>
+                <span class="mx-auto fs-sm" x-text="`${pagination.returned || 0} shown`"></span>
+                <button class="btn btn-light btn-sm" :disabled="!pagination.hasNext || loading" @click="goNext()">Next</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-5">
+            <div class="card portal-card">
+              <div class="card-header border-bottom">
+                <h5 class="mb-1">Payment history</h5>
+                <div class="text-muted fs-sm">Plan purchases and direct lead payments.</div>
+              </div>
+              <div class="list-group list-group-flush">
+                <template x-for="order in paymentOrders" :key="order.paymentOrderId">
+                  <div class="list-group-item portal-payment-row">
+                    <span class="portal-payment-state" :class="order.fulfilled ? 'is-paid' : (order.fulfillmentStatus === 'manual_review' ? 'is-review' : 'is-pending')"></span>
+                    <div class="flex-grow-1 min-w-0">
+                      <div class="fw-semibold" x-text="order.description"></div>
+                      <div class="text-muted fs-sm">
+                        <span x-text="money(order.totalAmountPaise)"></span>
+                        <span> · </span>
+                        <span x-text="formatDate(order.createdAt)"></span>
+                      </div>
+                      <div class="text-muted fs-sm" x-show="order.gstAmountPaise > 0">
+                        GST <span x-text="money(order.gstAmountPaise)"></span>
+                        <span x-text="order.gstIncluded ? ' included' : ' added'"></span>
+                      </div>
+                    </div>
+                    <span class="badge" :class="paymentBadgeClass(order)" x-text="paymentStatus(order)"></span>
+                  </div>
+                </template>
+                <div class="list-group-item text-center py-5" x-show="!loading && !paymentOrders.length">
+                  <div class="text-muted">No payments yet.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%- include('../partials/footer') %>
+    </div>
+  </div>
+</div>
+<div class="portal-sidebar-overlay" data-portal-menu-overlay aria-hidden="true"></div>
+<script nonce="<%= cspNonce %>" src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<%- include('../partials/scripts') %>
+<script nonce="<%= cspNonce %>">
+  function plansPage() {
+    return {
+      data: {},
+      plans: [],
+      transactions: [],
+      paymentOrders: [],
+      pagination: { limit: 20, returned: 0, hasNext: false, nextCursor: '', cursor: '' },
+      cursorHistory: [],
+      billingCycle: 'monthly',
+      loading: true,
+      submitting: false,
+      submittingPlan: '',
+      error: '',
+      errorRequestId: '',
+      success: '',
+
+      get currentPlanTitle() {
+        const current = this.data.currentSubscription;
+        const upcoming = this.data.upcomingSubscription;
+        if (current) return `${current.planName} · ${humanize(current.billingCycle)}`;
+        if (upcoming) return `${upcoming.planName} renewal scheduled`;
+        return 'No active plan';
+      },
+
+      get currentPlanDescription() {
+        if (this.data.currentSubscription) {
+          return `${credits(this.data.currentSubscription.totalCredits)} were allocated when this plan was purchased.`;
+        }
+        if (this.data.upcomingSubscription) {
+          return 'Your next plan is scheduled after the current validity period.';
+        }
+        return 'Choose a plan to receive credits immediately after verified payment.';
+      },
+
+      cycleFor(plan) {
+        return plan?.[this.billingCycle] || {};
+      },
+
+      buttonLabel(plan) {
+        if (this.submittingPlan === plan.code) return 'Opening secure checkout…';
+        if (this.data.provider?.currentPlanCode === plan.code) return `Renew ${plan.name}`;
+        return `Choose ${plan.name}`;
+      },
+
+      transactionBadgeClass(transaction) {
+        if (transaction.type === 'credit') return 'bg-success-subtle text-success';
+        if (transaction.type === 'debit') return 'bg-danger-subtle text-danger';
+        return 'bg-light text-muted border';
+      },
+
+      transactionAmount(transaction) {
+        if (transaction.type === 'credit') return `+${credits(transaction.amountCredits)}`;
+        return `-${credits(transaction.amountCredits)}`;
+      },
+
+      paymentStatus(order) {
+        if (order.fulfillmentStatus === 'manual_review') return 'Review';
+        if (order.fulfilled) return 'Completed';
+        return humanize(order.status || 'pending');
+      },
+
+      paymentBadgeClass(order) {
+        if (order.fulfillmentStatus === 'manual_review') return 'bg-warning-subtle text-warning';
+        if (order.fulfilled) return 'bg-success-subtle text-success';
+        return 'bg-light text-muted border';
+      },
+
+      async load() {
+        this.loading = true;
+        this.error = '';
+        this.errorRequestId = '';
+        try {
+          const query = new URLSearchParams({ limit: '20' });
+          if (this.pagination.cursor) query.set('cursor', this.pagination.cursor);
+          this.data = (await apiFetch(`/api/wallet?${query.toString()}`)).data;
+          this.plans = this.data.plans || [];
+          this.transactions = this.data.data || [];
+          this.paymentOrders = this.data.paymentOrders || [];
+          this.pagination = { ...(this.data.pagination || { limit: 20, returned: this.transactions.length, hasNext: false, nextCursor: '' }), cursor: this.pagination.cursor || '' };
+        } catch (error) {
+          this.error = error.message;
+          this.errorRequestId = error.requestId || '';
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      async purchase(plan) {
+        if (this.submitting || !this.data.razorpay?.enabled) return;
+        this.submitting = true;
+        this.submittingPlan = plan.code;
+        this.error = '';
+        this.errorRequestId = '';
+        this.success = '';
+
+        try {
+          if (typeof Razorpay !== 'function') throw new Error('Razorpay Checkout could not be loaded. Check your connection and try again.');
+          const order = (await apiFetch('/api/wallet/plan/order', {
+            method: 'POST',
+            body: JSON.stringify({ planCode: plan.code, billingCycle: this.billingCycle })
+          })).data;
+
+          const cancelPendingOrder = async () => {
+            await apiFetch('/api/wallet/plan/cancel', {
+              method: 'POST',
+              body: JSON.stringify({ paymentOrderId: order.paymentOrderId })
+            }).catch(() => {});
+          };
+
+          const checkout = new Razorpay({
+            key: order.keyId,
+            amount: order.amountPaise,
+            currency: order.currency,
+            name: 'Findoly',
+            description: `${order.plan.name} ${humanize(order.plan.billingCycle)} plan`,
+            order_id: order.razorpayOrderId,
+            retry: { enabled: true },
+            remember_customer: false,
+            prefill: {
+              name: order.provider?.name || '',
+              email: order.provider?.email || '',
+              contact: order.provider?.mobile || ''
+            },
+            notes: {
+              paymentOrderId: order.paymentOrderId,
+              purpose: 'plan_purchase',
+              planCode: order.plan.code
+            },
+            theme: { color: '#2563eb' },
+            handler: async (payment) => {
+              try {
+                const verification = (await apiFetch('/api/wallet/verify', {
+                  method: 'POST',
+                  body: JSON.stringify(payment)
+                })).data;
+                if (verification.status === 'pending') {
+                  this.success = verification.message || 'Payment is authorised and will complete after capture.';
+                } else {
+                  this.success = `${credits(order.plan.totalCredits)} added successfully with the ${order.plan.name} plan.`;
+                  this.$dispatch('credits-updated');
+                }
+                this.pagination.cursor = ''; this.cursorHistory = []; await this.load();
+              } catch (error) {
+                this.error = error.message;
+                this.errorRequestId = error.requestId || '';
+              } finally {
+                this.submitting = false;
+                this.submittingPlan = '';
+              }
+            },
+            modal: {
+              confirm_close: true,
+              ondismiss: async () => {
+                await cancelPendingOrder();
+                this.submitting = false;
+                this.submittingPlan = '';
+                await this.load();
+              }
+            }
+          });
+
+          checkout.on('payment.failed', async (response) => {
+            this.error = response.error?.description || 'Razorpay payment failed';
+            await cancelPendingOrder();
+            this.submitting = false;
+            this.submittingPlan = '';
+            await this.load();
+          });
+          checkout.open();
+        } catch (error) {
+          this.error = error.message;
+          this.errorRequestId = error.requestId || '';
+          this.submitting = false;
+          this.submittingPlan = '';
+        }
+      },
+
+      goNext() {
+        if (!this.pagination.nextCursor) return;
+        this.cursorHistory.push(this.pagination.cursor || '');
+        this.pagination.cursor = this.pagination.nextCursor;
+        this.load();
+      },
+
+      goPrevious() {
+        if (!this.cursorHistory.length) return;
+        this.pagination.cursor = this.cursorHistory.pop() || '';
+        this.load();
+      }
+    };
+  }
+</script>
+</body>
+</html>

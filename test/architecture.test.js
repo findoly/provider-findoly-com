@@ -1,116 +1,126 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const fs = require("fs");
-const path = require("path");
-const request = require("supertest");
-const { adminCookie } = require("./helpers/auth");
+const fs = require("node:fs");
+const path = require("node:path");
+const { presentLead } = require("../utils/lead");
 
-process.env.SKIP_DB = "true";
-process.env.AUTH_COOKIE_NAME = "service_crm_admin";
+const root = path.join(__dirname, "..");
+const source = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-const app = require("../app");
-const Enquiry = require("../models/Enquiry");
-const Provider = require("../models/Provider");
-const LeadDistribution = require("../models/LeadDistribution");
-
-function source(relativePath) {
-  return fs.readFileSync(path.join(__dirname, "..", relativePath), "utf8");
+function activeLeadSources() {
+  return [
+    "models/Enquiry.js",
+    "models/ProviderLeadUnlock.js",
+    "models/PaymentOrder.js",
+    "services/marketplace/marketplace-service.js",
+    "services/lead/lead-service.js",
+    "services/wallet/lead-payment-service.js",
+    "controllers/leadController.js",
+    "routes/lead.js",
+    "views/lead/index.ejs",
+    "views/lead/show.ejs",
+  ].map(source).join("\n");
 }
 
-function allViewFiles() {
-  const root = path.join(__dirname, "..", "views");
-  const files = [];
-  function walk(folder) {
-    for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
-      const target = path.join(folder, entry.name);
-      if (entry.isDirectory()) walk(target);
-      else if (entry.name.endsWith(".ejs")) files.push(target);
-    }
-  }
-  walk(root);
-  return files;
-}
-
-
-test("CRM separates frontend page routes from JSON API routes", async () => {
-  assert.equal(typeof app, "function");
-  assert.ok(require("../routes/frontend"));
-  assert.ok(require("../routes/main"));
-
-  const response = await request(app).get("/api/dashboard");
-  assert.equal(response.status, 401);
-  assert.equal(response.type, "application/json");
-  assert.equal(response.body.success, false);
+test("marketplace architecture stores one enquiry and creates provider rows only after unlock", () => {
+  assert.equal(fs.existsSync(path.join(root, "models/LeadDistribution.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "services/marketplace/offer-service.js")), false);
+  const model = source("models/ProviderLeadUnlock.js");
+  assert.match(model, /collection:\s*"providerleadunlocks"/);
+  assert.match(model, /\{ providerId: 1, enquiryId: 1 \}, \{ unique: true \}/);
+  assert.match(source("services/marketplace/marketplace-service.js"), /Enquiry\.find\(/);
+  assert.match(source("services/lead/lead-service.js"), /ProviderLeadUnlock\.create/);
 });
 
-test("frontend controller renders titles only and does not import models or services", () => {
-  const controller = source("controllers/frontendController.js");
-  assert.doesNotMatch(controller, /models\//);
-  assert.doesNotMatch(controller, /services\//);
-  assert.doesNotMatch(controller, /req\.params|req\.query/);
-  assert.match(controller, /res\.render\(view, \{ title \}\)/);
+test("redesigned lead workflow avoids aggregation, expression queries, deep skip and legacy distribution terms", () => {
+  const text = activeLeadSources();
+  assert.doesNotMatch(text, /LeadDistribution|leaddistributions|leadDistributionId|pendingUnlockCount/);
+  assert.doesNotMatch(text, /\.aggregate\s*\(|\$expr|\.skip\s*\(/);
+  assert.match(text, /cursorPaginate|encodeCursor/);
+  assert.match(text, /module\.exports/);
+  assert.doesNotMatch(text, /\bexport\s+default\b|\bimport\s+.+from\b/);
 });
 
-test("EJS pages use structural partials only and Alpine calls the API", async () => {
-  const allowed = new Set(["head", "navbar", "sidebar", "footer", "scripts"]);
-  for (const file of allViewFiles()) {
-    const content = fs.readFileSync(file, "utf8");
-    for (const match of content.matchAll(/include\(['"]([^'"]+)['"]\)/g)) {
-      const name = path.basename(match[1]);
-      assert.ok(
-        allowed.has(name),
-        `${file} includes non-structural partial ${name}`,
-      );
-    }
-  }
+test("shared model source retains compact public IDs and reservation safeguards", () => {
+  const provider = source("models/Provider.js");
+  const enquiry = source("models/Enquiry.js");
+  const unlock = source("models/ProviderLeadUnlock.js");
+  const allocation = source("models/CreditAllocation.js");
+  const subscription = source("models/ProviderSubscription.js");
+  const payment = source("models/PaymentOrder.js");
 
-  assert.match(
-    source("views/dashboard/index.ejs"),
-    /apiFetch\([\"']\/api\/dashboard/,
-  );
-  assert.match(
-    source("views/enquiry/index.ejs"),
-    /apiFetch\([\"']\/api\/enquiry/,
-  );
-  assert.match(
-    source("views/provider/index.ejs"),
-    /apiFetch\([\"']\/api\/provider/,
-  );
-
-  const response = await request(app)
-    .get("/enquiries")
-    .set("Cookie", [adminCookie()]);
-  assert.equal(response.status, 200);
-  assert.match(response.text, /\/api\/enquiry/);
+  assert.match(provider, /providerId:\s*\{[^}]*default:\s*uuid/s);
+  assert.match(enquiry, /enquiryId:\s*\{[^}]*default:\s*uuid/s);
+  assert.match(unlock, /providerLeadUnlockId:\s*\{[\s\S]*?default:\s*uuid/);
+  assert.match(allocation, /creditAllocationId:\s*\{[^}]*default:\s*uuid/s);
+  assert.match(subscription, /providerSubscriptionId:\s*\{[^}]*default:\s*uuid/s);
+  assert.match(payment, /activeReservationKey:/);
+  assert.match(payment, /reservedUntil:/);
+  assert.match(payment, /partialFilterExpression:\s*\{ activeReservationKey:/);
+  assert.match(enquiry, /remainingUnlocks:/);
+  assert.match(enquiry, /reservedUnlockCount:/);
 });
 
-test("models keep MongoDB _id and add plain 32-character collection IDs", () => {
-  const enquiry = new Enquiry({ categorySlug: "painting" });
-  const provider = new Provider({ name: "Test Provider" });
-  const distribution = new LeadDistribution({
-    enquiryId: enquiry.enquiryId,
-    providerId: provider.providerId,
-    leadPricePaise: 10000,
+test("credit and direct-payment unlock methods block cross-method concurrency inside transactions", () => {
+  const credit = source("services/lead/lead-service.js");
+  const direct = source("services/wallet/lead-payment-service.js");
+  const keyUtility = source("utils/lead-unlock-key.js");
+  assert.match(keyUtility, /module\.exports = \{ activeReservationKey \}/);
+  assert.match(credit, /activeReservationKey\(providerId, enquiryId\)/);
+  assert.match(credit, /PaymentOrder\.findOne\(\{[\s\S]*?reservationStatus: "reserved"[\s\S]*?\.session\(session\)/);
+  assert.match(direct, /ProviderLeadUnlock\.findOne\(\{ providerId, enquiryId \}\)[\s\S]*?\.session\(session\)/);
+});
+
+test("Razorpay direct unlock reserves locally before gateway creation and never creates credits", () => {
+  const wallet = source("services/wallet/wallet-service.js");
+  const direct = source("services/wallet/lead-payment-service.js");
+  const createLeadOrder = direct.slice(direct.indexOf("async function createLeadOrder"));
+  const localReservation = createLeadOrder.indexOf("PaymentOrder.create");
+  const gatewayOrder = createLeadOrder.indexOf("await createRazorpayOrder(provider");
+  assert.match(wallet, /verifyCheckoutSignature/);
+  assert.match(wallet, /payments\.fetch/);
+  assert.ok(localReservation >= 0 && gatewayOrder > localReservation);
+  assert.match(direct, /razorpayOrderId:\s*`pending_\$\{paymentOrderId\}`/);
+  assert.match(direct, /status:\s*"gateway_pending"/);
+  assert.match(direct, /code:\s*"CHECKOUT_PREPARING"/);
+  assert.match(direct, /releaseReservation\(paymentOrderId, "gateway_failed"\)/);
+  assert.match(direct, /reservationStatus:\s*"reserved"/);
+  assert.match(direct, /remainingUnlocks:\s*-1, reservedUnlockCount:\s*1/);
+  assert.match(direct, /reservedUnlockCount:\s*-1, unlockedCount:\s*1/);
+  assert.match(direct, /ProviderLeadUnlock\.create/);
+  assert.doesNotMatch(direct, /addCredits/);
+});
+
+test("expired direct-payment reservations are released by a bounded CommonJS cleanup command", () => {
+  const direct = source("services/wallet/lead-payment-service.js");
+  const cleanup = source("scripts/release-expired-lead-reservations.js");
+  const packageJson = JSON.parse(source("package.json"));
+  assert.match(direct, /RELEASE_BATCH_SIZE/);
+  assert.match(direct, /\.limit\(RELEASE_BATCH_SIZE\)/);
+  assert.match(direct, /marketplaceClosureReason:\s*"unlock_limit"/);
+  assert.match(direct, /marketplaceClosureReason:\s*""/);
+  assert.match(cleanup, /LEAD_PAYMENT_CLEANUP_MAX_BATCHES/);
+  assert.match(cleanup, /module\.exports/);
+  assert.equal(packageJson.scripts["cleanup:lead-reservations"], "node scripts/release-expired-lead-reservations.js");
+});
+
+test("locked lead presenter does not expose customer contact or contact-like details", () => {
+  const locked = presentLead({
+    enquiryId: "c".repeat(32),
+    categorySlug: "painting",
+    name: "Private Customer",
+    mobile: "9999999999",
+    email: "private@example.com",
+    addressLine: "Private address",
+    additionalDetails: {
+      propertyType: "Apartment",
+      alternatePhone: "8888888888",
+      nested: { customerEmail: "hidden@example.com", budget: "10000" },
+    },
   });
-
-  for (const value of [
-    enquiry.enquiryId,
-    provider.providerId,
-    distribution.leadDistributionId,
-  ]) {
-    assert.match(value, /^[a-f0-9]{32}$/);
-  }
-
-  assert.ok(enquiry._id);
-  assert.equal(Enquiry.schema.path("id"), undefined);
-  assert.equal(Provider.schema.path("id"), undefined);
-  assert.equal(LeadDistribution.schema.path("id"), undefined);
-});
-
-test("migration preserves existing _id and id fields while adding named UUID fields", () => {
-  const migration = source("scripts/migrate-structure.js");
-  assert.match(migration, /\{ _id: document\._id \}/);
-  assert.doesNotMatch(migration, /\$set:\s*\{[^}]*\b_id\b/);
-  assert.doesNotMatch(migration, /\$set:\s*\{[^}]*\bid\s*:/);
-  assert.match(migration, /isUuid32/);
+  assert.equal(locked.customerName, undefined);
+  assert.equal(locked.customerMobile, undefined);
+  assert.equal(locked.additionalDetails.alternatePhone, undefined);
+  assert.equal(locked.additionalDetails.nested.customerEmail, undefined);
+  assert.equal(locked.additionalDetails.propertyType, "Apartment");
 });

@@ -1,7 +1,7 @@
 {
-  "name": "service-crm-admin",
-  "version": "1.0.0",
-  "description": "Simple Alpine.js CRM with dedicated frontend and API routes, denormalized MongoDB schemas and one-to-many lead distribution.",
+  "name": "provider-lead-portal",
+  "version": "1.3.0",
+  "description": "Findoly provider portal with nearby lead matching, CRM-synced outcomes, responsive professional UI, credits and Razorpay unlocks.",
   "private": true,
   "type": "commonjs",
   "scripts": {
@@ -9,28 +9,29 @@
     "dev": "nodemon ./bin/www",
     "check": "node scripts/check.js",
     "test": "node --test",
-    "seed": "node scripts/seed.js",
-    "migrate:structure": "node scripts/migrate-structure.js",
-    "migrate:lead-distribution": "node scripts/migrate-structure.js",
-    "migrate:agent-payouts": "node scripts/migrate-agent-payouts.js",
-    "migrate:marketplace-location": "node scripts/backfill-marketplace-locations.js",
+    "diagnose:provider": "node scripts/diagnose-provider.js",
+    "ensure:indexes": "node scripts/ensure-indexes.js",
     "qa:static": "node scripts/qa-static.js",
-    "qa:critical": "node --test test/validation-utilities-expanded.test.js test/customer-portal-integration.test.js test/marketplace-publication-static.test.js test/provider-manual-credit-static.test.js test/registration-storage-static.test.js test/otp-proxy-routing.test.js test/production-readiness.test.js test/service-type-subscription-validation.test.js",
+    "qa:critical": "node --test test/provider-ui.test.js test/provider-features.test.js test/priority-service-types-validation.test.js test/provider-communication-integration.test.js test/crm-manual-credit-compatibility.test.js test/production-invariants.test.js test/otp-http-security.test.js",
     "qa:production": "npm run qa:static && npm run qa:critical",
-    "ensure:indexes": "node scripts/ensure-indexes.js"
+    "cleanup:lead-reservations": "node scripts/release-expired-lead-reservations.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=18.18"
   },
   "dependencies": {
-    "@aws-sdk/client-sesv2": "^3.1086.0",
-    "cookie-parser": "^1.4.6",
-    "cors": "^2.8.5",
+    "alpinejs": "^3.15.12",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
-    "express": "^4.19.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.24.1",
     "morgan": "^1.10.0",
+    "razorpay": "^2.9.6",
     "uuid": "^11.1.1"
   },
   "devDependencies": {

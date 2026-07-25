@@ -1,23 +1,22 @@
-# Service CRM Admin
+# Provider Lead Portal
 
-A simple Express, EJS and Alpine.js CRM that shares MongoDB with the provider portal.
+A separate Express service connected to the same MongoDB database as the Service CRM Admin.
 
-## Required code flow
+## Architecture
 
 ```text
-/frontend or normal browser URL
-  -> routes/frontend.js
-  -> render an EJS page shell only
-  -> Alpine.js fetches /api/*
-  -> API controller
+/frontend/* or normal browser URL
+  -> frontend controller renders an EJS shell only
+  -> Alpine.js in the page calls /api/*
+  -> JSON controller
   -> small service
   -> simple Mongoose model
-  -> MongoDB
+  -> shared MongoDB database
 ```
 
-Frontend routes do not query MongoDB and do not pass lead, provider, distribution, follow-up, communication, invoice, or dashboard records into EJS. EJS receives only page-title metadata. Alpine reads route IDs and query filters from `window.location`.
+The frontend controller sends only page metadata such as title and subtitle. Provider, lead, plan, credit and payment records are never rendered into EJS by Express.
 
-Each page is a complete EJS document. Only these structural partials are shared:
+Each page owns its body markup. Only these structural partials are shared:
 
 ```text
 head.ejs
@@ -27,411 +26,274 @@ footer.ejs
 scripts.ejs
 ```
 
-There are no body/content partials, repository layer, model factory, `models/index.js`, `populate()` calls, or server-rendered database records.
+## Shared CRM collections
 
-All application modules use `module.exports`.
-
-## Main folders
+The portal reads and writes the same core collections used by the CRM:
 
 ```text
-routes/frontend.js       browser pages
-routes/main.js           /api JSON router
-controllers/             HTTP input/output only
-services/                simple business operations
-models/                  simple denormalized schemas
-views/                   complete Alpine.js pages
-scripts/migrate-structure.js
+providers
+enquiries
+providerleadunlocks
+wallettransactions
+paymentorders
 ```
 
-## IDs and collections
-
-MongoDB keeps its own `_id`. The migration never changes existing `_id` or existing `id` fields.
-
-Application queries use one named identifier per collection:
-
-| Collection | Application identifier |
-|---|---|
-| `categories` | `categoryId` |
-| `enquiries` | `enquiryId` |
-| `providers` | `providerId` |
-| `leaddistributions` | `leadDistributionId` |
-| `wallettransactions` | `walletTransactionId` |
-| `paymentorders` | `paymentOrderId` |
-| `followups` | `followUpId` |
-| `communications` | `communicationId` |
-| `invoices` | `invoiceId` |
-| `formtemplates` | `formTemplateId` |
-| `crmemployees` | `employeeId` |
-| `crmroles` | `roleId` |
-
-New values are plain UUID v4 values with hyphens removed:
+The plan system also uses:
 
 ```text
-6f6fb7f73593409898de8c18808ae3b1
+creditallocations
+providersubscriptions
 ```
 
-They are exactly 32 hexadecimal characters with no collection prefix.
+`walletBalancePaise` and the existing `wallettransactions` collection are retained for CRM/database compatibility. In the provider UI they are treated only as credits: 100 stored minor units equal 1 credit. Arbitrary wallet top-ups are disabled.
 
-## Simple denormalized lead model
+## Authentication
 
-```json
-{
-  "enquiryId": "6f6fb7f73593409898de8c18808ae3b1",
-  "name": "Customer name",
-  "mobile": "9000000000",
-  "email": "customer@example.com",
-  "addressLine": "Flat 10, Main Road",
-  "city": "Mumbai",
-  "state": "Maharashtra",
-  "pincode": "400001",
-  "category": "Painting",
-  "categorySlug": "painting",
-  "requirementTitle": "Paint 2 BHK",
-  "status": "approved",
-  "leadPricePaise": 15000,
-  "additionalDetails": {}
-}
+The browser stores only a signed HTTP-only provider session cookie. The provider object is not cached in application memory.
+
+For every protected page and every protected `/api` request, the portal:
+
+1. verifies the signed cookie;
+2. reads the provider again from MongoDB;
+3. checks `status = active`;
+4. checks `portalAccessEnabled != false`;
+5. uses the current categories, profile and credit balance from the database.
+
+Production protections include:
+
+- HTTP-only signed authentication cookie;
+- CSRF verification for plan purchases, payment verification, unlocks and status writes;
+- OTP, payment and unlock rate limits;
+- Helmet security headers and Content Security Policy;
+- request IDs in API errors;
+- graceful shutdown and MongoDB connection pooling;
+- no in-memory identity cache;
+- no arbitrary credit or wallet top-up endpoint.
+
+## Plans and credits
+
+The portal provides three plans with manual purchase/renewal:
+
+| Plan | Monthly | Monthly credits | Yearly (GST included) | Yearly credits |
+|---|---:|---:|---:|---:|
+| Starter | ₹999 + 18% GST | 1,000 | ₹11,999 | 14,400 |
+| Growth | ₹2,999 + 18% GST | 3,000 | ₹35,999 | 46,800 |
+| Scale | ₹9,999 + 18% GST | 11,000 | ₹89,999 | 126,000 |
+
+Credit calculation follows the approved rule: a listed rupee price ending in `99` rounds up by one for base credits, then the plan bonus is applied.
+
+- Monthly plans last 30 days.
+- Yearly plans last 365 days.
+- Credits are allocated immediately after verified captured payment.
+- Yearly credits are allocated in full immediately.
+- Unused plan credits carry forward while the combined subscription remains active.
+- Early renewal adds credits immediately and extends validity after the existing expiry.
+- Expired credits are deducted and retained in history as `expiry` transactions.
+- Existing legacy credit balances are preserved as non-expiring legacy allocations.
+- Plans do not auto-renew.
+
+## Lead unlock flow
+
+CRM approval publishes one enquiry directly to the marketplace. The Provider Portal queries eligible `enquiries` with indexed, cursor-paginated filters. It does not create one row per matching provider.
+
+```text
+1 approved lead visible to 1,000 providers = 1 enquiry + 0 unlock rows
+8 successful provider unlocks = 8 providerleadunlocks rows
 ```
 
-The application services query only named ID fields. Legacy nested documents are flattened by the one-time migration instead of adding fallback queries to every service.
+### Unlock with credits
 
-## Install and migrate
+A MongoDB transaction:
 
-Use Node.js 20 or newer. The locked AWS SES SDK requires Node.js 20+.
+1. verifies the enquiry is published, unexpired, has capacity, and matches the provider category;
+2. atomically claims one remaining unlock slot;
+3. expires ended plan allocations and consumes earliest-expiring active credits;
+4. creates one idempotent wallet debit when credits are charged;
+5. creates one compact `providerleadunlocks` record; and
+6. closes marketplace availability when the last slot is taken.
+
+Customer contact stays only on the enquiry. The unlock record stores bounded list/filter snapshots and current provider outcome fields.
+
+### Direct Pay & Unlock
+
+When available credits are insufficient:
+
+1. a local `paymentorders` record and marketplace-slot reservation are committed before calling Razorpay;
+2. the unique active reservation key prevents concurrent duplicate checkouts;
+3. 18% GST is added to the direct lead checkout;
+4. signature, amount, currency and captured status are verified server-side;
+5. a successful payment converts the reservation into one unlock record; and
+6. no credits are created or added.
+
+Run `npm run cleanup:lead-reservations` every five minutes to release abandoned reservations.
+
+Credit unlock and direct-payment checkout use the same active-reservation key and re-check the opposite method inside the MongoDB transaction, preventing a concurrent request from charging both credits and Razorpay for the same provider and lead.
+
+## Razorpay flow
+
+```text
+POST /api/wallet/plan/order
+  -> create plan purchase order
+  -> save paymentorders record
+  -> return Checkout data
+
+POST /api/lead/:leadId/direct-order
+  -> create direct lead-unlock order with 18% GST
+
+Razorpay Checkout handler
+  -> POST /api/wallet/verify for a plan
+  -> POST /api/lead/:leadId/direct-verify for a lead
+  -> verify server-side HMAC signature
+  -> fetch and validate payment from Razorpay
+  -> fulfil only after captured status
+
+POST /api/webhooks/razorpay
+  -> verify raw-body webhook signature
+  -> process payment.captured or order.paid
+  -> reuse the same idempotent fulfilment path
+```
+
+Checkout confirmation and webhook delivery cannot fulfil the same order twice.
+
+Configure the webhook URL as:
+
+```text
+https://provider.example.com/api/webhooks/razorpay
+```
+
+Subscribe to:
+
+```text
+payment.captured
+order.paid
+```
+
+## Production configuration
 
 ```bash
 cp .env.example .env
-npm install
-npm run migrate:structure
+npm ci --omit=dev
+npm run ensure:indexes
 npm start
+
+# Run from cron every five minutes
+npm run cleanup:lead-reservations
 ```
 
-`migrate:structure`:
-
-- preserves existing `_id` and `id`
-- adds 32-character named UUID fields
-- remaps relation fields to the new named identifiers
-- flattens legacy enquiry data
-- normalizes provider mobile numbers
-- rebuilds approved lead offers for eligible providers
-
-The old command remains an alias:
-
-```bash
-npm run migrate:lead-distribution
-```
-
-## CRM employee login, roles and permissions
-
-CRM username/password authentication has been removed. Employees sign in only with a registered Indian mobile number and OTP.
-
-The browser always calls the CRM application host:
-
-```text
-POST /api/auth/send-otp
-POST /api/auth/verify-otp
-```
-
-The CRM server then makes server-side requests to the Findoly OTP service:
-
-```text
-POST https://api.findoly.com/otp/send-otp
-POST https://api.findoly.com/otp/verify-otp
-```
-
-Verification sends only:
-
-```json
-{
-  "mobile": "9000000000",
-  "otp": "1234"
-}
-```
-
-Successful verification creates a signed, HTTP-only cookie session valid for 24 hours. In production the cookie is also marked `Secure` and uses `SameSite=Lax`. Set a strong `AUTH_COOKIE_SECRET`; old `ADMIN_EMAIL` and `ADMIN_PASSWORD` variables are not used.
-
-### First Super Admin setup
-
-Set these values before the first login:
+Required in production:
 
 ```env
-AUTH_COOKIE_SECRET=replace-with-at-least-32-random-characters
-CRM_BOOTSTRAP_MOBILE=9000000000
-CRM_BOOTSTRAP_NAME=CRM Administrator
-CRM_OTP_BASE_URL=https://api.findoly.com/otp
-CRM_OTP_RESEND_SECONDS=30
-CRM_OTP_MAX_SENDS_PER_MINUTE=2
-CRM_OTP_RATE_WINDOW_SECONDS=60
+NODE_ENV=production
+MONGODB_URI=mongodb+srv://.../service_crm_admin
+JWT_SECRET=<long-random-secret>
+OTP_API_URL=https://your-otp-service.example.com
+RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_KEY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...
+TRUST_PROXY=1
 ```
 
-When `crmemployees` is empty, only the configured bootstrap mobile may request CRM login. After its OTP is successfully verified, the CRM creates the initial Super Admin employee and the default roles. Remove `CRM_BOOTSTRAP_MOBILE` from the environment after first setup if desired.
+Both CRM and provider services must use the same `MONGODB_URI` and database name. MongoDB Atlas or another replica set is required because credit allocation, plan fulfilment and lead unlock use transactions.
 
-Administrators can then use **Employees** and **Roles & permissions** to:
-
-- create and activate/deactivate employee profiles
-- assign default or custom roles
-- grant page and action permissions
-- revoke access immediately by deactivating an employee or role
-
-Protected pages and JSON APIs both enforce permissions. Employee and role changes take effect on the employee's next request, even when an older 24-hour cookie still exists.
-
-### CRM login OTP request protection
-
-The browser does not enforce a countdown or request quota. The CRM server stores OTP send limits in MongoDB so the policy works across browser refreshes, application restarts and multiple application instances. By default, a mobile number may request at most two OTPs in a 60-second window, with at least 30 seconds between requests. When blocked, the API returns HTTP `429`, a `Retry-After` header and a customer-facing message containing the exact remaining wait in seconds. OTP verification has no CRM-side rate limiter; any verification restrictions returned by the Findoly OTP service are passed through as clear messages.
-
-### Appearance themes
-
-The original appearance remains the default. Six additional optional presets are available: Soft Blue, Soft Green, Soft Purple, Soft Peach, Soft Grey and Soft Orange. The selected theme is saved per employee profile in that browser and does not modify the Findoly logo, fonts or layout.
-
-## Frontend and API examples
-
-```text
-GET  /enquiries             renders an EJS shell only
-GET  /api/enquiry           returns JSON list
-GET  /api/enquiry/:id       returns JSON record
-POST /api/enquiry           creates a record
-PUT  /api/enquiry/:id       updates a record
-```
-
-Public website intake aliases remain JSON endpoints:
-
-```text
-POST /api/enquiries
-POST /api/requirements
-POST /api/leads
-```
-
-## Validation
+Create the new indexes without deleting existing data:
 
 ```bash
-# Dependency-free syntax, EJS, route, view and lock-file checks
-npm run qa:static
+npm run ensure:indexes
+```
 
-# Critical regression tests that can run before external services are configured
-npm run qa:critical
+## Useful commands
 
-# Runs both commands above
-npm run qa:production
-
-# Run after npm install for the complete project test suite
+```bash
 npm run check
 npm test
+npm run diagnose:provider -- 8693097982
+npm run ensure:indexes
+npm audit --omit=dev
 ```
 
-## CRM UI restoration
+## Nearby marketplace and transparency
 
-The CRM frontend keeps the Alpine.js + JSON API separation while restoring the polished admin interface:
+The CRM is the source of truth for provider categories, the provider's single service PIN code, provider coordinates and Lead Intent. Providers can view the registered service area in the portal, but cannot edit it themselves.
 
-- compact page headers and contextual actions
-- visible sidebar icons and responsive navigation
-- compact expandable requirement filters
-- dashboard metric cards, recent requirements and quick actions
-- provider directory with category, access and wallet summaries
-- loading, empty and pagination states
-- compatibility display IDs for legacy records that still use `id`
+Before an unlock, the provider can see:
 
-## Agent Portal integration
+- CRM-assigned Lead Intent (`high`, `medium`, `low`, or `not_assessed`);
+- approximate distance from the CRM-managed provider service location;
+- the number of providers who have unlocked the lead;
+- whether any provider currently reports a confirmed sale;
+- requirement, location and preferred timing;
+- the original credit cost configured by CRM.
 
-The CRM now includes minimal agent management at `/agents`:
+There is no dynamic discount. Wallet-credit and direct-payment unlocks always use the CRM-configured lead price. Customer contact information remains hidden until a successful unlock.
 
-- CRM administrators create individual or shop agents.
-- Each agent receives one immutable 32-character `agentId` and one immutable 6-character uppercase alphanumeric `referralId`.
-- Each agent is assigned exactly one active category and an OTP login mobile number.
-- Agent-submitted requirements are written to the shared `enquiries` collection with a denormalized agent snapshot and customer-mobile OTP verification fields.
-- CRM lists and details render through Alpine.js JSON API calls. No Mongoose `populate()` or MongoDB `$lookup` is used.
+Marketplace visibility expands progressively from the lead location:
 
-## Partner referral payouts
+| Time after marketplace publication | Radius |
+|---:|---:|
+| 0–5 minutes | 5 km |
+| 5–15 minutes | 10 km |
+| 15–30 minutes | 25 km |
+| 30–60 minutes | 50 km |
+| 1–2 hours | 100 km |
+| 2–4 hours | 200 km |
+| 4–8 hours | 400 km |
+| After 8 hours | No platform radius restriction |
 
-Every lead now requires CRM lead validation (`pending`, `valid`, or `invalid`) before an employee can move it through the journey or distribute it. Employees must record whether validation happened by phone call, WhatsApp, email, in person, or another method; choosing Other requires an explanation. Invalid leads are automatically rejected before distribution. Agent Portal partner withdrawals continue to use only valid matured referrals at least 14 days old, complete blocks of 10, and a minimum 20% sale conversion. Configure each agent's ₹50–₹200 rate and verified RazorpayX fund account in the CRM agent profile.
+Category matching and active-account checks continue to apply at every stage. A successfully unlocked lead is removed from that provider's Marketplace and appears in Unlocked Leads.
 
-Set the RazorpayX values from `.env.example`, allowlist the CRM server IP in RazorpayX, and configure the payout webhook URL as `/api/webhooks/razorpay/payouts`. Run `npm run migrate:agent-payouts` once for existing Agent Portal requirements.
+## Provider interface
 
-## Communication Center
+The provider portal uses the Findoly logo and a LinkedIn-inspired responsive workspace with:
 
-The CRM includes a built-in Communication Center at `/communications` for:
+- desktop top navigation and provider summary rail;
+- feed-style Marketplace and Unlocked Lead cards;
+- compact filters;
+- a mobile bottom navigation bar;
+- mobile-safe lead actions, reminders, profile, wallet and payment screens.
 
-- Meta WhatsApp Cloud API template creation, submission, status synchronization and test sending
-- approved WhatsApp Utility, Authentication and Marketing templates
-- Amazon SES email templates and test sending
-- internal Slack messages to multiple manually created channels through one bot token
-- WhatsApp, email or Slack lead-status notification rules
-- separate OTP request and verification APIs with hashed OTP storage, expiry, resend cooldown and attempt limits
-- WhatsApp delivery/read/failure webhooks and inbound-message logging
-- Amazon SES/SNS delivery, bounce, complaint, reject, open and delay updates
-- lead-level communication history and manual failed-message retry
-- MongoDB TTL deletion of communication and OTP activity logs after seven days
-- local delivery now, with a Lambda delivery mode later without changing CRM rules or logs
+## Provider outcomes and CRM synchronization
 
-### Main pages
+Every unlocked lead requires a sale outcome:
 
-```text
-/communications                 dashboard
-/communications/logs            message history
-/communications/send            manual template send
-/communications/templates       WhatsApp and email templates
-/communications/rules           event-to-template rules
-/communications/otp             OTP activity and test send
-/communications/settings        configuration readiness
-```
+- `confirmed`
+- `not_confirmed`
 
-### Public and integration endpoints
+The separate activity status is optional and supports `contacted`, `valid`, `follow_up`, `on_hold`, `rejected`, `invalid`, `not_interested`, and `other`.
 
-```text
-GET  /api/communication/slack/channels
-POST /api/communication/slack/send
-POST /api/communication/otp/send
-POST /api/communication/otp/verify
-GET  /api/webhooks/whatsapp
-POST /api/webhooks/whatsapp
-POST /api/webhooks/ses
-POST /api/webhooks/message-delivery
-POST /api/communication/events/:event
-```
-
-`/api/communication/events/:event` is intended for the provider or agent portal. Protect it with `COMMUNICATION_EVENT_API_TOKEN` and send the token in either `x-communication-token` or `Authorization: Bearer <token>`.
-
-### Provider communication integration
-
-The provider backend sends two primary server-to-server events:
-
-```text
-provider_lead_unlocked
-provider_feedback_updated
-```
-
-`provider_lead_unlocked` is emitted only after a credit or direct-payment unlock commits successfully. `provider_feedback_updated` is emitted after a provider saves the mandatory Confirmed/Not Confirmed outcome and any optional activity status.
-
-Named status events such as `provider_confirmed`, `provider_rejected`, and `provider_contacted`, plus the generic `provider_status` and `provider_status_updated` names, remain supported for compatible integrations.
-
-Identify the unlocked provider record using either `leadDistributionId`, or the combination of `enquiryId` and `providerId`:
-
-```json
-{
-  "leadDistributionId": "DISTRIBUTION_REFERENCE",
-  "enquiryId": "LEAD_REFERENCE",
-  "providerId": "PROVIDER_REFERENCE",
-  "status": "confirmed",
-  "reason": "",
-  "note": "Customer confirmed the purchase"
-}
-```
-
-`status` is optional for a named event such as `provider_confirmed`, but required for a generic provider-status event. A reason or note is mandatory for `rejected`, `invalid`, and `not_interested`.
-
-Sale conversion is calculated from the **current status of every unlocked provider**:
-
-- one or more currently Confirmed providers changes `Distributed` to `Sale Converted`;
-- rejection, invalidation, or hold by another provider does not cancel an existing confirmation;
-- when the last Confirmed provider changes away from Confirmed, the lead automatically returns to `Distributed`;
-- employees cannot manually reject, move backward, or change sale conversion after distribution.
-
-Each automatic conversion or reversal is written to the lead timeline. The CRM also reconciles provider confirmation when a distributed lead is opened, but the integration event should still be called immediately so the CRM updates without waiting for a page view.
-
-Other communication events, including `sale_conversion_updated`, may still be used for notification rules but do not directly override the provider-calculated lead status.
-
-### Local-to-Lambda migration
-
-Keep this during the first deployment:
+The provider browser submits to its own backend. The backend stores the update and then calls the CRM Communication Center integration endpoint. Configure both applications with the same token:
 
 ```env
-MESSAGE_DELIVERY_MODE=local
+# Provider portal
+CRM_API_BASE_URL=https://admin.findoly.com
+CRM_COMMUNICATION_EVENT_PATH=/api/communication/events
+COMMUNICATION_EVENT_API_TOKEN=<shared-random-secret>
+
+# CRM admin
+COMMUNICATION_EVENT_API_TOKEN=<same-shared-random-secret>
 ```
 
-Later deploy the message sender in Lambda and change only:
-
-```env
-MESSAGE_DELIVERY_MODE=lambda
-MESSAGE_LAMBDA_URL=https://your-lambda-endpoint
-MESSAGE_LAMBDA_AUTH_TOKEN=your-private-token
-MESSAGE_LAMBDA_WEBHOOK_TOKEN=your-private-webhook-token
-```
-
-The Lambda request receives the channel, recipient, template, variables, rendered email content, communication ID, purpose and metadata. It should return `providerMessageId` and `status`, then call `/api/webhooks/message-delivery` for later delivery updates.
-
-### Meta setup
-
-1. Configure the WhatsApp Business Account ID, phone-number ID, access token, app secret and webhook verification token.
-2. Configure the Meta callback URL as `/api/webhooks/whatsapp`.
-3. Create a local WhatsApp template, submit it to Meta, then use **Sync Meta templates** until its status is `approved`.
-4. Assign approved templates to notification rules.
-
-### Amazon SES setup
-
-1. Verify `SES_FROM_EMAIL` or its domain in the configured AWS Region.
-2. Use an IAM role in production or local AWS credentials during development.
-3. For delivery events, configure an SES configuration set and an SNS event destination pointing to `/api/webhooks/ses`.
-4. Keep bounce and complaint monitoring enabled for production sending.
-
-### Slack setup
-
-1. Create or open the Slack app and add the bot scopes `chat:write`, `channels:read`, and `groups:read`. Add `chat:write.public` only when the bot must post to public channels without being invited.
-2. Install or reinstall the app to the workspace and copy the **Bot User OAuth Token** beginning with `xoxb-`.
-3. Set `SLACK_BOT_TOKEN`, `SLACK_DEFAULT_CHANNEL_ID`, and `SLACK_DEFAULT_CHANNEL_NAME`. The default channel receives every automatic CRM/provider event. `SLACK_CHANNEL_CACHE_SECONDS` remains optional.
-4. Invite the Slack app to every private channel that should appear in the CRM channel selector.
-5. Use **Sync channels** on `/communications` or `/communications/rules`, then select the required channel and send or save the rule.
-
-The CRM calls Slack `conversations.list` to discover accessible public/private channels and `chat.postMessage` to send. One bot token supports multiple manually created channels; each rule stores both the Slack channel ID and display name.
-
-### Seven-day MongoDB TTL retention
-
-`communications` records use a TTL index on `createdAt`. OTP activity uses its own TTL index. With the default environment values, MongoDB deletes both after seven days without an application cron job. TTL cleanup is asynchronous, so a record may remain briefly after its expiry time. Templates, notification rules, settings, leads and CRM audit notes are unaffected.
-
-```env
-COMMUNICATION_LOG_RETENTION_DAYS=7
-OTP_RETENTION_DAYS=7
-```
-
-Secrets are never stored or displayed in the CRM database. The settings page only reports whether required environment variables are present.
-
-### Slack in notification rules
-
-Communication Rules can also send internal Slack notifications. Enable Slack on a rule, select a synchronized channel, and write the message using supported variables such as `{{lead_id}}`, `{{customer_name}}`, `{{lead_status}}`, `{{provider_name}}`, and `{{note}}`.
-
-Each rule stores the Slack channel ID used by `chat.postMessage` and the channel name used for CRM display/logging. Blank Slack messages and missing channel IDs are rejected. Existing webhook-era Slack rules should be opened once and saved with a synchronized channel.
-
-## Provider portal synchronization
-
-The provider portal and CRM use the same MongoDB database and compatible `enquiries`, `leaddistributions`, and `providers` records. CRM employees assign lead intent (`high`, `medium`, `low`, or `not_assessed`) from the lead form. The provider marketplace displays that value together with competition and unlock information.
-
-Provider browsers call only the provider portal host. The provider backend notifies CRM through:
+The provider backend sends these events:
 
 ```text
 POST /api/communication/events/provider_lead_unlocked
 POST /api/communication/events/provider_feedback_updated
 ```
 
-Both services must share the same integration token:
+A successful credit or direct-payment unlock sends an internal Slack event and an email confirmation to the provider email stored in CRM. A successful provider outcome/status update does the same. The provider portal never supplies the destination email address.
 
-```env
-# CRM
-COMMUNICATION_EVENT_API_TOKEN=<shared-random-secret>
+A CRM communication failure does not discard an unlock or provider update. The API response includes a pending/failed communication warning, and the CRM Communication Center retains per-channel delivery status for review and retry.
 
-# Provider portal
-CRM_API_BASE_URL=https://admin.findoly.com
-CRM_COMMUNICATION_EVENT_PATH=/api/communication/events
-COMMUNICATION_EVENT_API_TOKEN=<same-shared-random-secret>
-```
+## Seven-day outcome reminder
 
-Provider sale outcome is mandatory (`confirmed` or `not_confirmed`). Activity status remains optional. Any current provider confirmation changes a Distributed lead to Sale Converted. When no provider remains confirmed, the lead returns to Distributed.
+An unlocked lead with no Confirmed/Not Confirmed outcome becomes overdue after `PROVIDER_OUTCOME_REMINDER_DAYS` (default 7). The dashboard displays a pending count and a dismissible reminder popup. Dismissal lasts only for the current browser session, and the reminder returns in a later session until the outcome is updated.
 
-Automatic communication routing is applied before optional customized rules:
+The reminder warns that Findoly may verify the status with the customer and provider. Incorrect or misleading outcomes are reviewed manually in CRM and may result in a warning, temporary suspension, or permanent restriction.
 
-- every CRM and provider event emitted through the Communication Center is posted to the configured internal Slack channel;
-- the provider receives an email only for a successful lead unlock or successful status/outcome update;
-- Slack and email failures are logged independently and never roll back a successful lead action;
-- this integration does not call WhatsApp.
+## Provider appearance
 
-Provider outcome updates still create rule-compatible events such as `provider_confirmed`, `provider_not_confirmed`, `provider_follow_up`, `provider_rejected`, and `provider_invalid` for any additional customized notifications.
-
-CRM users can review an unlocked provider outcome from the lead's provider journey. Verification results are manual: Pending review, Under review, Verified, Unable to verify, or Incorrect status. A warning, temporary suspension, or permanent block can be applied only after the outcome is marked Incorrect status and a review note is recorded.
+The provider portal is locked to the lightweight **Professional Blue** appearance. Providers do not see an appearance selector, and previously saved browser theme preferences are ignored and removed.
 
 
-## Nearby provider marketplace deployment
+## Rich Lead Card Refinement
 
-Configure `GOOGLE_MAPS_API_KEY` in both CRM and provider portal. CRM geocodes lead/provider PIN codes and publishes radius-based visibility. For existing data, run once after deployment:
-
-```bash
-npm run migrate:marketplace-location
-```
-
-The script keeps existing lead/provider records intact, caches PIN-code coordinates, and recalculates locked provider distributions.
+The provider lead list now uses compact, coloured insight tiles to reduce empty space and improve scanning. Marketplace cards show preferred timing, lead age, provider interest, and current result. Unlocked cards show customer, preferred timing, outcome, activity, and unlock/action timing. Lead titles are sentence-cased only when displayed; stored records are not modified.

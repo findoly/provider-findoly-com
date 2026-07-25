@@ -3,12 +3,12 @@ const uuid = require("../utils/uuid");
 
 const providerSchema = new mongoose.Schema(
   {
-    providerId: { type: String, default: uuid, unique: true, index: true, immutable: true },
-    name: { type: String, required: true, trim: true, maxlength: 120 },
-    businessName: { type: String, default: "", trim: true, maxlength: 160 },
-    mobile: { type: String, default: "", trim: true, match: /^[6-9]\d{9}$/ },
-    normalizedMobile: { type: String, default: "", trim: true, index: true, match: /^[6-9]\d{9}$/ },
-    email: { type: String, default: "", trim: true, lowercase: true, maxlength: 254, validate: { validator: (value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value), message: "Provider email is invalid" } },
+    providerId: { type: String, default: uuid, unique: true, index: true },
+    name: { type: String, required: true, trim: true },
+    businessName: { type: String, default: "", trim: true },
+    mobile: { type: String, default: "", trim: true },
+    normalizedMobile: { type: String, default: "", trim: true, index: true },
+    email: { type: String, default: "", trim: true, lowercase: true },
     status: { type: String, default: "active", index: true },
     onboardingStage: { type: String, default: "new" },
     categorySlugs: { type: [String], default: [], index: true },
@@ -36,20 +36,25 @@ const providerSchema = new mongoose.Schema(
     serviceLocationSource: { type: String, default: "" },
     serviceAreas: { type: [String], default: [] },
     availability: { type: String, default: "available_today" },
-    rating: { type: Number, default: 0, min: 0, max: 5 },
-    notes: { type: String, default: "", maxlength: 5000 },
+    rating: { type: Number, default: 0 },
+    notes: { type: String, default: "" },
     documentsVerified: { type: Boolean, default: false },
     portalAccessEnabled: { type: Boolean, default: true, index: true },
+
+    // Kept for shared-CRM compatibility. Internally this stores credit minor units:
+    // 100 minor units = 1 provider credit.
     walletBalancePaise: { type: Number, default: 0, min: 0 },
     walletCurrency: { type: String, default: "INR" },
     walletUpdatedAt: { type: Date, default: null },
+
+    currentPlanCode: { type: String, default: "", index: true },
+    currentPlanName: { type: String, default: "" },
+    currentBillingCycle: { type: String, default: "" },
+    currentPlanStartedAt: { type: Date, default: null },
+    currentPlanExpiresAt: { type: Date, default: null, index: true },
+    currentSubscriptionId: { type: String, default: "", index: true },
+
     lastLoginAt: { type: Date, default: null },
-    outcomeWarningCount: { type: Number, default: 0, min: 0 },
-    outcomeLastWarningAt: { type: Date, default: null },
-    outcomeLastWarningReason: { type: String, default: "", maxlength: 2000 },
-    platformRestrictionReason: { type: String, default: "", maxlength: 2000 },
-    platformRestrictedAt: { type: Date, default: null },
-    platformRestrictedBy: { type: String, default: "" },
   },
   {
     collection: "providers",
@@ -59,7 +64,5 @@ const providerSchema = new mongoose.Schema(
 );
 
 providerSchema.index({ status: 1, portalAccessEnabled: 1, categorySlugs: 1 });
-providerSchema.index({ createdAt: -1, _id: -1 });
-providerSchema.index({ status: 1, createdAt: -1, _id: -1 });
 
 module.exports = mongoose.model("Provider", providerSchema, "providers");
