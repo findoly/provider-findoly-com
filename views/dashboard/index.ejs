@@ -1,170 +1,184 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" dir="ltr">
-<%- include('../partials/head') %>
-<body
-  x-data='providerShell({ title: <%- JSON.stringify(title || "") %>, subtitle: <%- JSON.stringify(subtitle || "") %> })'
-  x-init="initShell()"
-  @wallet-updated.window="refreshProfile()"
-  @profile-updated.window="refreshProfile()"
-  @portal-page.window="setPage($event.detail)"
-  @portal-notify.window="notify($event.detail)"
->
-<%- include('../partials/navbar') %>
-<div class="page-content workspace-page-shell">
-  <%- include('../partials/sidebar') %>
-  <div class="content-wrapper">
-    <div class="content-inner">
-      <div class="page-header portal-page-header workspace-page-header border-bottom">
-        <div class="page-header-content d-flex align-items-center">
-          <div class="flex-grow-1 min-w-0">
-            <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
-            <div class="page-subtitle mt-1" x-show="page.subtitle" x-text="page.subtitle"><%= subtitle || '' %></div>
+  <%- include('../partials/head') %>
+  <body x-data="crmShell()" x-init="initShell()">
+    <%- include('../partials/navbar') %>
+    <div class="page-content">
+      <%- include('../partials/sidebar') %>
+      <div class="content-wrapper">
+        <div class="content-inner">
+          <div class="page-header page-header-light crm-page-header">
+            <div class="page-header-content crm-page-heading">
+              <div>
+                <div class="crm-page-eyebrow">Overview</div>
+                <h1 class="page-title mb-1">Dashboard</h1>
+                <p class="crm-page-subtitle mb-0">Monitor incoming requirements, providers and distributed offers.</p>
+              </div>
+              <a href="/enquiries/new" class="btn btn-primary crm-primary-action">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                Create lead
+              </a>
+            </div>
           </div>
-          <a href="/leads?status=offered" class="btn btn-primary workspace-page-action d-none d-sm-inline-flex"><svg class="icon"><use href="#i-search"></use></svg><span>Find leads</span></a>
+
+          <div class="content">
+            <div x-show="shellError" x-cloak class="alert alert-danger" x-text="shellError"></div>
+
+            <main x-data="dashboardPage()" x-init="load()">
+              <div x-show="error" x-cloak class="alert alert-danger" x-text="error"></div>
+
+              <section class="crm-metric-grid mb-4" aria-label="Dashboard totals">
+                <article class="crm-metric-card crm-metric-blue">
+                  <div class="crm-metric-top">
+                    <div>
+                      <span class="crm-metric-label">All requirements</span>
+                      <strong class="crm-metric-value" x-text="data.totalLeads || 0">0</strong>
+                    </div>
+                    <span class="crm-metric-icon">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+                    </span>
+                  </div>
+                  <div class="crm-metric-note"><b x-text="data.statusCounts?.new || 0">0</b> new leads awaiting review</div>
+                </article>
+
+                <article class="crm-metric-card crm-metric-green">
+                  <div class="crm-metric-top">
+                    <div>
+                      <span class="crm-metric-label">Active providers</span>
+                      <strong class="crm-metric-value" x-text="data.activeProviders || 0">0</strong>
+                    </div>
+                    <span class="crm-metric-icon">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M13 20a4.5 4.5 0 0 1 8 0"/></svg>
+                    </span>
+                  </div>
+                  <div class="crm-metric-note"><b x-text="data.providers || 0">0</b> providers in the directory</div>
+                </article>
+
+                <article class="crm-metric-card crm-metric-purple">
+                  <div class="crm-metric-top">
+                    <div>
+                      <span class="crm-metric-label">Available offers</span>
+                      <strong class="crm-metric-value" x-text="data.offered || 0">0</strong>
+                    </div>
+                    <span class="crm-metric-icon">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="m7 11 10-5M7 13l10 5"/></svg>
+                    </span>
+                  </div>
+                  <div class="crm-metric-note"><b x-text="data.unlocked || 0">0</b> provider unlocks completed</div>
+                </article>
+
+                <article class="crm-metric-card crm-metric-amber">
+                  <div class="crm-metric-top">
+                    <div>
+                      <span class="crm-metric-label">Open follow-ups</span>
+                      <strong class="crm-metric-value" x-text="data.openFollowUps || 0">0</strong>
+                    </div>
+                    <span class="crm-metric-icon">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    </span>
+                  </div>
+                  <div class="crm-metric-note"><b x-text="data.invoices || 0">0</b> billing records created</div>
+                </article>
+              </section>
+
+              <section class="crm-dashboard-grid">
+                <div class="card crm-data-card">
+                  <div class="card-header crm-card-heading">
+                    <div>
+                      <h2 class="card-title mb-1">Recent requirements</h2>
+                      <p class="text-muted mb-0">Latest customer requests received by the CRM.</p>
+                    </div>
+                    <a href="/enquiries" class="btn btn-light btn-sm">View all requirements</a>
+                  </div>
+
+                  <div class="table-responsive">
+                    <table class="table crm-table mb-0">
+                      <thead>
+                        <tr>
+                          <th>Requirement</th>
+                          <th>Customer</th>
+                          <th>Category</th>
+                          <th>Status</th>
+                          <th class="text-end">Price</th>
+                          <th>Created</th>
+                          <th aria-label="Actions"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-if="loading">
+                          <tr><td colspan="7"><div class="crm-table-loading"><span></span><span></span><span></span></div></td></tr>
+                        </template>
+                        <template x-for="lead in (data.recentLeads || [])" :key="recordId(lead, 'enquiryId')">
+                          <tr>
+                            <td>
+                              <a class="crm-record-title" :href="'/enquiries/' + recordId(lead, 'enquiryId')" x-text="lead.requirementTitle || lead.serviceType || 'Customer requirement'"></a>
+                              <div class="crm-record-id" x-text="recordId(lead, 'enquiryId')"></div>
+                            </td>
+                            <td>
+                              <div class="fw-semibold" x-text="leadName(lead)"></div>
+                              <div class="text-muted fs-sm" x-text="leadMobile(lead)"></div>
+                            </td>
+                            <td>
+                              <div x-text="leadCategory(lead)"></div>
+                              <div class="text-muted fs-sm" x-text="leadCity(lead)"></div>
+                            </td>
+                            <td><span class="crm-status" :class="statusClass(lead.journeyStatus || lead.status)" x-text="humanize(lead.journeyStatus || lead.status)"></span></td>
+                            <td class="text-end fw-semibold" x-text="money(lead.leadPricePaise)"></td>
+                            <td class="crm-nowrap" x-text="formatDateOnly(lead.createdAt)"></td>
+                            <td class="text-end"><a class="crm-row-action" :href="'/enquiries/' + recordId(lead, 'enquiryId')">Open</a></td>
+                          </tr>
+                        </template>
+                        <tr x-show="!loading && !(data.recentLeads || []).length">
+                          <td colspan="7">
+                            <div class="crm-empty-state">
+                              <span class="crm-empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
+                              <strong>No requirements yet</strong>
+                              <span>Create the first lead to start the workflow.</span>
+                              <a href="/enquiries/new" class="btn btn-primary btn-sm">Create lead</a>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <aside class="card crm-quick-card">
+                  <div class="card-header crm-card-heading"><div><h2 class="card-title mb-1">Quick actions</h2><p class="text-muted mb-0">Common CRM tasks.</p></div></div>
+                  <div class="crm-quick-actions">
+                    <a href="/enquiries/new"><span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><div><strong>Create requirement</strong><small>Add a customer lead</small></div><b>›</b></a>
+                    <a href="/providers/new"><span><svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3"/><path d="M4 20a6 6 0 0 1 12 0M19 8v6M16 11h6"/></svg></span><div><strong>Add provider</strong><small>Onboard a service partner</small></div><b>›</b></a>
+                    <a href="/distributions"><span><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="m7 11 10-5M7 13l10 5"/></svg></span><div><strong>Review distribution</strong><small>Inspect provider offers</small></div><b>›</b></a>
+                    <a href="/reports"><span><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7M3 20h18"/></svg></span><div><strong>Open reports</strong><small>View operational totals</small></div><b>›</b></a>
+                  </div>
+                </aside>
+              </section>
+            </main>
+          </div>
+          <%- include('../partials/footer') %>
         </div>
       </div>
-      <div class="content workspace-content">
-        <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
-
-<div class="provider-minimal-dashboard workspace-dashboard provider-operations-dashboard" x-data="dashboardPage()" x-init="load()" :class="loading ? 'portal-loading' : ''">
-  <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
-
-  <section class="provider-dashboard-command" aria-label="Provider command centre">
-    <div class="provider-dashboard-command-copy">
-      <span class="workspace-eyebrow">Business command centre</span>
-      <h2>Welcome, <span x-text="data.provider?.businessName || data.provider?.name || 'Provider'"></span></h2>
-      <p>Find the right opportunities, contact customers and keep every lead moving.</p>
-      <div class="provider-dashboard-command-actions">
-        <a class="btn btn-primary" href="/leads?status=offered"><svg class="icon"><use href="#i-search"></use></svg>Explore marketplace</a>
-        <a class="btn btn-light" href="/leads?status=unlocked"><svg class="icon"><use href="#i-briefcase"></use></svg>Manage my leads</a>
-      </div>
     </div>
-    <a class="provider-dashboard-credit" href="/plans">
-      <span class="provider-dashboard-credit-icon"><svg class="icon"><use href="#i-wallet"></use></svg></span>
-      <span><small>Available credits</small><strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong><em>Manage balance and plans</em></span>
-      <svg class="icon provider-dashboard-credit-arrow"><use href="#i-arrow"></use></svg>
-    </a>
-  </section>
 
-  <div class="portal-location-required workspace-alert-card" x-show="data.provider && !data.provider.locationReady" x-cloak>
-    <span class="workspace-alert-icon"><svg class="icon"><use href="#i-location"></use></svg></span>
-    <div><strong>Your service location is pending</strong><span>Contact Findoly support before nearby leads can appear in your marketplace.</span></div>
-    <a class="btn btn-light btn-sm" href="/profile#marketplace-location">View profile</a>
-  </div>
-
-  <div class="portal-pending-banner workspace-alert-card is-warning" x-show="data.pendingOutcomeCount > 0" x-cloak>
-    <span class="workspace-alert-icon"><svg class="icon"><use href="#i-clock"></use></svg></span>
-    <div><strong><span x-text="data.pendingOutcomeCount"></span> lead outcome<span x-show="data.pendingOutcomeCount !== 1">s</span> need an update</strong><span>Accurate Confirmed or Not Confirmed updates help keep the marketplace trusted.</span></div>
-    <button class="btn btn-warning btn-sm" type="button" @click="reminderOpen = true">Review now</button>
-  </div>
-
-  <div class="portal-reminder-backdrop" x-show="reminderOpen" x-cloak @keydown.escape.window="reminderOpen = false">
-    <section class="portal-reminder-dialog" role="dialog" aria-modal="true" aria-labelledby="pending-outcome-title" @click.outside="dismissReminder()">
-      <div class="portal-reminder-header">
-        <div><div class="portal-reminder-kicker">Outcome update required</div><h3 id="pending-outcome-title">Update overdue leads</h3></div>
-        <button type="button" aria-label="Remind me later" @click="dismissReminder()">×</button>
-      </div>
-      <div class="portal-policy-warning">Submit accurate Confirmed or Not Confirmed outcomes. Misleading information may result in account action after Findoly team review.</div>
-      <div class="portal-reminder-list">
-        <template x-for="lead in data.pendingOutcomes || []" :key="lead.leadDistributionId">
-          <article class="portal-reminder-item">
-            <div class="min-w-0"><strong x-text="displaySentenceCase(lead.leadTitle || lead.serviceType || lead.enquiryId, 'Service requirement')"></strong><span><span x-text="lead.city || 'Location not provided'"></span> · <b x-text="lead.daysPending + ' days pending'"></b></span></div>
-            <a class="btn btn-primary btn-sm" :href="'/leads/' + lead.leadDistributionId + '#provider-outcome'">Update</a>
-          </article>
-        </template>
-      </div>
-      <div class="portal-reminder-footer"><button class="btn btn-light" type="button" @click="dismissReminder()">Remind me later</button><a class="btn btn-primary" href="/leads?status=unlocked">View my leads</a></div>
-    </section>
-  </div>
-
-  <section class="provider-dashboard-summary workspace-metric-grid provider-dashboard-metrics" aria-label="Business summary">
-    <a href="/leads?status=offered" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-lead"></use></svg></span><span class="workspace-metric-label">Available leads</span><strong x-text="data.offered || 0">0</strong><small>Ready to review</small></a>
-    <a href="/leads?status=unlocked" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-briefcase"></use></svg></span><span class="workspace-metric-label">My leads</span><strong x-text="data.unlocked || 0">0</strong><small>Customer contacts</small></a>
-    <button type="button" class="provider-dashboard-stat workspace-metric-card text-start" @click="data.pendingOutcomeCount > 0 ? reminderOpen = true : null"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-clock"></use></svg></span><span class="workspace-metric-label">Action required</span><strong x-text="data.pendingOutcomeCount || 0">0</strong><small>Pending outcomes</small></button>
-    <a href="/leads?status=unlocked&amp;activityStatus=follow_up" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-trend"></use></svg></span><span class="workspace-metric-label">Follow up</span><strong x-text="data.followUp || 0">0</strong><small>Continue conversations</small></a>
-    <a href="/leads?status=unlocked&amp;outcome=confirmed" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-check"></use></svg></span><span class="workspace-metric-label">Confirmed</span><strong x-text="data.confirmed || 0">0</strong><small>Converted leads</small></a>
-  </section>
-
-  <div class="provider-dashboard-workgrid">
-    <section class="card portal-card provider-priority-queue">
-      <div class="card-header workspace-panel-header">
-        <div><span class="workspace-eyebrow">Priority queue</span><h3>What needs your attention</h3></div>
-        <span class="provider-queue-state" :class="Number(data.pendingOutcomeCount || 0) ? 'is-attention' : 'is-clear'" x-text="Number(data.pendingOutcomeCount || 0) ? 'Action needed' : 'All clear'"></span>
-      </div>
-      <div class="provider-priority-list">
-        <a href="/leads?status=unlocked&amp;outcome=pending" :class="Number(data.pendingOutcomeCount || 0) ? 'is-urgent' : ''">
-          <span class="provider-priority-icon"><svg class="icon"><use href="#i-clock"></use></svg></span>
-          <span><strong>Complete pending outcomes</strong><small>Mark unlocked leads Confirmed or Not Confirmed.</small></span>
-          <b x-text="data.pendingOutcomeCount || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
-        </a>
-        <a href="/leads?status=unlocked&amp;activityStatus=follow_up">
-          <span class="provider-priority-icon"><svg class="icon"><use href="#i-trend"></use></svg></span>
-          <span><strong>Continue follow-ups</strong><small>Return to customers who need another conversation.</small></span>
-          <b x-text="data.followUp || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
-        </a>
-        <a href="/leads?status=offered">
-          <span class="provider-priority-icon"><svg class="icon"><use href="#i-search"></use></svg></span>
-          <span><strong>Review marketplace leads</strong><small>See nearby opportunities matched to your categories.</small></span>
-          <b x-text="data.offered || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
-        </a>
-        <a href="/leads?status=unlocked&amp;outcome=confirmed">
-          <span class="provider-priority-icon"><svg class="icon"><use href="#i-check"></use></svg></span>
-          <span><strong>Review confirmed business</strong><small>Keep confirmed customer outcomes accurate.</small></span>
-          <b x-text="data.confirmed || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
-        </a>
-      </div>
-    </section>
-
-    <section class="card portal-card provider-dashboard-recent workspace-panel">
-      <div class="card-header workspace-panel-header">
-        <div><span class="workspace-eyebrow">Recent activity</span><h3>Latest leads</h3></div>
-        <a href="/leads" class="workspace-text-link">View all <svg class="icon"><use href="#i-arrow"></use></svg></a>
-      </div>
-      <div class="provider-recent-list workspace-recent-list">
-        <template x-for="lead in (data.recent || []).slice(0, 6)" :key="lead.leadDistributionId">
-          <a class="provider-recent-row workspace-recent-row" :href="'/leads/' + lead.leadDistributionId">
-            <span class="provider-recent-icon"><svg class="icon"><use :href="lead.contactUnlocked ? '#i-briefcase' : '#i-lead'"></use></svg></span>
-            <span class="provider-recent-main min-w-0"><strong x-text="displaySentenceCase(lead.leadTitle || lead.serviceType, 'Service requirement')"></strong><small x-text="[lead.city, lead.category || humanize(lead.categorySlug)].filter(Boolean).join(' · ')"></small></span>
-            <span class="provider-recent-status" :class="statusClass(lead)" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : (lead.contactUnlocked ? 'Outcome pending' : credits(lead.leadCostCredits))"></span>
-            <svg class="icon workspace-row-arrow"><use href="#i-arrow"></use></svg>
-          </a>
-        </template>
-        <div class="provider-dashboard-empty" x-show="!loading && !(data.recent || []).length"><span class="workspace-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></span><strong>No leads yet</strong><span>Matching opportunities will appear here automatically.</span><a class="btn btn-primary btn-sm" href="/leads?status=offered">Open marketplace</a></div>
-        <div class="provider-dashboard-empty" x-show="loading">Loading…</div>
-      </div>
-    </section>
-  </div>
-</div>
-
-<script nonce="<%= cspNonce %>">
-  function dashboardPage() {
-    return {
-      data: {}, loading: true, error: '', reminderOpen: false,
-      statusClass(lead) {
-        if (lead.providerSaleOutcome === 'confirmed') return 'is-success';
-        if (lead.providerSaleOutcome === 'not_confirmed') return 'is-neutral';
-        if (['rejected','invalid'].includes(lead.providerLeadStatus)) return 'is-danger';
-        if (lead.providerLeadStatus === 'on_hold') return 'is-warning';
-        return lead.contactUnlocked ? 'is-pending' : 'is-credit';
-      },
-      async load() {
-        this.loading = true; this.error = '';
-        try {
-          this.data = (await apiFetch('/api/dashboard')).data || {};
-          const dismissed = sessionStorage.getItem('findoly-pending-outcome-reminder-dismissed') === '1';
-          this.reminderOpen = Number(this.data.pendingOutcomeCount || 0) > 0 && !dismissed;
-        } catch (error) { this.error = error.message; } finally { this.loading = false; }
-      },
-      dismissReminder() { this.reminderOpen = false; sessionStorage.setItem('findoly-pending-outcome-reminder-dismissed', '1'); }
-    };
-  }
-</script>
-      </div>
-      <%- include('../partials/footer') %>
-    </div>
-  </div>
-</div>
-<div class="portal-sidebar-overlay" data-portal-menu-overlay aria-hidden="true"></div>
-<%- include('../partials/scripts') %>
-</body>
+    <script>
+      function dashboardPage() {
+        return {
+          data: {},
+          loading: true,
+          error: '',
+          async load() {
+            this.loading = true;
+            try {
+              this.data = (await apiFetch('/api/dashboard')).data || {};
+            } catch (error) {
+              this.error = error.message;
+            } finally {
+              this.loading = false;
+            }
+          }
+        };
+      }
+    </script>
+    <%- include('../partials/scripts') %>
+  </body>
 </html>

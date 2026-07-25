@@ -1,0 +1,34 @@
+const router = require("express").Router();
+const c = require("../controllers/communicationController");
+const { requirePermission } = require("../middleware/auth");
+
+router.get("/dashboard", requirePermission("communications.view"), c.dashboard);
+router.get("/config", requirePermission("communications.manage"), c.config);
+router.post("/send", requirePermission("communications.send"), c.send);
+router.get("/slack/channels", requirePermission("communications.manage"), c.listSlackChannels);
+router.post("/slack/send", requirePermission("communications.send"), c.sendSlack);
+router.post("/:communicationId/retry", requirePermission("communications.send"), c.retry);
+router.get("/templates", requirePermission("communications.view"), c.listTemplates);
+router.post("/templates", requirePermission("communications.manage"), c.createTemplate);
+router.post("/templates/sync", requirePermission("communications.manage"), c.syncTemplates);
+router.get("/templates/:templateId", requirePermission("communications.view"), c.getTemplate);
+router.put("/templates/:templateId", requirePermission("communications.manage"), c.updateTemplate);
+router.patch("/templates/:templateId", requirePermission("communications.manage"), c.updateTemplate);
+router.post("/templates/:templateId/submit", requirePermission("communications.manage"), c.submitTemplate);
+router.post("/templates/:templateId/test", requirePermission("communications.send"), c.testTemplate);
+router.get("/rules", requirePermission("communications.view"), c.listRules);
+router.post("/rules", requirePermission("communications.manage"), c.createRule);
+router.get("/rules/:ruleId", requirePermission("communications.view"), c.getRule);
+router.put("/rules/:ruleId", requirePermission("communications.manage"), c.updateRule);
+router.patch("/rules/:ruleId", requirePermission("communications.manage"), c.updateRule);
+router.post("/events/:event", requirePermission("communications.manage"), c.triggerEvent);
+router.get("/otp", requirePermission("communications.view"), c.listOtp);
+router.post("/otp/send", requirePermission("communications.send"), c.sendOtp);
+router.post("/otp/verify", requirePermission("communications.send"), c.verifyOtp);
+router.get("/", requirePermission("communications.view"), c.list);
+router.post("/", requirePermission("communications.send"), c.create);
+router.get("/:communicationId", requirePermission("communications.view"), c.get);
+router.put("/:communicationId", requirePermission("communications.manage"), c.update);
+router.patch("/:communicationId", requirePermission("communications.manage"), c.update);
+
+module.exports = router;

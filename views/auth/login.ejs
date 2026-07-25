@@ -1,173 +1,154 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" dir="ltr">
-<%- include('../partials/head') %>
-<body class="portal-login-body" x-data="loginPage()" x-init="init()">
-  <main class="portal-login-shell">
-    <div class="portal-login-brand">
-      <img src="/images/findoly-logo.png" alt="Findoly" class="portal-login-logo">
-      <span>Provider portal</span>
-    </div>
+  <%- include('../partials/head') %>
+  <body class="login-cover" x-data="loginPage()">
+    <div class="page-content">
+      <div class="content-wrapper">
+        <div class="content-inner">
+          <div class="content d-flex justify-content-center align-items-center">
+            <form class="login-form" @submit.prevent="step === 'mobile' ? sendOtp() : verifyOtp()">
+              <div class="card mb-0 crm-otp-login-card">
+                <div class="card-body">
+                  <div class="text-center mb-4">
+                    <div class="crm-brand-mark mx-auto mb-3">C</div>
+                    <h5 class="mb-1">CRM employee sign in</h5>
+                    <span class="d-block text-muted">Use your registered mobile number and OTP</span>
+                  </div>
 
-    <section class="card portal-login-card" aria-labelledby="loginTitle">
-      <div class="card-body">
-        <div class="text-center mb-4">
-          <span class="portal-login-lock" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span>
-          <h1 id="loginTitle" class="h3 mb-2">Sign in to Findoly</h1>
-          <p class="text-muted mb-0">Use the mobile number approved for your provider account.</p>
+                  <div x-show="error" x-cloak class="alert alert-danger" x-text="error"></div>
+                  <div x-show="message" x-cloak class="alert alert-success" x-text="message"></div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Mobile number</label>
+                    <div class="input-group">
+                      <span class="input-group-text">+91</span>
+                      <input
+                        class="form-control"
+                        type="tel"
+                        inputmode="numeric"
+                        autocomplete="tel"
+                        maxlength="10"
+                        placeholder="Enter 10-digit mobile"
+                        x-model="form.mobile"
+                        @input="form.mobile = digits(form.mobile)"
+                        :readonly="step === 'otp'"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <template x-if="step === 'otp'">
+                    <div>
+                      <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <label class="form-label mb-0">One-time password</label>
+                          <button type="button" class="btn btn-link btn-sm p-0" @click="changeMobile()">Change mobile</button>
+                        </div>
+                        <input
+                          class="form-control crm-otp-input"
+                          type="text"
+                          inputmode="numeric"
+                          autocomplete="one-time-code"
+                          maxlength="8"
+                          placeholder="Enter OTP"
+                          x-model="form.otp"
+                          @input="form.otp = String(form.otp || '').replace(/\D/g, '').slice(0, 8)"
+                          required
+                        />
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-3 fs-sm">
+                        <span class="text-muted">Session stays active for 24 hours</span>
+                        <button type="button" class="btn btn-link btn-sm p-0" :disabled="loading" @click="sendOtp(true)">
+                          <span>Resend OTP</span>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+
+                  <button class="btn btn-primary w-100" :disabled="loading">
+                    <span x-text="loading ? (step === 'mobile' ? 'Sending OTP…' : 'Verifying…') : (step === 'mobile' ? 'Send OTP' : 'Verify and sign in')"></span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
-
-        <div x-show="error" x-cloak class="alert alert-danger" role="alert" x-text="error"></div>
-        <div x-show="message" x-cloak class="alert alert-success" role="status" x-text="message"></div>
-
-        <form @submit.prevent="step === 'mobile' ? sendOtp() : verifyOtp()" novalidate>
-          <div class="mb-3">
-            <label class="form-label" for="providerMobile">Mobile number</label>
-            <div class="input-group">
-              <span class="input-group-text">+91</span>
-              <input
-                id="providerMobile"
-                class="form-control"
-                inputmode="numeric"
-                autocomplete="tel"
-                maxlength="10"
-                x-model="mobile"
-                :disabled="step === 'otp'"
-                placeholder="10-digit mobile number"
-                required
-              >
-            </div>
-          </div>
-
-          <div class="mb-3" x-show="step === 'otp'" x-cloak>
-            <div class="d-flex align-items-center justify-content-between mb-1">
-              <label class="form-label mb-0" for="providerOtp">One-time password</label>
-              <button class="btn btn-link btn-sm p-0" type="button" :disabled="resendSeconds > 0 || loading" @click="sendOtp(true)">
-                <span x-text="resendSeconds > 0 ? `Resend in ${resendSeconds}s` : 'Resend OTP'"></span>
-              </button>
-            </div>
-            <input
-              id="providerOtp"
-              class="form-control portal-otp-input"
-              inputmode="numeric"
-              autocomplete="one-time-code"
-              maxlength="8"
-              x-model="otp"
-              placeholder="Enter OTP"
-            >
-          </div>
-
-          <button class="btn btn-primary w-100" type="submit" :disabled="loading">
-            <span class="spinner-border spinner-border-sm me-2" x-show="loading" x-cloak></span>
-            <span x-text="loading ? 'Please wait…' : (step === 'mobile' ? 'Send OTP' : 'Verify and login')"></span>
-          </button>
-
-          <button type="button" class="btn btn-link w-100 mt-2" x-show="step === 'otp'" x-cloak @click="resetMobile()">Use another mobile number</button>
-        </form>
       </div>
-    </section>
-
-    <div class="portal-login-help">
-      <strong>Unable to sign in?</strong>
-      <span>Ask the CRM administrator to confirm that your account is active and portal access is enabled.</span>
     </div>
-  </main>
-
-<%- include('../partials/scripts') %>
-<script nonce="<%= cspNonce %>">
-  function loginPage() {
-    return {
-      returnTo: safeReturnTo(new URLSearchParams(location.search).get('returnTo')),
-      mobile: '',
-      otp: '',
-      step: 'mobile',
-      loading: false,
-      error: '',
-      message: '',
-      resendSeconds: 0,
-      timer: null,
-
-      init() {
-        const reason = new URLSearchParams(location.search).get('reason');
-        const messages = {
-          PROVIDER_INACTIVE: 'Your provider account is inactive. Contact the CRM administrator.',
-          PORTAL_ACCESS_DISABLED: 'Portal access has been disabled for this provider account.',
-          PROVIDER_NOT_FOUND: 'Your previous provider session is no longer valid.',
-          SESSION_INVALID: 'Your session expired. Please sign in again.',
-          PROVIDER_ID_MISSING: 'The provider record must be migrated before portal access can continue.'
-        };
-        if (messages[reason]) this.error = messages[reason];
-      },
-
-      startTimer(seconds = 30) {
-        clearInterval(this.timer);
-        this.resendSeconds = seconds;
-        this.timer = setInterval(() => {
-          this.resendSeconds = Math.max(0, this.resendSeconds - 1);
-          if (!this.resendSeconds) clearInterval(this.timer);
-        }, 1000);
-      },
-
-      async sendOtp(isResend = false) {
-        this.mobile = String(this.mobile || '').replace(/\D/g, '').slice(-10);
-        if (this.mobile.length !== 10) {
-          this.error = 'Enter a valid 10-digit mobile number.';
-          return;
-        }
-
-        this.loading = true;
-        this.error = '';
-        this.message = '';
-        try {
-          const body = await apiFetch('/api/auth/send-otp', {
-            method: 'POST',
-            body: JSON.stringify({ mobile: this.mobile })
-          });
-          this.step = 'otp';
-          this.otp = '';
-          this.startTimer(30);
-          this.message = body.data?.devOtp
-            ? `Development OTP: ${body.data.devOtp}`
-            : (isResend ? 'A new OTP was sent.' : 'OTP sent successfully.');
-          this.$nextTick(() => document.getElementById('providerOtp')?.focus());
-        } catch (error) {
-          this.error = error.message;
-        } finally {
-          this.loading = false;
-        }
-      },
-
-      async verifyOtp() {
-        if (!/^\d{4,8}$/.test(String(this.otp || '').trim())) {
-          this.error = 'Enter the OTP sent to your mobile number.';
-          return;
-        }
-
-        this.loading = true;
-        this.error = '';
-        try {
-          await apiFetch('/api/auth/verify-otp', {
-            method: 'POST',
-            body: JSON.stringify({ mobile: this.mobile, otp: this.otp })
-          });
-          location.href = this.returnTo;
-        } catch (error) {
-          this.error = error.message;
-        } finally {
-          this.loading = false;
-        }
-      },
-
-      resetMobile() {
-        clearInterval(this.timer);
-        this.step = 'mobile';
-        this.otp = '';
-        this.message = '';
-        this.error = '';
-        this.resendSeconds = 0;
-        this.$nextTick(() => document.getElementById('providerMobile')?.focus());
+    <script>
+      function safeReturnTo(value) {
+        const target = String(value || '/dashboard');
+        return target.startsWith('/') && !target.startsWith('//') ? target : '/dashboard';
       }
-    };
-  }
-</script>
-</body>
+
+      function loginPage() {
+        return {
+          step: 'mobile',
+          form: { mobile: '', otp: '' },
+          loading: false,
+          error: '',
+          message: '',
+          returnTo: safeReturnTo(new URLSearchParams(location.search).get('returnTo')),
+          digits(value) { return String(value || '').replace(/\D/g, '').slice(-10); },
+          async sendOtp(isResend = false) {
+            if (this.loading) return;
+            this.error = '';
+            this.message = '';
+            if (!/^[6-9]\d{9}$/.test(this.form.mobile)) {
+              this.error = 'Enter a valid 10-digit Indian mobile number';
+              return;
+            }
+            this.loading = true;
+            try {
+              const response = await fetch('/api/auth/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mobile: this.form.mobile })
+              });
+              const body = await response.json().catch(() => ({}));
+              if (!response.ok || body.success === false) throw new Error(body.message || 'Unable to send OTP');
+              this.step = 'otp';
+              this.form.otp = '';
+              this.message = body.data?.message || (isResend ? 'A new OTP has been sent.' : 'OTP sent successfully.');
+              this.$nextTick(() => document.querySelector('.crm-otp-input')?.focus());
+            } catch (error) {
+              this.error = error.message;
+            } finally {
+              this.loading = false;
+            }
+          },
+          async verifyOtp() {
+            if (this.loading) return;
+            this.error = '';
+            this.message = '';
+            if (!/^\d{4,8}$/.test(this.form.otp)) {
+              this.error = 'Enter the OTP sent to your mobile';
+              return;
+            }
+            this.loading = true;
+            try {
+              const response = await fetch('/api/auth/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mobile: this.form.mobile, otp: this.form.otp })
+              });
+              const body = await response.json().catch(() => ({}));
+              if (!response.ok || body.success === false) throw new Error(body.message || 'OTP verification failed');
+              location.href = this.returnTo;
+            } catch (error) {
+              this.error = error.message;
+            } finally {
+              this.loading = false;
+            }
+          },
+          changeMobile() {
+            this.step = 'mobile';
+            this.form.otp = '';
+            this.error = '';
+            this.message = '';
+          }
+        };
+      }
+    </script>
+  </body>
 </html>

@@ -1,54 +1,61 @@
+const Enquiry = require("../../models/Enquiry");
+const Provider = require("../../models/Provider");
+const FollowUp = require("../../models/FollowUp");
+const Invoice = require("../../models/Invoice");
 const LeadDistribution = require("../../models/LeadDistribution");
-const {
-  providerIdentity,
-  providerCategories,
-  presentProvider,
-} = require("../../utils/provider");
-const { presentLead } = require("../../utils/lead");
-const creditService = require("../billing/credit-service");
-const leadService = require("../lead/lead-service");
-const { refreshProviderVisibility } = require("../marketplace/visibility-service");
+const { presentEnquiry } = require("../enquiry/enquiry-service");
 
-async function get(provider) {
-  await refreshProviderVisibility(provider);
-  const providerId = providerIdentity(provider);
-  const categorySlugs = providerCategories(provider);
-  const syncedProvider = await creditService.syncCredits(providerId);
-
-  const availableQuery = {
-    providerId,
-    status: "offered",
-    contactUnlocked: { $ne: true },
-    marketplaceVisibleAt: { $ne: null, $lte: new Date() },
+async function getDashboard() {
+  const statusGroups = {
+    new: ["new"],
+    verification: ["verification", "verification_pending", "verified"],
+    approved: ["approved"],
+    distributed: ["distributed", "in_progress", "completed", "closed"],
+    sale_converted: ["sale_converted"],
+    rejected: ["rejected"],
   };
-  availableQuery.categorySlug = { $in: categorySlugs };
 
-  const [offered, unlocked, followUp, confirmed, recent, pendingOutcomeResult] = await Promise.all([
-    LeadDistribution.countDocuments(availableQuery),
-    LeadDistribution.countDocuments({ providerId, contactUnlocked: true }),
-    LeadDistribution.countDocuments({ providerId, contactUnlocked: true, providerLeadStatus: "follow_up" }),
-    LeadDistribution.countDocuments({ providerId, contactUnlocked: true, providerSaleOutcome: "confirmed" }),
-    LeadDistribution.find({
-      providerId,
-      $or: [availableQuery, { contactUnlocked: true }],
-    })
-      .sort({ distributedAt: -1, createdAt: -1 })
-      .limit(8)
-      .lean(),
-    leadService.pendingOutcomes(provider, { limit: 10 }),
-  ]);
-
-  return {
-    provider: presentProvider(syncedProvider),
+  const statusCounts = {};
+  await Promise.all(
+    Object.entries(statusGroups).map(async ([status, values]) => {
+      statusCounts[status] = await Enquiry.countDocuments({
+        status: { $in: values },
+      });
+    }),
+  );
+  const [
+    totalLeads,
+    providers,
+    activeProviders,
+    openFollowUps,
+    invoices,
     offered,
     unlocked,
-    followUp,
-    confirmed,
-    recent: await leadService.presentRows(recent),
-    pendingOutcomes: pendingOutcomeResult.data,
-    pendingOutcomeCount: pendingOutcomeResult.total,
-    outcomeReminderDays: pendingOutcomeResult.reminderDays,
+    recentLeads,
+  ] = await Promise.all([
+    Enquiry.countDocuments(),
+    Provider.countDocuments(),
+    Provider.countDocuments({
+      status: "active",
+      portalAccessEnabled: { $ne: false },
+    }),
+    FollowUp.countDocuments({ status: { $in: ["open", "pending"] } }),
+    Invoice.countDocuments(),
+    LeadDistribution.countDocuments({ status: "offered" }),
+    LeadDistribution.countDocuments({ contactUnlocked: true }),
+    Enquiry.find().sort({ createdAt: -1 }).limit(10).lean(),
+  ]);
+  return {
+    totalLeads,
+    providers,
+    activeProviders,
+    openFollowUps,
+    invoices,
+    offered,
+    unlocked,
+    statusCounts,
+    recentLeads: recentLeads.map(presentEnquiry),
   };
 }
 
-module.exports = { get };
+module.exports = { getDashboard };

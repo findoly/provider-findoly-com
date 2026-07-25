@@ -8,9 +8,10 @@ const leadDistributionSchema = new mongoose.Schema(
       default: uuid,
       unique: true,
       index: true,
+      immutable: true,
     },
-    enquiryId: { type: String, required: true, index: true },
-    providerId: { type: String, required: true, index: true },
+    enquiryId: { type: String, required: true, index: true, immutable: true },
+    providerId: { type: String, required: true, index: true, immutable: true },
     categorySlug: { type: String, default: "", index: true },
     status: { type: String, default: "offered", index: true },
     leadPricePaise: { type: Number, required: true, min: 0 },
@@ -19,6 +20,25 @@ const leadDistributionSchema = new mongoose.Schema(
     contactUnlocked: { type: Boolean, default: false, index: true },
     leadTitle: { type: String, default: "" },
     serviceType: { type: String, default: "" },
+    serviceTypes: {
+      type: [
+        new mongoose.Schema(
+          {
+            serviceTypeId: { type: String, required: true },
+            name: { type: String, required: true, trim: true, maxlength: 120 },
+            slug: { type: String, required: true, trim: true, maxlength: 80 },
+          },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
+      validate: {
+        validator(value) {
+          return value === undefined || (Array.isArray(value) && value.length <= 5);
+        },
+        message: "A lead may contain no more than 5 Service Types",
+      },
+    },
     category: { type: String, default: "" },
     city: { type: String, default: "" },
     state: { type: String, default: "" },
@@ -48,13 +68,6 @@ const leadDistributionSchema = new mongoose.Schema(
     distributedAt: { type: Date, default: Date.now, index: true },
     unlockedAt: { type: Date, default: null },
     walletTransactionId: { type: String, default: "" },
-    unlockMethod: { type: String, default: "", index: true },
-    paymentOrderId: { type: String, default: "", index: true },
-    directPaymentAmountPaise: { type: Number, default: 0, min: 0 },
-    directPaymentGstPaise: { type: Number, default: 0, min: 0 },
-    directPaymentTotalPaise: { type: Number, default: 0, min: 0 },
-    directPaymentPendingOrderId: { type: String, default: "", index: true },
-    directPaymentPendingUntil: { type: Date, default: null },
     providerSaleOutcome: { type: String, enum: ["", "confirmed", "not_confirmed"], default: "", index: true },
     providerSaleOutcomeNote: { type: String, default: "" },
     providerSaleOutcomeUpdatedAt: { type: Date, default: null, index: true },
@@ -65,7 +78,10 @@ const leadDistributionSchema = new mongoose.Schema(
     providerLeadNote: { type: String, default: "" },
     providerLeadStatusUpdatedAt: { type: Date, default: null },
     providerLeadStatusUpdatedBy: { type: String, default: "" },
-    providerLeadStatusHistory: { type: [mongoose.Schema.Types.Mixed], default: undefined },
+    providerLeadStatusHistory: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: undefined,
+    },
     outcomeVerificationStatus: { type: String, enum: ["", "pending_review", "verified", "unable_to_verify", "incorrect_status", "under_review"], default: "", index: true },
     outcomeVerificationNote: { type: String, default: "" },
     outcomeVerifiedAt: { type: Date, default: null },
@@ -87,8 +103,8 @@ const leadDistributionSchema = new mongoose.Schema(
 );
 
 leadDistributionSchema.index({ enquiryId: 1, providerId: 1 }, { unique: true });
-leadDistributionSchema.index({ providerId: 1, contactUnlocked: 1, unlockedAt: 1, providerSaleOutcome: 1 });
-leadDistributionSchema.index({ providerId: 1, status: 1, marketplaceVisibleAt: 1, distributedAt: -1 });
+leadDistributionSchema.index({ enquiryId: 1, distributedAt: -1, _id: -1 });
+leadDistributionSchema.index({ providerId: 1, distributedAt: -1, _id: -1 });
 
 module.exports = mongoose.model(
   "LeadDistribution",

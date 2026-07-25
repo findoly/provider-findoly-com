@@ -4,9 +4,7 @@ function transactionUnavailable(error) {
   const message = String(error?.message || "");
   return (
     error?.code === 20 ||
-    /Transaction numbers are only allowed on a replica set member or mongos/i.test(
-      message,
-    ) ||
+    /Transaction numbers are only allowed on a replica set member or mongos/i.test(message) ||
     /transactions are not supported/i.test(message)
   );
 }
@@ -31,7 +29,7 @@ async function withTransaction(work) {
     if (transactionUnavailable(error)) {
       throw Object.assign(
         new Error(
-          "Credit and payment operations require MongoDB Atlas or a replica set with transactions enabled",
+          "Credit operations require MongoDB Atlas or a replica set with transactions enabled",
         ),
         { status: 503, code: "MONGODB_TRANSACTIONS_REQUIRED" },
       );

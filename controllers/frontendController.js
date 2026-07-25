@@ -1,33 +1,60 @@
-function render(view, title, subtitle = "") {
-  return (req, res) => res.render(view, { title, subtitle });
+function render(view, title) {
+  return (req, res) => res.render(view, { title });
 }
 
-const plansPage = render(
-  "wallet/index",
-  "Plans & credits",
-  "Choose a plan, manage credits and review payment activity",
-);
-
 const frontendController = {
-  login: render("auth/login", "Provider login"),
-  dashboard: render(
-    "dashboard/index",
-    "Dashboard",
-    "Category-matched leads and credit activity",
+  login: render("auth/login", "Admin login"),
+  dashboard: render("dashboard/index", "Dashboard"),
+  enquiries: render("enquiry/index", "Requirements"),
+  enquiryCreate: render("enquiry/form", "Create requirement"),
+  enquiryEdit: render("enquiry/form", "Edit requirement"),
+  enquiryShow: render("enquiry/show", "Requirement details"),
+  enquiryProviderStatuses: render(
+    "enquiry/provider-statuses",
+    "Lead provider statuses",
   ),
-  leads: render(
-    "lead/index",
-    "Lead marketplace",
-    "Leads approved by CRM and matched to your categories",
+  enquiryProviderStatusShow: render(
+    "enquiry/provider-status-show",
+    "Provider lead journey",
   ),
-  lead: render("lead/show", "Lead details"),
-  plans: plansPage,
-  wallet: plansPage,
-  profile: render(
-    "profile/index",
-    "My profile",
-    "Provider details managed from the CRM",
-  ),
+  providers: render("provider/index", "Providers"),
+  agents: render("agent/index", "Agents"),
+  agentCreate: render("agent/form", "Create agent"),
+  agentEdit: render("agent/form", "Edit agent"),
+  agentShow: render("agent/show", "Agent details"),
+  partnerWithdrawals: render("partner-payout/index", "Partner withdrawals"),
+  partnerWithdrawalShow: render("partner-payout/show", "Partner withdrawal"),
+  categories: render("category/index", "Categories"),
+  providerCreate: render("provider/form", "Create provider"),
+  providerEdit: render("provider/form", "Edit provider"),
+  providerShow: render("provider/show", "Provider details"),
+  followUps: render("follow-up/index", "Follow-ups"),
+  followUpCreate: render("follow-up/form", "Create follow-up"),
+  followUpEdit: render("follow-up/form", "Edit follow-up"),
+  communications: render("communication/index", "Communication Center"),
+  communicationLogs: render("communication/logs", "Message logs"),
+  communicationSend: render("communication/send", "Send message"),
+  communicationTemplates: render("communication/templates", "Communication templates"),
+  communicationTemplateCreate: render("communication/template-form", "Create template"),
+  communicationTemplateEdit: render("communication/template-form", "Edit template"),
+  communicationRules: render("communication/rules", "Notification rules"),
+  communicationOtp: render("communication/otp", "OTP activity"),
+  communicationSettings: render("communication/settings", "Communication settings"),
+  communicationCreate: render("communication/form", "Log communication"),
+  communicationEdit: render("communication/form", "Edit communication"),
+  invoices: render("invoice/index", "Invoices"),
+  providerSubscriptions: render("billing/provider-subscriptions", "Provider Subscriptions"),
+  invoiceCreate: render("invoice/form", "Create invoice"),
+  invoiceEdit: render("invoice/form", "Edit invoice"),
+  distributions: render("distribution/index", "Lead distribution"),
+  reports: render("report/index", "Reports"),
+  storage: render("storage/index", "File Manager"),
+  employees: render("employee/index", "Employees"),
+  employeeCreate: render("employee/form", "Create employee"),
+  employeeEdit: render("employee/form", "Edit employee"),
+  roles: render("role/index", "Roles and permissions"),
+  roleCreate: render("role/form", "Create role"),
+  roleEdit: render("role/form", "Edit role"),
 };
 
 module.exports = frontendController;

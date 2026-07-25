@@ -5,7 +5,6 @@ const ejs = require("ejs");
 const roots = [
   "app.js",
   "bin",
-  "config",
   "controllers",
   "db",
   "middleware",
@@ -62,8 +61,6 @@ async function checkViews() {
         title: "Validation",
         subtitle: "Validation subtitle",
         appName: "Validation App",
-        cspNonce: "validation-nonce",
-        csrfCookieName: "provider_csrf",
       });
     } catch (error) {
       throw new Error(`EJS render error in ${file}: ${error.message}`);

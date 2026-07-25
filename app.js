@@ -1,116 +1,119 @@
 require("dotenv").config();
 
-const crypto = require("crypto");
 const path = require("path");
 const express = require("express");
+const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const compression = require("compression");
-const helmet = require("helmet");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
-const { attachProvider } = require("./middleware/auth");
-const { ensureCsrfToken } = require("./middleware/security");
-const { apiLimiter } = require("./middleware/rate-limit");
+const connectDatabase = require("./db/connection");
+const { assertRuntimeConfig } = require("./utils/runtime-config");
+const { attachAdmin } = require("./middleware/auth");
 const { notFound, errorHandler } = require("./middleware/error");
-const walletController = require("./controllers/walletController");
 const frontendRoutes = require("./routes/frontend");
 const apiRoutes = require("./routes/main");
 
-const app = express();
+assertRuntimeConfig();
 
+const app = express();
+const production = process.env.NODE_ENV === "production";
+const trustProxy = String(process.env.TRUST_PROXY || (production ? "1" : "0")).trim();
+if (trustProxy === "true") app.set("trust proxy", 1);
+else if (trustProxy === "false" || trustProxy === "0") app.set("trust proxy", false);
+else if (/^\d+$/.test(trustProxy)) app.set("trust proxy", Number(trustProxy));
+else app.set("trust proxy", trustProxy);
 
 app.disable("x-powered-by");
-
-const trustProxyValue = process.env.TRUST_PROXY || "1";
-
-if (!/^\d+$/.test(trustProxyValue)) {
-  throw new Error("TRUST_PROXY must be a number such as 1");
-}
-
-app.set("trust proxy", Number(trustProxyValue));
-
-app.locals.appName = process.env.APP_NAME || "Provider Lead Portal";
+app.locals.appName = process.env.APP_NAME || "Service CRM Admin";
 app.locals.apiBase = "/api";
-app.locals.csrfCookieName =
-  process.env.CSRF_COOKIE_NAME || "provider_csrf";
+app.locals.databaseError = null;
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
+const allowedOrigins = String(process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((value) => value.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    const normalized = String(origin).replace(/\/+$/, "");
+    return callback(null, allowedOrigins.includes(normalized));
+  },
+  credentials: true,
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Customer-Portal-Token", "X-Findoly-Customer-Token", "X-Findoly-Intake-Token", "X-Communication-Token", "X-Communication-Otp-Token", "X-Webhook-Secret"],
+  maxAge: 600,
+}));
 app.use((req, res, next) => {
-  req.requestId = req.get("x-request-id") || crypto.randomUUID();
-  res.set("x-request-id", req.requestId);
-  res.locals.cspNonce = crypto.randomBytes(16).toString("base64");
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "SAMEORIGIN");
+  res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (production) res.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   next();
 });
+app.use(morgan(production ? "combined" : "dev"));
 
-app.use(
-  helmet({
-    crossOriginEmbedderPolicy: false,
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        baseUri: ["'self'"],
-        objectSrc: ["'none'"],
-        frameAncestors: ["'none'"],
-        formAction: ["'self'", "https://api.razorpay.com"],
-        imgSrc: ["'self'", "data:", "https://*.razorpay.com"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        fontSrc: ["'self'", "data:"],
-        scriptSrc: [
-          "'self'",
-          (req, res) => `'nonce-${res.locals.cspNonce}'`,
-          "'unsafe-eval'",
-          "https://checkout.razorpay.com",
-        ],
-        connectSrc: ["'self'", "https://*.razorpay.com"],
-        frameSrc: ["https://api.razorpay.com", "https://*.razorpay.com"],
-      },
-    },
-    referrerPolicy: { policy: "same-origin" },
-  }),
-);
-app.use(compression());
-app.use(
-  morgan(process.env.NODE_ENV === "production" ? "combined" : "dev", {
-    skip: (req) => req.path === "/api/health",
-  }),
-);
-
+const communicationController = require("./controllers/communicationController");
+app.get("/api/webhooks/whatsapp", communicationController.verifyWhatsAppWebhook);
 app.post(
-  "/api/webhooks/razorpay",
-  express.raw({ type: "application/json", limit: "256kb" }),
-  walletController.webhook,
+  "/api/webhooks/whatsapp",
+  express.raw({ type: "application/json", limit: "1mb" }),
+  communicationController.whatsappWebhook,
 );
-
-app.use(express.json({ limit: "256kb", strict: true }));
-app.use(express.urlencoded({ extended: false, limit: "128kb" }));
+app.post(
+  "/api/webhooks/ses",
+  express.raw({ type: "application/json", limit: "1mb" }),
+  communicationController.sesWebhook,
+);
+app.post(
+  "/api/webhooks/razorpay/payouts",
+  express.raw({ type: "application/json", limit: "256kb" }),
+  require("./controllers/partnerPayoutController").webhook,
+);
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: false, limit: "2mb" }));
 app.use(cookieParser());
-app.use(ensureCsrfToken);
-app.use(
-  express.static(path.join(__dirname, "public"), {
-    etag: true,
-    maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
-    immutable: process.env.NODE_ENV === "production",
+app.post("/api/webhooks/message-delivery", communicationController.lambdaDeliveryWebhook);
+app.use(express.static(path.join(__dirname, "public"), {
+  etag: true,
+  maxAge: production ? "1h" : 0,
+  index: false,
+}));
+app.use(attachAdmin);
+
+app.get("/api/health", (req, res) =>
+  res.json({
+    success: true,
+    data: {
+      service: "crm",
+      status: "alive",
+      databaseState: mongoose.connection.readyState,
+      database: mongoose.connection.name || null,
+    },
   }),
 );
-app.get("/api/health", (req, res) => {
-  const databaseReady =
-    process.env.SKIP_DB === "true" || mongoose.connection.readyState === 1;
-  return res.status(databaseReady ? 200 : 503).json({
-    success: databaseReady,
-    data: {
-      service: "provider-lead-portal",
-      status: databaseReady ? "ready" : "not_ready",
-    },
+app.get("/api/ready", (req, res) => {
+  const ready = process.env.SKIP_DB === "true" || mongoose.connection.readyState === 1;
+  return res.status(ready ? 200 : 503).json({
+    success: ready,
+    data: { service: "crm", status: ready ? "ready" : "not_ready", databaseState: mongoose.connection.readyState },
   });
 });
 
-app.use(attachProvider);
 app.use("/", frontendRoutes);
 app.use("/frontend", frontendRoutes);
-app.use("/api", apiLimiter, apiRoutes);
+app.use("/api", apiRoutes);
 app.use(notFound);
 app.use(errorHandler);
+
+app.locals.databasePromise = process.env.SKIP_DB === "true"
+  ? Promise.resolve(mongoose.connection)
+  : connectDatabase();
+app.locals.databasePromise.catch((error) => {
+  app.locals.databaseError = error;
+  console.error("MongoDB connection error:", error.message);
+});
 
 module.exports = app;
