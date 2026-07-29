@@ -240,6 +240,18 @@
             </div>
           </div>
         </div>
+
+        <section class="card portal-card provider-payment-policy-card mt-4" aria-labelledby="payment-policy-title">
+          <div class="card-body">
+            <div>
+              <span class="provider-section-kicker">Payment information</span>
+              <h5 id="payment-policy-title" class="mb-1">Digital credits and subscription delivery</h5>
+              <p class="text-muted mb-0">Credits and subscriptions activate after verified payment. No physical delivery applies. Successfully purchased and activated digital credits and subscriptions are non-refundable.</p>
+            </div>
+            <%- include('../partials/policy-links', { policyLinksClass: 'provider-payment-policy-links' }) %>
+            <a href="mailto:<%= supportEmail %>" class="provider-payment-support"><%= supportEmail %></a>
+          </div>
+        </section>
       </div>
 
       <%- include('../partials/footer') %>

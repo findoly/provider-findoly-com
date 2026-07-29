@@ -27,11 +27,13 @@
               <input
                 id="providerMobile"
                 class="form-control"
+                type="tel"
                 inputmode="numeric"
                 autocomplete="tel"
                 maxlength="10"
                 x-model="mobile"
-                :disabled="step === 'otp'"
+                @input="mobile = digits(mobile)"
+                :readonly="step === 'otp'"
                 placeholder="10-digit mobile number"
                 required
               >
@@ -48,11 +50,14 @@
             <input
               id="providerOtp"
               class="form-control portal-otp-input"
+              type="text"
               inputmode="numeric"
               autocomplete="one-time-code"
               maxlength="8"
               x-model="otp"
+              @input="otp = String(otp || '').replace(/\D/g, '').slice(0, 8)"
               placeholder="Enter OTP"
+              required
             >
           </div>
 
@@ -63,13 +68,20 @@
 
           <button type="button" class="btn btn-link w-100 mt-2" x-show="step === 'otp'" x-cloak @click="resetMobile()">Use another mobile number</button>
         </form>
+
+        <p class="portal-login-consent">
+          By continuing, you agree to the <a href="/terms-and-conditions">Terms and Conditions</a> and acknowledge the <a href="/privacy-policy">Privacy Policy</a>.
+        </p>
       </div>
     </section>
 
     <div class="portal-login-help">
       <strong>Unable to sign in?</strong>
       <span>Ask the CRM administrator to confirm that your account is active and portal access is enabled.</span>
+      <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
     </div>
+
+    <%- include('../partials/policy-links', { policyLinksClass: 'portal-login-policy-links' }) %>
   </main>
 
 <%- include('../partials/scripts') %>
@@ -98,9 +110,13 @@
         if (messages[reason]) this.error = messages[reason];
       },
 
+      digits(value) {
+        return String(value || '').replace(/\D/g, '').slice(-10);
+      },
+
       startTimer(seconds = 30) {
         clearInterval(this.timer);
-        this.resendSeconds = seconds;
+        this.resendSeconds = Math.max(1, Number(seconds) || 30);
         this.timer = setInterval(() => {
           this.resendSeconds = Math.max(0, this.resendSeconds - 1);
           if (!this.resendSeconds) clearInterval(this.timer);
@@ -108,9 +124,10 @@
       },
 
       async sendOtp(isResend = false) {
-        this.mobile = String(this.mobile || '').replace(/\D/g, '').slice(-10);
-        if (this.mobile.length !== 10) {
-          this.error = 'Enter a valid 10-digit mobile number.';
+        if (this.loading || (isResend && this.resendSeconds > 0)) return;
+        this.mobile = this.digits(this.mobile);
+        if (!/^[6-9]\d{9}$/.test(this.mobile)) {
+          this.error = 'Enter a valid 10-digit Indian mobile number.';
           return;
         }
 
@@ -124,12 +141,11 @@
           });
           this.step = 'otp';
           this.otp = '';
-          this.startTimer(30);
-          this.message = body.data?.devOtp
-            ? `Development OTP: ${body.data.devOtp}`
-            : (isResend ? 'A new OTP was sent.' : 'OTP sent successfully.');
+          this.startTimer(body.data?.retryAfterSeconds || 30);
+          this.message = body.data?.message || (isResend ? 'A new OTP was sent.' : 'OTP sent successfully.');
           this.$nextTick(() => document.getElementById('providerOtp')?.focus());
         } catch (error) {
+          if (error.retryAfterSeconds > 0) this.startTimer(error.retryAfterSeconds);
           this.error = error.message;
         } finally {
           this.loading = false;
@@ -137,13 +153,16 @@
       },
 
       async verifyOtp() {
-        if (!/^\d{4,8}$/.test(String(this.otp || '').trim())) {
+        if (this.loading) return;
+        this.otp = String(this.otp || '').trim();
+        if (!/^\d{4,8}$/.test(this.otp)) {
           this.error = 'Enter the OTP sent to your mobile number.';
           return;
         }
 
         this.loading = true;
         this.error = '';
+        this.message = '';
         try {
           await apiFetch('/api/auth/verify-otp', {
             method: 'POST',

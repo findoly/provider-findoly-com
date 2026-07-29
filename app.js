@@ -31,6 +31,8 @@ if (!/^\d+$/.test(trustProxyValue)) {
 app.set("trust proxy", Number(trustProxyValue));
 
 app.locals.appName = process.env.APP_NAME || "Provider Lead Portal";
+app.locals.legalEntityName = "Findoly Solutions LLP";
+app.locals.supportEmail = "support@findoly.com";
 app.locals.apiBase = "/api";
 app.locals.csrfCookieName =
   process.env.CSRF_COOKIE_NAME || "provider_csrf";

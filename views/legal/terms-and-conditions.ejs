@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body class="portal-legal-body">
+  <header class="portal-legal-header">
+    <a href="/login" class="portal-legal-brand" aria-label="Findoly provider login">
+      <img src="/images/findoly-logo.png" alt="Findoly">
+      <span>Provider portal</span>
+    </a>
+    <a class="btn btn-light btn-sm" href="/login">Provider login</a>
+  </header>
+
+  <main class="portal-legal-shell">
+    <article class="card portal-legal-card">
+      <div class="card-body">
+        <span class="portal-legal-kicker">Findoly Solutions LLP</span>
+        <h1>Terms and Conditions</h1>
+        <p class="portal-legal-lead">These terms govern access to and use of the Findoly Provider Portal and related digital subscription and credit services.</p>
+        <p class="portal-legal-effective">Effective date: 29 July 2026</p>
+        <div class="portal-legal-content">
+
+<section>
+  <h2>1. Agreement and eligibility</h2>
+  <p>By accessing the Provider Portal, requesting an OTP, purchasing a plan or using Findoly credits, you agree to these Terms and Conditions. You must be authorised to act for the provider business registered with Findoly, and your account must remain active and approved.</p>
+</section>
+<section>
+  <h2>2. Provider account access</h2>
+  <p>Login access is provided through the mobile number approved for your provider account. You are responsible for keeping your device, OTP messages and account access secure. Do not share an OTP or allow another person to use your account without authorisation.</p>
+</section>
+<section>
+  <h2>3. Plans, credits and payments</h2>
+  <p>Findoly offers digital subscription plans and credits that can be used for eligible services in the Provider Portal. Applicable prices, taxes, plan validity and credit quantities are shown before checkout. Payment processing may be handled by an authorised payment gateway.</p>
+  <p>Digital credits or subscription access are activated only after Findoly verifies the payment. No physical product is sold or shipped.</p>
+</section>
+<section>
+  <h2>4. Lead marketplace</h2>
+  <p>Credits may be used to unlock available lead information. Lead availability depends on service category, location, account eligibility and other marketplace rules. Findoly does not guarantee that a lead will convert into a booking, sale or payment.</p>
+  <p>Providers must use customer information only for responding to the relevant enquiry and must not misuse, resell, disclose or retain it for unrelated purposes.</p>
+</section>
+<section>
+  <h2>5. Cancellations and refunds</h2>
+  <p>All successfully purchased and activated digital subscriptions and credits are non-refundable. Full details are provided in the <a href="/cancellation-and-refund-policy">Cancellation and Refund Policy</a>.</p>
+</section>
+<section>
+  <h2>6. Acceptable use</h2>
+  <p>You must not attempt to bypass access controls, manipulate credits or payment records, interfere with the portal, submit unlawful content, impersonate another provider, or use Findoly data in a misleading, abusive or unlawful manner.</p>
+</section>
+<section>
+  <h2>7. Account restriction</h2>
+  <p>Findoly may restrict or disable portal access where an account is inactive, access is disabled by an administrator, payment or usage activity appears unauthorised, or these terms are materially breached.</p>
+</section>
+<section>
+  <h2>8. Service availability</h2>
+  <p>We work to keep the Provider Portal available, but access may occasionally be interrupted by maintenance, security controls, payment verification, network problems or third-party service outages.</p>
+</section>
+<section>
+  <h2>9. Changes</h2>
+  <p>We may update these terms to reflect service, legal or operational changes. The updated version will be posted on this page with a revised effective date.</p>
+</section>
+<section>
+  <h2>10. Contact</h2>
+  <p>Questions about these terms may be sent to <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>.</p>
+</section>
+        </div>
+      </div>
+    </article>
+
+    <section class="portal-legal-navigation" aria-label="Policies and support">
+      <strong>Policies and support</strong>
+      <%- include('../partials/policy-links', { policyLinksClass: 'portal-policy-links' }) %>
+    </section>
+  </main>
+
+  <footer class="portal-legal-page-footer">
+    <span>© <%= new Date().getFullYear() %> <%= legalEntityName %></span>
+    <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+  </footer>
+</body>
+</html>

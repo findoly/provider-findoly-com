@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body class="portal-legal-body">
+  <header class="portal-legal-header">
+    <a href="/login" class="portal-legal-brand" aria-label="Findoly provider login">
+      <img src="/images/findoly-logo.png" alt="Findoly">
+      <span>Provider portal</span>
+    </a>
+    <a class="btn btn-light btn-sm" href="/login">Provider login</a>
+  </header>
+
+  <main class="portal-legal-shell">
+    <article class="card portal-legal-card">
+      <div class="card-body">
+        <span class="portal-legal-kicker">Findoly Solutions LLP</span>
+        <h1>Shipping and Service Delivery Policy</h1>
+        <p class="portal-legal-lead">Findoly provides digital subscription and credit services; no physical shipping applies.</p>
+        <p class="portal-legal-effective">Effective date: 29 July 2026</p>
+        <div class="portal-legal-content">
+
+<section>
+  <h2>1. No physical delivery</h2>
+  <p>Findoly does not sell or ship physical goods through the Provider Portal. Shipping charges, courier delivery and physical tracking numbers do not apply.</p>
+</section>
+<section>
+  <h2>2. Digital service activation</h2>
+  <p>Purchased digital credits or subscription access are activated in the registered provider account after the payment has been successfully verified by Findoly and the payment gateway.</p>
+</section>
+<section>
+  <h2>3. Delivery confirmation</h2>
+  <p>Activated credits and plan information are shown in the Credits section of the Provider Portal. Payment and credit activity remain available in the relevant account records.</p>
+</section>
+<section>
+  <h2>4. Delayed verification</h2>
+  <p>Activation may remain pending when the payment gateway, bank or network has not provided a final verified status. Do not make repeated payments for the same purchase while an earlier transaction is still pending.</p>
+</section>
+<section>
+  <h2>5. Reporting a delivery issue</h2>
+  <p>If a verified payment is not reflected in the account, email <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a> with the registered provider mobile number, payment date, amount and payment reference so the transaction can be investigated.</p>
+</section>
+        </div>
+      </div>
+    </article>
+
+    <section class="portal-legal-navigation" aria-label="Policies and support">
+      <strong>Policies and support</strong>
+      <%- include('../partials/policy-links', { policyLinksClass: 'portal-policy-links' }) %>
+    </section>
+  </main>
+
+  <footer class="portal-legal-page-footer">
+    <span>© <%= new Date().getFullYear() %> <%= legalEntityName %></span>
+    <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+  </footer>
+</body>
+</html>

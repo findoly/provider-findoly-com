@@ -63,7 +63,9 @@ Production protections include:
 
 - HTTP-only signed authentication cookie;
 - CSRF verification for plan purchases, payment verification, unlocks and status writes;
-- OTP, payment and unlock rate limits;
+- live server-side OTP delivery and verification through the Findoly OTP service;
+- no fixed, displayed or accepted development OTP;
+- per-mobile OTP resend control plus existing IP, payment and unlock rate limits;
 - Helmet security headers and Content Security Policy;
 - request IDs in API errors;
 - graceful shutdown and MongoDB connection pooling;
@@ -186,12 +188,34 @@ Required in production:
 NODE_ENV=production
 MONGODB_URI=mongodb+srv://.../service_crm_admin
 JWT_SECRET=<long-random-secret>
-OTP_API_URL=https://your-otp-service.example.com
 RAZORPAY_KEY_ID=rzp_live_...
 RAZORPAY_KEY_SECRET=...
 RAZORPAY_WEBHOOK_SECRET=...
 TRUST_PROXY=1
 ```
+
+The provider defaults to the same Findoly OTP namespace as the CRM:
+
+```text
+https://api.findoly.com/otp/send-otp
+https://api.findoly.com/otp/verify-otp
+```
+
+Optional provider OTP overrides:
+
+```env
+PROVIDER_OTP_BASE_URL=https://api.findoly.com/otp
+PROVIDER_OTP_SEND_URL=
+PROVIDER_OTP_VERIFY_URL=
+PROVIDER_OTP_API_TOKEN=
+PROVIDER_OTP_REQUEST_TIMEOUT_MS=12000
+PROVIDER_OTP_RESEND_SECONDS=30
+PROVIDER_OTP_MAX_SENDS_PER_WINDOW=2
+PROVIDER_OTP_RATE_WINDOW_SECONDS=60
+PROVIDER_OTP_SEND_ALLOW_UNCONFIRMED=true
+```
+
+`OTP_API_URL`, `OTP_SEND_PATH`, `OTP_VERIFY_PATH`, `OTP_API_TOKEN` and `OTP_TIMEOUT_MS` remain supported as legacy deployment variables. All configured OTP URLs must use HTTPS in production. If the OTP service is unavailable, login fails safely; no local or fixed OTP fallback exists.
 
 Both CRM and provider services must use the same `MONGODB_URI` and database name. MongoDB Atlas or another replica set is required because credit allocation, plan fulfilment and lead unlock use transactions.
 
@@ -210,6 +234,22 @@ npm run diagnose:provider -- 8693097982
 npm run ensure:indexes
 npm audit --omit=dev
 ```
+
+
+## Public policies and support
+
+The following routes are publicly accessible and linked from provider login, the Credits page and the desktop footer:
+
+```text
+/terms-and-conditions
+/privacy-policy
+/cancellation-and-refund-policy
+/shipping-and-service-delivery-policy
+/contact-us
+/help-support
+```
+
+The legal entity is Findoly Solutions LLP. Provider support is email-only at `support@findoly.com`. Digital credits and subscriptions activate after verified payment, no physical delivery applies, and successfully purchased and activated credits or subscriptions are non-refundable.
 
 ## Nearby marketplace and transparency
 

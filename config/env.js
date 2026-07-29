@@ -7,7 +7,6 @@ function requireProduction(name, condition = true) {
 function validateEnvironment() {
   requireProduction("MONGODB_URI");
   requireProduction("JWT_SECRET");
-  requireProduction("OTP_API_URL");
 
   if (
     process.env.NODE_ENV === "production" &&
@@ -16,6 +15,16 @@ function validateEnvironment() {
     )
   ) {
     throw new Error("JWT_SECRET must be replaced with a strong production secret");
+  }
+
+  const otpUrls = [
+    process.env.PROVIDER_OTP_BASE_URL,
+    process.env.PROVIDER_OTP_SEND_URL,
+    process.env.PROVIDER_OTP_VERIFY_URL,
+    process.env.OTP_API_URL,
+  ].filter(Boolean);
+  if (process.env.NODE_ENV === "production" && otpUrls.some((value) => !String(value).startsWith("https://"))) {
+    throw new Error("Provider OTP service URLs must use HTTPS in production");
   }
 
   const hasRazorpayKey = Boolean(process.env.RAZORPAY_KEY_ID);

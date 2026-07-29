@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body class="portal-legal-body">
+  <header class="portal-legal-header">
+    <a href="/login" class="portal-legal-brand" aria-label="Findoly provider login">
+      <img src="/images/findoly-logo.png" alt="Findoly">
+      <span>Provider portal</span>
+    </a>
+    <a class="btn btn-light btn-sm" href="/login">Provider login</a>
+  </header>
+
+  <main class="portal-legal-shell">
+    <article class="card portal-legal-card">
+      <div class="card-body">
+        <span class="portal-legal-kicker">Findoly Solutions LLP</span>
+        <h1>Cancellation and Refund Policy</h1>
+        <p class="portal-legal-lead">This policy applies to digital subscriptions and credits purchased through the Findoly Provider Portal.</p>
+        <p class="portal-legal-effective">Effective date: 29 July 2026</p>
+        <div class="portal-legal-content">
+
+<section>
+  <h2>1. Digital purchases</h2>
+  <p>Findoly plans, subscriptions and credits are digital services. After a payment is verified, the applicable subscription or credits are activated in the provider account. No physical product is supplied.</p>
+</section>
+<section>
+  <h2>2. Non-refundable purchases</h2>
+  <p>All successfully purchased and activated digital subscriptions and credits are non-refundable. A completed purchase cannot be cancelled, returned, exchanged or converted into cash after activation.</p>
+</section>
+<section>
+  <h2>3. Unused credits</h2>
+  <p>Unused or partially used credits do not create a right to a refund. Credit validity, plan validity and any expiry information shown at purchase or in the Provider Portal continue to apply.</p>
+</section>
+<section>
+  <h2>4. Payment or activation issue</h2>
+  <p>If an amount is debited but the corresponding subscription or credits are not visible after payment verification, email <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a> with the registered provider mobile number, payment date, amount and payment reference. Findoly will investigate the payment and activation records and take the appropriate corrective action.</p>
+</section>
+<section>
+  <h2>5. Failed or pending transactions</h2>
+  <p>A failed, pending, reversed or incomplete payment does not activate credits. The final status may depend on confirmation from the payment gateway or banking network.</p>
+</section>
+<section>
+  <h2>6. Contact</h2>
+  <p>Refund-policy and payment-discrepancy questions must be submitted by email to <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>.</p>
+</section>
+        </div>
+      </div>
+    </article>
+
+    <section class="portal-legal-navigation" aria-label="Policies and support">
+      <strong>Policies and support</strong>
+      <%- include('../partials/policy-links', { policyLinksClass: 'portal-policy-links' }) %>
+    </section>
+  </main>
+
+  <footer class="portal-legal-page-footer">
+    <span>© <%= new Date().getFullYear() %> <%= legalEntityName %></span>
+    <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+  </footer>
+</body>
+</html>
