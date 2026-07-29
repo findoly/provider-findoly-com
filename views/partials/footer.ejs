@@ -1,4 +1,8 @@
 <footer class="portal-footer border-top">
-  <span>© <%= new Date().getFullYear() %> <%= appName %></span>
-  <span>Lead contacts are visible only after a credit unlock.</span>
+  <div class="portal-footer-summary">
+    <span>© <%= new Date().getFullYear() %> <%= legalEntityName %></span>
+    <span>Lead contacts are visible only after a credit unlock.</span>
+  </div>
+  <%- include('policy-links', { policyLinksClass: 'portal-footer-policy-links' }) %>
+  <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
 </footer>

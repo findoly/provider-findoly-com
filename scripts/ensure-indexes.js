@@ -7,6 +7,7 @@ const ProviderLeadUnlock = require("../models/ProviderLeadUnlock");
 const PaymentOrder = require("../models/PaymentOrder");
 const WalletTransaction = require("../models/WalletTransaction");
 const ProviderSubscription = require("../models/ProviderSubscription");
+const ProviderOtpRateLimit = require("../models/ProviderOtpRateLimit");
 
 function indexedModels() {
   return [
@@ -15,6 +16,7 @@ function indexedModels() {
     PaymentOrder,
     WalletTransaction,
     ProviderSubscription,
+    ProviderOtpRateLimit,
   ];
 }
 

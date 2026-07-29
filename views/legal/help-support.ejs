@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body class="portal-legal-body">
+  <header class="portal-legal-header">
+    <a href="/login" class="portal-legal-brand" aria-label="Findoly provider login">
+      <img src="/images/findoly-logo.png" alt="Findoly">
+      <span>Provider portal</span>
+    </a>
+    <a class="btn btn-light btn-sm" href="/login">Provider login</a>
+  </header>
+
+  <main class="portal-legal-shell">
+    <article class="card portal-legal-card">
+      <div class="card-body">
+        <span class="portal-legal-kicker">Findoly Solutions LLP</span>
+        <h1>Help and Support</h1>
+        <p class="portal-legal-lead">Get help with provider login, account access, payments, credits and portal activity.</p>
+        <p class="portal-legal-effective">Effective date: 29 July 2026</p>
+        <div class="portal-legal-content">
+
+<section>
+  <h2>Login and OTP help</h2>
+  <p>Use only the mobile number approved for your provider account. The account must be active and portal access must be enabled. OTPs are sent through the live Findoly OTP service and are never displayed on the login page.</p>
+</section>
+<section>
+  <h2>Payment and credit help</h2>
+  <p>Credits and subscriptions activate after verified payment. If a payment is debited but the purchase is not visible, provide the registered provider mobile number, payment date, amount and payment reference in your support email.</p>
+</section>
+<section>
+  <h2>Lead access help</h2>
+  <p>Lead availability depends on the provider's approved categories, operating area, account status and marketplace rules. Customer contact information becomes visible only through the applicable credit unlock flow.</p>
+</section>
+<section>
+  <h2>Contact support</h2>
+  <p>Email <a class="portal-legal-email" href="mailto:<%= supportEmail %>"><%= supportEmail %></a> for provider portal assistance.</p>
+</section>
+<section>
+  <h2>Business address</h2>
+  <address>
+    <strong>Findoly Solutions LLP</strong><br>
+    WeWork Mindspace, 6th Floor,<br>
+    Malad West, Mumbai – 400064,<br>
+    Maharashtra, India.
+  </address>
+</section>
+        </div>
+      </div>
+    </article>
+
+    <section class="portal-legal-navigation" aria-label="Policies and support">
+      <strong>Policies and support</strong>
+      <%- include('../partials/policy-links', { policyLinksClass: 'portal-policy-links' }) %>
+    </section>
+  </main>
+
+  <footer class="portal-legal-page-footer">
+    <span>© <%= new Date().getFullYear() %> <%= legalEntityName %></span>
+    <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+  </footer>
+</body>
+</html>

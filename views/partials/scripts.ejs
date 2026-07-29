@@ -72,7 +72,8 @@
       throw Object.assign(new Error(body.message || 'Request failed'), {
         code: body.code || 'REQUEST_FAILED',
         status: response.status,
-        requestId: body.requestId || response.headers.get('x-request-id') || ''
+        requestId: body.requestId || response.headers.get('x-request-id') || '',
+        retryAfterSeconds: Number(body.retryAfterSeconds || response.headers.get('retry-after') || 0)
       });
     }
 

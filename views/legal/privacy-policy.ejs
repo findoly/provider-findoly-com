@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body class="portal-legal-body">
+  <header class="portal-legal-header">
+    <a href="/login" class="portal-legal-brand" aria-label="Findoly provider login">
+      <img src="/images/findoly-logo.png" alt="Findoly">
+      <span>Provider portal</span>
+    </a>
+    <a class="btn btn-light btn-sm" href="/login">Provider login</a>
+  </header>
+
+  <main class="portal-legal-shell">
+    <article class="card portal-legal-card">
+      <div class="card-body">
+        <span class="portal-legal-kicker">Findoly Solutions LLP</span>
+        <h1>Privacy Policy</h1>
+        <p class="portal-legal-lead">This policy explains how Findoly Solutions LLP handles information connected with provider accounts and portal usage.</p>
+        <p class="portal-legal-effective">Effective date: 29 July 2026</p>
+        <div class="portal-legal-content">
+
+<section>
+  <h2>1. Information we collect</h2>
+  <p>We may collect provider identity and business details, contact information, service categories, operating locations, account status, login and security records, lead activity, credit transactions, subscription details, payment references, support communications and technical usage information.</p>
+</section>
+<section>
+  <h2>2. How information is used</h2>
+  <p>We use information to verify provider eligibility, secure account access, match relevant enquiries, process and verify payments, allocate credits, maintain transaction records, provide support, prevent misuse, improve reliability and comply with applicable obligations.</p>
+</section>
+<section>
+  <h2>3. OTP and authentication</h2>
+  <p>Your registered mobile number is sent to the authorised OTP service only to request or verify a one-time password. Findoly does not display or provide an OTP through the Provider Portal interface.</p>
+</section>
+<section>
+  <h2>4. Payment information</h2>
+  <p>Payments may be processed by an authorised payment gateway. Findoly receives payment references, status, amount and verification information needed to fulfil a purchase. We do not intentionally store full card, bank account or payment credential details entered directly into the gateway checkout.</p>
+</section>
+<section>
+  <h2>5. Sharing and processors</h2>
+  <p>Information may be shared with service providers that support authentication, payments, hosting, communications, security and business operations, only to the extent needed to provide those services. We may also disclose information when required by law or to protect users, Findoly or the public.</p>
+</section>
+<section>
+  <h2>6. Retention and security</h2>
+  <p>We retain records for as long as reasonably required for account operation, payment reconciliation, support, security, dispute handling and legal compliance. We use administrative and technical safeguards, but no online system can guarantee absolute security.</p>
+</section>
+<section>
+  <h2>7. Cookies and session data</h2>
+  <p>The Provider Portal uses essential cookies and similar browser storage for secure sessions, CSRF protection and necessary interface behaviour. These are required for the portal to function correctly.</p>
+</section>
+<section>
+  <h2>8. Your requests</h2>
+  <p>You may request correction of inaccurate provider information or ask privacy-related questions by emailing <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>. Some records may need to be retained for security, payment, contractual or legal reasons.</p>
+</section>
+<section>
+  <h2>9. Updates</h2>
+  <p>We may revise this policy when our services or obligations change. The latest version will be published on this page.</p>
+</section>
+        </div>
+      </div>
+    </article>
+
+    <section class="portal-legal-navigation" aria-label="Policies and support">
+      <strong>Policies and support</strong>
+      <%- include('../partials/policy-links', { policyLinksClass: 'portal-policy-links' }) %>
+    </section>
+  </main>
+
+  <footer class="portal-legal-page-footer">
+    <span>© <%= new Date().getFullYear() %> <%= legalEntityName %></span>
+    <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+  </footer>
+</body>
+</html>
