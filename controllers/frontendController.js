@@ -14,6 +14,11 @@ const frontendController = {
   privacy: render("legal/privacy-policy", "Privacy Policy"),
   refunds: render("legal/cancellation-and-refund-policy", "Cancellation and Refund Policy"),
   delivery: render("legal/shipping-and-service-delivery-policy", "Shipping and Service Delivery Policy"),
+  acceptableUse: render("legal/acceptable-use-and-lead-data-policy", "Acceptable Use and Lead Data Policy"),
+  marketplaceDisclaimer: render("legal/marketplace-disclaimer", "Marketplace Disclaimer"),
+  cookies: render("legal/cookie-and-storage-notice", "Cookie and Storage Notice"),
+  intellectualProperty: render("legal/intellectual-property-and-complaints-policy", "Intellectual Property and Complaints Policy"),
+  grievance: render("legal/grievance-redressal-policy", "Grievance Redressal Policy"),
   contact: render("legal/contact-us", "Contact Us"),
   support: render("legal/help-support", "Help and Support"),
   dashboard: render(

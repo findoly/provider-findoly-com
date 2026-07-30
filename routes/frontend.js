@@ -9,6 +9,11 @@ router.get("/terms-and-conditions", frontendController.terms);
 router.get("/privacy-policy", frontendController.privacy);
 router.get("/cancellation-and-refund-policy", frontendController.refunds);
 router.get("/shipping-and-service-delivery-policy", frontendController.delivery);
+router.get("/acceptable-use-and-lead-data-policy", frontendController.acceptableUse);
+router.get("/marketplace-disclaimer", frontendController.marketplaceDisclaimer);
+router.get("/cookie-and-storage-notice", frontendController.cookies);
+router.get("/intellectual-property-and-complaints-policy", frontendController.intellectualProperty);
+router.get("/grievance-redressal-policy", frontendController.grievance);
 router.get("/contact-us", frontendController.contact);
 router.get("/help-support", frontendController.support);
 router.get("/", (req, res) =>
