@@ -16,6 +16,26 @@ const {
   releaseSendSlot,
 } = require("../access/otp-rate-limit-service");
 
+const RAZORPAY_REVIEW_MOBILE = "8693097982";
+const RAZORPAY_REVIEW_OTP = "7777";
+
+function razorpayReviewLoginEnabled() {
+  return String(process.env.RAZORPAY_REVIEW_LOGIN_ENABLED || "")
+    .trim()
+    .toLowerCase() === "true";
+}
+
+function isRazorpayReviewLogin(mobile) {
+  return razorpayReviewLoginEnabled() && mobile === RAZORPAY_REVIEW_MOBILE;
+}
+
+function invalidOtpError() {
+  return Object.assign(new Error("Invalid or expired OTP"), {
+    status: 401,
+    code: "OTP_INVALID",
+  });
+}
+
 function mobilePattern(mobile) {
   const digits = String(mobile).split("").join("\\D*");
   return new RegExp(`${digits}$`);
@@ -59,6 +79,18 @@ async function sendOtp(mobileInput) {
   let rateLimitClaim = null;
   try {
     rateLimitClaim = await claimSendSlot(mobile);
+    if (isRazorpayReviewLogin(mobile)) {
+      return {
+        mobile,
+        sessionId: "",
+        message: "OTP sent successfully",
+        expiresInSeconds: 300,
+        retryAfterSeconds: rateLimitClaim.retryAfterSeconds,
+        deliveryStatus: "sent",
+        deliveryUncertain: false,
+      };
+    }
+
     const response = await requestOtpApi(SEND_OTP_URL, { mobile });
     return {
       mobile,
@@ -105,26 +137,22 @@ async function verifyOtp(mobileInput, otpInput) {
   }
 
   await assertLoginAllowed(mobile);
-  try {
-    const verification = await requestOtpApi(VERIFY_OTP_URL, { mobile, otp });
-    const explicitVerified = verification?.verified
-      ?? verification?.verify
-      ?? verification?.data?.verified
-      ?? verification?.data?.verify;
-    if (explicitVerified === false) {
-      throw Object.assign(new Error("Invalid or expired OTP"), {
-        status: 401,
-        code: "OTP_INVALID",
-      });
+  if (isRazorpayReviewLogin(mobile)) {
+    if (otp !== RAZORPAY_REVIEW_OTP) throw invalidOtpError();
+  } else {
+    try {
+      const verification = await requestOtpApi(VERIFY_OTP_URL, { mobile, otp });
+      const explicitVerified = verification?.verified
+        ?? verification?.verify
+        ?? verification?.data?.verified
+        ?? verification?.data?.verify;
+      if (explicitVerified === false) throw invalidOtpError();
+    } catch (error) {
+      if (Number(error?.status) === 400 || Number(error?.status) === 401) {
+        throw invalidOtpError();
+      }
+      throw error;
     }
-  } catch (error) {
-    if (Number(error?.status) === 400 || Number(error?.status) === 401) {
-      throw Object.assign(new Error("Invalid or expired OTP"), {
-        status: 401,
-        code: "OTP_INVALID",
-      });
-    }
-    throw error;
   }
 
   const provider = ensureProviderEligible(await findProvider(mobile));

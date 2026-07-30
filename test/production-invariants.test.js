@@ -51,3 +51,17 @@ test("provider form validation is mounted for all parsed API and page form bodie
   assert.match(middleware, /must not contain HTML tags or encoded HTML/);
   assert.match(middleware, /Object\.entries\(value\)/);
 });
+
+test("Razorpay review OTP exception is default-off, exact-account scoped and not browser-exposed", () => {
+  const auth = read("services/auth/auth-service.js");
+  const controller = read("controllers/authController.js");
+  const login = read("views/auth/login.ejs");
+
+  assert.match(auth, /const RAZORPAY_REVIEW_MOBILE = "8693097982"/);
+  assert.match(auth, /const RAZORPAY_REVIEW_OTP = "7777"/);
+  assert.match(auth, /process\.env\.RAZORPAY_REVIEW_LOGIN_ENABLED \|\| ""/);
+  assert.match(auth, /\.toLowerCase\(\) === "true"/);
+  assert.match(auth, /mobile === RAZORPAY_REVIEW_MOBILE/);
+  assert.ok((auth.match(/isRazorpayReviewLogin\(mobile\)/g) || []).length >= 2);
+  assert.doesNotMatch(`${controller}\n${login}`, /8693097982|7777|RAZORPAY_REVIEW_LOGIN_ENABLED/);
+});
