@@ -10,50 +10,186 @@
     <a class="btn btn-light btn-sm" href="/login">Provider login</a>
   </header>
 
-  <main class="portal-legal-shell">
+  <main id="policy-top" class="portal-legal-shell">
     <article class="card portal-legal-card">
       <div class="card-body">
         <span class="portal-legal-kicker">Findoly Solutions LLP</span>
         <h1>Privacy Policy</h1>
-        <p class="portal-legal-lead">This policy explains how Findoly Solutions LLP handles information connected with provider accounts and portal usage.</p>
-        <p class="portal-legal-effective">Effective date: 29 July 2026</p>
+        <p class="portal-legal-lead">How Findoly handles Provider information, account security data, payments, marketplace activity and customer lead information.</p>
+        <p class="portal-legal-effective">Effective and last updated: 30 July 2026</p>
+        <aside class="portal-legal-callout is-important"><strong>Provider responsibility</strong><p>After you unlock and independently use customer information, you are responsible for using it lawfully, securely and only for the submitted service requirement.</p></aside>
+        <nav class="portal-legal-toc" aria-label="Contents of Privacy Policy">
+          <strong>On this page</strong>
+          <ol>
+          <li><a href="#introduction">Introduction and scope</a></li>
+          <li><a href="#roles">Our role and your role</a></li>
+          <li><a href="#provider-data">Provider and authorised-user information</a></li>
+          <li><a href="#authentication-data">Authentication and security data</a></li>
+          <li><a href="#marketplace-data">Marketplace, lead and activity data</a></li>
+          <li><a href="#payment-data">Payments, subscriptions and credit records</a></li>
+          <li><a href="#technical-data">Device, log and technical information</a></li>
+          <li><a href="#support-data">Support and grievance communications</a></li>
+          <li><a href="#sources">Sources of information</a></li>
+          <li><a href="#purposes">Purposes of processing</a></li>
+          <li><a href="#lawful-processing">Lawful processing, consent and legitimate uses</a></li>
+          <li><a href="#matching-decisions">Matching and automated processing</a></li>
+          <li><a href="#communications">Service and promotional communications</a></li>
+          <li><a href="#service-providers">Service providers and processors</a></li>
+          <li><a href="#internal-sharing">Internal access and CRM synchronisation</a></li>
+          <li><a href="#customer-provider-sharing">Sharing between Customers and Providers</a></li>
+          <li><a href="#legal-disclosures">Legal, safety and corporate disclosures</a></li>
+          <li><a href="#cookies">Cookies and browser storage</a></li>
+          <li><a href="#retention">Data retention</a></li>
+          <li><a href="#security">Security safeguards</a></li>
+          <li><a href="#accuracy">Accuracy and correction</a></li>
+          <li><a href="#rights">Access, correction, erasure and other rights</a></li>
+          <li><a href="#account-closure">Account closure and deletion requests</a></li>
+          <li><a href="#children">Children and authorised business use</a></li>
+          <li><a href="#cross-border">Processing and transfers across locations</a></li>
+          <li><a href="#third-party-links">Third-party sites and services</a></li>
+          <li><a href="#changes">Policy changes</a></li>
+          <li><a href="#contact">Privacy questions and grievances</a></li>
+          </ol>
+        </nav>
         <div class="portal-legal-content">
-
-<section>
-  <h2>1. Information we collect</h2>
-  <p>We may collect provider identity and business details, contact information, service categories, operating locations, account status, login and security records, lead activity, credit transactions, subscription details, payment references, support communications and technical usage information.</p>
-</section>
-<section>
-  <h2>2. How information is used</h2>
-  <p>We use information to verify provider eligibility, secure account access, match relevant enquiries, process and verify payments, allocate credits, maintain transaction records, provide support, prevent misuse, improve reliability and comply with applicable obligations.</p>
-</section>
-<section>
-  <h2>3. OTP and authentication</h2>
-  <p>Your registered mobile number is sent to the authorised OTP service only to request or verify a one-time password. Findoly does not display or provide an OTP through the Provider Portal interface.</p>
-</section>
-<section>
-  <h2>4. Payment information</h2>
-  <p>Payments may be processed by an authorised payment gateway. Findoly receives payment references, status, amount and verification information needed to fulfil a purchase. We do not intentionally store full card, bank account or payment credential details entered directly into the gateway checkout.</p>
-</section>
-<section>
-  <h2>5. Sharing and processors</h2>
-  <p>Information may be shared with service providers that support authentication, payments, hosting, communications, security and business operations, only to the extent needed to provide those services. We may also disclose information when required by law or to protect users, Findoly or the public.</p>
-</section>
-<section>
-  <h2>6. Retention and security</h2>
-  <p>We retain records for as long as reasonably required for account operation, payment reconciliation, support, security, dispute handling and legal compliance. We use administrative and technical safeguards, but no online system can guarantee absolute security.</p>
-</section>
-<section>
-  <h2>7. Cookies and session data</h2>
-  <p>The Provider Portal uses essential cookies and similar browser storage for secure sessions, CSRF protection and necessary interface behaviour. These are required for the portal to function correctly.</p>
-</section>
-<section>
-  <h2>8. Your requests</h2>
-  <p>You may request correction of inaccurate provider information or ask privacy-related questions by emailing <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>. Some records may need to be retained for security, payment, contractual or legal reasons.</p>
-</section>
-<section>
-  <h2>9. Updates</h2>
-  <p>We may revise this policy when our services or obligations change. The latest version will be published on this page.</p>
+<section id="introduction">
+  <h2>1. Introduction and scope</h2>
+  <p>This Privacy Policy explains how Findoly Solutions LLP collects, uses, stores, shares and protects personal data in connection with the Provider Portal. It applies to provider applicants, approved Providers, authorised users, people who contact support, and individuals whose information is processed through provider-account activity.</p>
+<p>This Policy should be read with the Terms and Conditions, Acceptable Use and Lead Data Policy, Cookie and Storage Notice and any specific notice displayed when information is collected. It does not govern a Provider’s independent processing of customer data after access; the Provider is separately responsible for that activity.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="roles">
+  <h2>2. Our role and your role</h2>
+  <p>For personal data processed to operate the Provider Portal, verify accounts, manage subscriptions, secure transactions and administer the marketplace, Findoly generally determines the purpose and means of processing. Depending on applicable law, this role may be described as a data fiduciary or similar controller.</p>
+<p>After a Provider unlocks a lead and independently contacts a Customer, the Provider decides how it uses the information for its own quotation and service relationship. The Provider must provide any notice, obtain any consent and meet any retention, security or rights obligations applicable to that independent use.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="provider-data">
+  <h2>3. Provider and authorised-user information</h2>
+  <p>We may collect legal name, trading name, contact person, mobile number, email address, business address, service categories, subcategories, service locations, PIN codes, geographic coordinates, operating radius, profile description, logos, business documents, tax details, eligibility status, CRM identifiers and other onboarding or verification information.</p>
+<p>We may also record the authority of a person using an organisation’s account and communications concerning profile updates, suspension, verification or support.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="authentication-data">
+  <h2>4. Authentication and security data</h2>
+  <p>We process the registered mobile number, OTP request and verification outcomes, request time, resend or verification limits, IP address, user agent, session identifiers, CSRF tokens, security events and related diagnostic information. OTP values are handled through the authorised OTP service and are not displayed in the Provider Portal.</p>
+<p>Authentication records are used to establish account access, prevent abuse, investigate compromise and maintain an audit trail. Security controls may identify repeated requests, unusual activity or invalid sessions.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="marketplace-data">
+  <h2>5. Marketplace, lead and activity data</h2>
+  <p>We collect records of enquiries displayed to the Provider, matching inputs, lead views, unlock attempts, successful unlocks, credit deductions, direct payments, provider outcome selections, activity statuses, reasons, notes and timestamps. We may derive operational metrics such as pending follow-up, conversion reporting, category performance and marketplace quality indicators.</p>
+<p>Customer details contained in a lead may include name, mobile number, location, requirement, category, description, preferred timing and other information supplied for the enquiry. Access is restricted until the applicable unlock and must then be used only for the submitted requirement.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="payment-data">
+  <h2>6. Payments, subscriptions and credit records</h2>
+  <p>We process order identifiers, plan selection, billing cycle, price, GST, credit quantity, bonus credits, payment gateway order and payment identifiers, signature or webhook verification results, status, fulfilment time, subscription dates, credit allocations, deductions, expiry and balance history.</p>
+<p>The payment gateway directly handles sensitive payment credentials such as full card data, CVV or UPI PIN. Findoly may receive masked or limited payment metadata and status information necessary to verify, reconcile, support and document the transaction.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="technical-data">
+  <h2>7. Device, log and technical information</h2>
+  <p>When you use the Platform, servers and security systems may log IP address, browser type, operating system, device characteristics, requested URL, referring URL, response status, timestamps, session state, error details, request identifiers and performance information.</p>
+<p>We use this information to deliver pages, diagnose failures, secure the service, prevent fraud, investigate incidents, enforce limits and improve reliability.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="support-data">
+  <h2>8. Support and grievance communications</h2>
+  <p>If you contact support or submit a complaint, we process your email address, registered mobile number, description, attachments, transaction or lead references, correspondence history, resolution notes and any information reasonably needed to investigate.</p>
+<p>Please do not send unnecessary sensitive personal data, OTPs, passwords, full card details or UPI PINs. We may redact or restrict access to information not needed for the case.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="sources">
+  <h2>9. Sources of information</h2>
+  <p>Information may come directly from you, your authorised organisation, Findoly’s CRM and internal teams, customer enquiry channels, payment gateways, OTP providers, banks or network status, hosting and security systems, location or mapping services, support correspondence and lawful public or third-party verification sources.</p>
+<p>Where information comes from another source, we use it only where we have a lawful and legitimate basis and according to any applicable notice or restriction.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="purposes">
+  <h2>10. Purposes of processing</h2>
+  <ul><li>Create, verify, maintain and secure Provider accounts.</li><li>Match Providers with relevant enquiries and enforce marketplace visibility rules.</li><li>Display restricted lead information after an authorised unlock.</li><li>Create orders, verify payments, allocate, deduct and expire credits, and maintain subscriptions.</li><li>Provide dashboards, records, support and grievance handling.</li><li>Prevent fraud, spam, customer-data misuse, unauthorised access and transaction abuse.</li><li>Improve product reliability, matching, usability and operational decision-making.</li><li>Comply with law, court orders, tax, accounting, audit, payment and regulatory obligations.</li><li>Establish, exercise or defend legal claims and enforce Platform terms.</li></ul>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="lawful-processing">
+  <h2>11. Lawful processing, consent and legitimate uses</h2>
+  <p>We process personal data for lawful purposes connected with account onboarding, performance of the Provider relationship, requested transactions, security, compliance and other legitimate uses recognised by applicable law. Where consent is required, the relevant notice will describe the purpose and you may withdraw consent through the stated method, subject to consequences for services that cannot operate without the data.</p>
+<p>Withdrawal does not affect processing already lawfully completed and does not require deletion of records that must be retained for a transaction, security, legal claim or statutory obligation.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="matching-decisions">
+  <h2>12. Matching and automated processing</h2>
+  <p>The Platform uses rule-based processing to determine which enquiries may be displayed, using factors such as approved categories, subcategories, service PIN codes, distance, account status, lead status, priority, expiry and marketplace limits. These rules support relevance and access control.</p>
+<p>Findoly may review and update such rules. A Provider may contact support about an apparent matching or eligibility error. The Platform does not represent that automated matching is a final assessment of a Provider’s professional suitability or a guarantee of business.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="communications">
+  <h2>13. Service and promotional communications</h2>
+  <p>We may send OTPs, security alerts, account notices, lead alerts, payment confirmations, credit or subscription updates, policy notices and support responses through the registered channels. These are transactional or service communications required to operate the account.</p>
+<p>Promotional communication, where used, will be managed according to applicable consent and opt-out requirements. Opting out of marketing does not stop essential security, transaction or account messages.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="service-providers">
+  <h2>14. Service providers and processors</h2>
+  <p>We may share limited personal data with vendors that provide OTP delivery, payment processing, cloud hosting, databases, security, monitoring, email, customer support, mapping, analytics, legal, accounting or audit services. They receive only information reasonably necessary for their function and are expected to protect it under contractual or legal obligations.</p>
+<p>Current integrations may include the Findoly OTP service, Razorpay checkout and payment infrastructure, cloud or database providers, and mapping services. Providers may also choose to open WhatsApp or another external service from a lead page; that service then processes information under its own terms.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="internal-sharing">
+  <h2>15. Internal access and CRM synchronisation</h2>
+  <p>Provider information may be synchronised with Findoly’s CRM so authorised personnel can approve accounts, manage categories, service areas, eligibility, credits, support and operational records. Access is limited according to role and business need.</p>
+<p>Findoly personnel may access records to support the Provider, investigate misuse, reconcile payments, administer lead distribution, maintain systems and meet legal obligations.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="customer-provider-sharing">
+  <h2>16. Sharing between Customers and Providers</h2>
+  <p>Before unlock, the Platform limits the customer information visible to a Provider. After a successful unlock, the Provider receives the information available for that enquiry so it can respond to the customer’s stated requirement.</p>
+<p>A Customer may receive or be told information about a Provider where necessary to facilitate the enquiry, support transparency, investigate a complaint or operate a provider listing. Findoly does not authorise either party to use the other’s information for unrelated purposes.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="legal-disclosures">
+  <h2>17. Legal, safety and corporate disclosures</h2>
+  <p>We may disclose information where reasonably necessary to comply with law, legal process, court or regulatory direction; protect rights, safety or property; investigate fraud, cyber incidents, unlawful content or customer-data misuse; enforce agreements; or establish, exercise or defend claims.</p>
+<p>If Findoly undergoes a merger, acquisition, financing, restructuring, insolvency or transfer of all or part of the business, information may be transferred with appropriate confidentiality and legal safeguards.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="cookies">
+  <h2>18. Cookies and browser storage</h2>
+  <p>The Platform uses essential cookies for authentication and cross-site request forgery protection. The authentication cookie is HTTP-only and, in production, secure; the CSRF cookie must be readable by the browser so requests can include the security token. Cookie duration and same-site settings are configured to protect sessions and support portal use.</p>
+<p>The Platform also uses local storage for a Provider’s lead-view preference and session storage to remember dismissal of a dashboard reminder during the browser session. The separate <a href="/cookie-and-storage-notice">Cookie and Storage Notice</a> provides more detail.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="retention">
+  <h2>19. Data retention</h2>
+  <p>We retain personal data for as long as reasonably necessary for the purpose collected, including while an account is active and for an appropriate period afterwards. Retention depends on the type of record, transaction history, account status, fraud and security risk, support needs, legal limitation periods, tax or accounting duties and dispute requirements.</p>
+<p>OTP rate-limit records are designed to expire automatically after their security purpose. Session cookies expire according to configured duration or logout. Transaction, credit, lead-unlock, audit and grievance records may be retained longer because they evidence financial or contractual activity. Data may be deleted, anonymised or aggregated when no longer required.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="security">
+  <h2>20. Security safeguards</h2>
+  <p>We use reasonable administrative, technical and organisational measures such as OTP authentication, signed sessions, secure production cookies, CSRF protection, origin checks, rate limits, role-based access, payment-signature verification, restricted lead visibility, database controls, logging and secure transport configuration.</p>
+<p>No system is completely secure. You must protect your device, mobile number and session, use trusted networks, log out from shared devices and report suspected compromise. Do not send OTPs or payment secrets to anyone claiming to be Findoly support.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="accuracy">
+  <h2>21. Accuracy and correction</h2>
+  <p>Providers should keep their information accurate and notify support when a correction cannot be made through the Platform. Some profile fields are controlled through Findoly’s CRM and may require verification before update.</p>
+<p>We may request evidence to prevent unauthorised changes. Correcting a display field does not require alteration of historical transaction records that were accurate when created.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="rights">
+  <h2>22. Access, correction, erasure and other rights</h2>
+  <p>Subject to applicable law and its commencement, you may request information about personal data processed by Findoly, correction of inaccurate or incomplete data, erasure of data no longer required, and grievance redressal. You may also have rights concerning consent withdrawal or nomination where provided by law.</p>
+<p>Requests must be sent from a verifiable channel and include enough detail to identify the account and request. We may ask for reasonable verification, reject fraudulent or excessive requests, redact another person’s data, and retain information where processing is required by law, contract, security, payment reconciliation or legal claims.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="account-closure">
+  <h2>23. Account closure and deletion requests</h2>
+  <p>A request to close a Provider account may stop future access but does not automatically erase all records. Findoly may preserve transaction, invoice, credit, lead-unlock, complaint, security and audit records for legal, accounting, fraud-prevention and dispute purposes.</p>
+<p>Where deletion is appropriate, Findoly may delete or de-identify data after completing verification and any required retention. Closure does not convert credits into cash or change the Refund Policy.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="children">
+  <h2>24. Children and authorised business use</h2>
+  <p>The Provider Portal is for adults acting for service businesses and is not intended for children. You must not create an account for a child or submit a child’s personal data unless there is a lawful, necessary and properly authorised reason.</p>
+<p>If we learn that a child’s data was submitted contrary to this rule, we may restrict the account and take reasonable steps to remove or protect the information, subject to legal retention.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="cross-border">
+  <h2>25. Processing and transfers across locations</h2>
+  <p>Findoly and its service providers may process information in locations where they operate infrastructure or support services. Any transfer outside India will be handled subject to applicable restrictions, contractual protections and government directions in force at the relevant time.</p>
+<p>We do not promise that every vendor or data copy is located in a particular city or state unless a specific written agreement says so.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="third-party-links">
+  <h2>26. Third-party sites and services</h2>
+  <p>Links to Razorpay, WhatsApp or other third-party services are provided for convenience. Their privacy policies govern information they collect directly. Findoly does not control their independent processing and you should review their terms before use.</p>
+<p>This Policy does not cover a Provider’s own website, CRM, messaging, call-recording or customer database.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="changes">
+  <h2>27. Policy changes</h2>
+  <p>We may update this Policy for legal, security, vendor or product changes. The revised date will be displayed. Material changes may also be notified through the Platform or registered contact details. Where law requires fresh consent, we will request it before the relevant processing.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="contact">
+  <h2>28. Privacy questions and grievances</h2>
+  <p>Send privacy requests and questions to <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a> with the subject “Privacy Request”. Include the registered mobile number, the right or issue involved and sufficient detail to verify and locate the information.</p>
+<p>The <a href="/grievance-redressal-policy">Grievance Redressal Policy</a> explains escalation and response handling.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
 </section>
         </div>
       </div>

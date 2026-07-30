@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body class="portal-legal-body">
+  <header class="portal-legal-header">
+    <a href="/login" class="portal-legal-brand" aria-label="Findoly provider login">
+      <img src="/images/findoly-logo.png" alt="Findoly">
+      <span>Provider portal</span>
+    </a>
+    <a class="btn btn-light btn-sm" href="/login">Provider login</a>
+  </header>
+
+  <main id="policy-top" class="portal-legal-shell">
+    <article class="card portal-legal-card">
+      <div class="card-body">
+        <span class="portal-legal-kicker">Findoly Solutions LLP</span>
+        <h1>Cookie and Storage Notice</h1>
+        <p class="portal-legal-lead">Details of essential authentication cookies, security tokens and browser-storage preferences used by the Provider Portal.</p>
+        <p class="portal-legal-effective">Effective and last updated: 30 July 2026</p>
+        
+        <nav class="portal-legal-toc" aria-label="Contents of Cookie and Storage Notice">
+          <strong>On this page</strong>
+          <ol>
+          <li><a href="#purpose">Purpose of this notice</a></li>
+          <li><a href="#what-are-cookies">What cookies and browser storage are</a></li>
+          <li><a href="#auth-cookie">Provider authentication cookie</a></li>
+          <li><a href="#csrf-cookie">CSRF security cookie</a></li>
+          <li><a href="#local-storage">Local storage</a></li>
+          <li><a href="#session-storage">Session storage</a></li>
+          <li><a href="#third-party">Third-party checkout and external services</a></li>
+          <li><a href="#controls">Browser controls and consequences</a></li>
+          <li><a href="#retention">Retention and updates</a></li>
+          <li><a href="#contact">Questions</a></li>
+          </ol>
+        </nav>
+        <div class="portal-legal-content">
+<section id="purpose">
+  <h2>1. Purpose of this notice</h2>
+  <p>This notice explains the cookies and browser-storage technologies used by the Findoly Provider Portal. It should be read with the Privacy Policy. The Portal currently uses these technologies mainly for authentication, security and interface preferences, not for third-party behavioural advertising.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="what-are-cookies">
+  <h2>2. What cookies and browser storage are</h2>
+  <p>Cookies are small values stored by a browser and sent with requests to the relevant website. Local storage keeps data in the browser until removed. Session storage normally lasts for the current browser tab or session. These technologies do not by themselves read unrelated files from your device.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="auth-cookie">
+  <h2>3. Provider authentication cookie</h2>
+  <p>After successful OTP verification, the Portal sets a signed provider authentication cookie. It identifies the authorised Provider session. The cookie is HTTP-only so ordinary browser scripts cannot read it. In production it is transmitted only over HTTPS and uses same-site and priority controls. Its configured duration is generally based on the account session setting, and logout clears it.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="csrf-cookie">
+  <h2>4. CSRF security cookie</h2>
+  <p>The Portal sets a separate cross-site request forgery token cookie. Browser code reads this random token and sends it with state-changing requests so the server can reject forged requests. In production the cookie is secure, uses strict same-site protection and normally expires after approximately one day.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="local-storage">
+  <h2>5. Local storage</h2>
+  <p>The lead marketplace may store the Provider’s selected list or card view preference in local storage. This lets the browser remember the chosen presentation. The theme bootstrap removes an older theme preference so the approved Findoly theme remains consistent.</p>
+<p>Local storage is not used by the current Portal code to store OTPs, payment credentials or full customer records.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="session-storage">
+  <h2>6. Session storage</h2>
+  <p>The dashboard may use session storage to remember that the Provider dismissed a pending-outcome reminder during the current browser session. This prevents the same reminder reopening repeatedly in that session.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="third-party">
+  <h2>7. Third-party checkout and external services</h2>
+  <p>Razorpay checkout is loaded on payment-enabled pages and may use its own cookies or storage under its policies to provide secure payment functionality and fraud prevention. Opening WhatsApp or another external link transfers you to that service, which may use its own technologies.</p>
+<p>Findoly does not control third-party cookies set on third-party domains.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="controls">
+  <h2>8. Browser controls and consequences</h2>
+  <p>You can clear or block cookies and storage through browser settings. Blocking essential cookies will prevent login, session security or payment-related functions from operating correctly. Clearing local or session storage may reset interface preferences and reminders but should not delete server-side transaction records.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="retention">
+  <h2>9. Retention and updates</h2>
+  <p>Cookie duration is controlled by the relevant configuration and browser behaviour. Local storage remains until cleared by the user or application; session storage expires according to browser rules. We may update this notice if technologies or vendors change.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="contact">
+  <h2>10. Questions</h2>
+  <p>Send cookie or storage questions to <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section>
+        </div>
+      </div>
+    </article>
+
+    <section class="portal-legal-navigation" aria-label="Policies and support">
+      <strong>Policies and support</strong>
+      <%- include('../partials/policy-links', { policyLinksClass: 'portal-policy-links' }) %>
+    </section>
+  </main>
+
+  <footer class="portal-legal-page-footer">
+    <span>© <%= new Date().getFullYear() %> <%= legalEntityName %></span>
+    <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+  </footer>
+</body>
+</html>

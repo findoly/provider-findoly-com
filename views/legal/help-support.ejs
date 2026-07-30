@@ -10,39 +10,68 @@
     <a class="btn btn-light btn-sm" href="/login">Provider login</a>
   </header>
 
-  <main class="portal-legal-shell">
+  <main id="policy-top" class="portal-legal-shell">
     <article class="card portal-legal-card">
       <div class="card-body">
         <span class="portal-legal-kicker">Findoly Solutions LLP</span>
         <h1>Help and Support</h1>
-        <p class="portal-legal-lead">Get help with provider login, account access, payments, credits and portal activity.</p>
-        <p class="portal-legal-effective">Effective date: 29 July 2026</p>
+        <p class="portal-legal-lead">Practical help for OTP login, Provider accounts, leads, credits, payments, privacy and technical issues.</p>
+        <p class="portal-legal-effective">Effective and last updated: 30 July 2026</p>
+        
+        <nav class="portal-legal-toc" aria-label="Contents of Help and Support">
+          <strong>On this page</strong>
+          <ol>
+          <li><a href="#login">Login and OTP support</a></li>
+          <li><a href="#account">Account and profile support</a></li>
+          <li><a href="#leads">Lead marketplace support</a></li>
+          <li><a href="#credits">Credits and subscription support</a></li>
+          <li><a href="#payments">Payment and activation support</a></li>
+          <li><a href="#data">Privacy and customer-data support</a></li>
+          <li><a href="#technical">Technical troubleshooting</a></li>
+          <li><a href="#contact">Contact and escalation</a></li>
+          <li><a href="#address">Business address</a></li>
+          </ol>
+        </nav>
         <div class="portal-legal-content">
-
-<section>
-  <h2>Login and OTP help</h2>
-  <p>Use only the mobile number approved for your provider account. The account must be active and portal access must be enabled. OTPs are sent through the live Findoly OTP service and are never displayed on the login page.</p>
-</section>
-<section>
-  <h2>Payment and credit help</h2>
-  <p>Credits and subscriptions activate after verified payment. If a payment is debited but the purchase is not visible, provide the registered provider mobile number, payment date, amount and payment reference in your support email.</p>
-</section>
-<section>
-  <h2>Lead access help</h2>
-  <p>Lead availability depends on the provider's approved categories, operating area, account status and marketplace rules. Customer contact information becomes visible only through the applicable credit unlock flow.</p>
-</section>
-<section>
-  <h2>Contact support</h2>
-  <p>Email <a class="portal-legal-email" href="mailto:<%= supportEmail %>"><%= supportEmail %></a> for provider portal assistance.</p>
-</section>
-<section>
-  <h2>Business address</h2>
-  <address>
-    <strong>Findoly Solutions LLP</strong><br>
-    WeWork Mindspace, 6th Floor,<br>
-    Malad West, Mumbai – 400064,<br>
-    Maharashtra, India.
-  </address>
+<section id="login">
+  <h2>1. Login and OTP support</h2>
+  <p>Use the mobile number approved for the Provider account. The account must be active, eligible and enabled for Provider Portal access. OTPs are sent through the live Findoly OTP service and are never displayed on the login page.</p>
+<ul><li>Check mobile network availability and SMS filtering.</li><li>Wait for the displayed resend period before requesting another OTP.</li><li>Enter only the latest valid OTP.</li><li>Do not share the OTP with anyone.</li><li>Email support if the approved mobile number has changed or the account is blocked.</li></ul>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="account">
+  <h2>2. Account and profile support</h2>
+  <p>Some Provider details are controlled through Findoly’s CRM and cannot be edited directly in the Portal. Email support for corrections to business name, authorised contact, service categories, service area or eligibility. Verification may be required before a change.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="leads">
+  <h2>3. Lead marketplace support</h2>
+  <p>Lead visibility depends on approved categories, service locations, account status, marketplace status, expiry and other matching rules. A missing lead is not necessarily a technical error. Customer contact details remain restricted until an authorised credit or direct-payment unlock.</p>
+<p>Use the status and reason fields honestly after contact. Marking a lead invalid does not automatically restore credits.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="credits">
+  <h2>4. Credits and subscription support</h2>
+  <p>The Plans and Credits page shows active or upcoming subscriptions, available credits, expiry-related activity and payment history. Credits are account-linked and expire according to plan validity. They cannot be transferred or converted into cash.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="payments">
+  <h2>5. Payment and activation support</h2>
+  <p>Credits and subscriptions activate after verified payment. If an amount is debited but delivery is missing, provide the registered mobile number, amount, date, order or payment reference and a safe screenshot. Do not expose payment secrets.</p>
+<p>Pending payment status may depend on the bank or gateway. Review the <a href="/cancellation-and-refund-policy">Cancellation and Refund Policy</a> before submitting a payment complaint.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="data">
+  <h2>6. Privacy and customer-data support</h2>
+  <p>Use unlocked customer data only for the submitted requirement. Do not resell, publish or use it for unrelated marketing. Report accidental disclosure, account compromise or customer-data misuse promptly under the <a href="/acceptable-use-and-lead-data-policy">Acceptable Use and Lead Data Policy</a>.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="technical">
+  <h2>7. Technical troubleshooting</h2>
+  <ol><li>Refresh the page once and confirm internet connectivity.</li><li>Log out and request a fresh OTP if the session is invalid.</li><li>Use a current browser with cookies and JavaScript enabled.</li><li>Avoid repeated payment attempts while a transaction is pending.</li><li>Capture the error message and request ID, if shown, before contacting support.</li></ol>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="contact">
+  <h2>8. Contact and escalation</h2>
+  <p>Email <a class="portal-legal-email" href="mailto:<%= supportEmail %>"><%= supportEmail %></a>. For a formal unresolved complaint, use the <a href="/grievance-redressal-policy">Grievance Redressal Policy</a> and include all relevant references.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="address">
+  <h2>9. Business address</h2>
+  <p><strong>Findoly Solutions LLP</strong><br>WeWork Mindspace, 6th Floor,<br>Malad West, Mumbai – 400064,<br>Maharashtra, India.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
 </section>
         </div>
       </div>

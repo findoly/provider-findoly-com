@@ -10,34 +10,72 @@
     <a class="btn btn-light btn-sm" href="/login">Provider login</a>
   </header>
 
-  <main class="portal-legal-shell">
+  <main id="policy-top" class="portal-legal-shell">
     <article class="card portal-legal-card">
       <div class="card-body">
         <span class="portal-legal-kicker">Findoly Solutions LLP</span>
         <h1>Shipping and Service Delivery Policy</h1>
-        <p class="portal-legal-lead">Findoly provides digital subscription and credit services; no physical shipping applies.</p>
-        <p class="portal-legal-effective">Effective date: 29 July 2026</p>
+        <p class="portal-legal-lead">How subscriptions, credits and lead access are delivered digitally after verified payment, with no physical shipping.</p>
+        <p class="portal-legal-effective">Effective and last updated: 30 July 2026</p>
+        <aside class="portal-legal-callout is-important"><strong>Digital delivery only</strong><p>There is no physical shipping. Delivery occurs in the Provider account after payment verification.</p></aside>
+        <nav class="portal-legal-toc" aria-label="Contents of Shipping and Service Delivery Policy">
+          <strong>On this page</strong>
+          <ol>
+          <li><a href="#scope">Scope and digital-service model</a></li>
+          <li><a href="#no-shipping">No physical shipping</a></li>
+          <li><a href="#verification">Payment verification requirement</a></li>
+          <li><a href="#plan-delivery">Subscription and credit activation</a></li>
+          <li><a href="#direct-unlock">Direct Pay and Unlock delivery</a></li>
+          <li><a href="#confirmation">How to confirm delivery</a></li>
+          <li><a href="#delays">Possible activation delays</a></li>
+          <li><a href="#provider-responsibility">Provider responsibilities</a></li>
+          <li><a href="#service-interruption">Service interruptions after delivery</a></li>
+          <li><a href="#contact">Missing or incorrect digital delivery</a></li>
+          </ol>
+        </nav>
         <div class="portal-legal-content">
-
-<section>
-  <h2>1. No physical delivery</h2>
-  <p>Findoly does not sell or ship physical goods through the Provider Portal. Shipping charges, courier delivery and physical tracking numbers do not apply.</p>
-</section>
-<section>
-  <h2>2. Digital service activation</h2>
-  <p>Purchased digital credits or subscription access are activated in the registered provider account after the payment has been successfully verified by Findoly and the payment gateway.</p>
-</section>
-<section>
-  <h2>3. Delivery confirmation</h2>
-  <p>Activated credits and plan information are shown in the Credits section of the Provider Portal. Payment and credit activity remain available in the relevant account records.</p>
-</section>
-<section>
-  <h2>4. Delayed verification</h2>
-  <p>Activation may remain pending when the payment gateway, bank or network has not provided a final verified status. Do not make repeated payments for the same purchase while an earlier transaction is still pending.</p>
-</section>
-<section>
-  <h2>5. Reporting a delivery issue</h2>
-  <p>If a verified payment is not reflected in the account, email <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a> with the registered provider mobile number, payment date, amount and payment reference so the transaction can be investigated.</p>
+<section id="scope">
+  <h2>1. Scope and digital-service model</h2>
+  <p>This policy explains how Findoly delivers subscriptions, credits and direct lead unlocks. Findoly does not sell or ship physical goods through the Provider Portal. References to shipping or delivery mean digital activation in the Provider account.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="no-shipping">
+  <h2>2. No physical shipping</h2>
+  <p>No parcel, courier, transport document, tracking number, shipping charge, delivery agent or physical address confirmation is required for a Provider Portal purchase. The business address shown on the website is Findoly’s contact address and not a pickup or return location.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="verification">
+  <h2>3. Payment verification requirement</h2>
+  <p>Digital delivery begins only after the payment is successfully verified through authorised gateway records, signature verification, webhook confirmation or another reliable payment status. A pending or unverified debit does not trigger delivery.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="plan-delivery">
+  <h2>4. Subscription and credit activation</h2>
+  <p>For a plan purchase, delivery normally consists of creating an active or scheduled subscription, recording its start and expiry dates, and allocating the base and bonus credits shown in the order. Current account information is displayed on the Plans and Credits page.</p>
+<p>Where the Provider already has an active subscription, a new plan may be scheduled to start after the current validity period, according to the order and system rules. Eligible active allocations may be extended when the portal records a renewal.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="direct-unlock">
+  <h2>5. Direct Pay and Unlock delivery</h2>
+  <p>For a direct lead payment, Findoly may temporarily reserve the lead during checkout. After verified payment, delivery consists of fulfilling the reservation, recording the unlock and revealing the available restricted lead information. If payment fails or the reservation expires, the lead may return to the marketplace subject to availability.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="confirmation">
+  <h2>6. How to confirm delivery</h2>
+  <ul><li>Check the current or upcoming subscription card.</li><li>Check the available credit balance and credit activity.</li><li>Check payment history for completed or review status.</li><li>For a direct payment, reopen the lead and confirm that contact information is unlocked.</li></ul>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="delays">
+  <h2>7. Possible activation delays</h2>
+  <p>Activation may be delayed by payment gateway latency, bank or UPI network status, webhook delivery, temporary database or hosting issues, fraud review, reservation conflicts or maintenance. Do not make repeated payments solely because a page refresh is delayed.</p>
+<p>Findoly may place an order in manual review when verification is incomplete or inconsistent. Manual review protects both the Provider and Findoly and does not mean the payment has failed.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="provider-responsibility">
+  <h2>8. Provider responsibilities</h2>
+  <p>Use the correct approved account and review the order summary before payment. Keep the payment reference and ensure the browser session remains secure. Report an activation problem with sufficient information and without disclosing OTPs, UPI PINs, CVV or full card numbers.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="service-interruption">
+  <h2>9. Service interruptions after delivery</h2>
+  <p>Temporary Platform unavailability after activation does not convert a digital purchase into a physical-delivery claim. Findoly will use reasonable efforts to restore access. Subscription validity and any material service interruption will be handled according to the Terms, applicable law and the verified circumstances.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="contact">
+  <h2>10. Missing or incorrect digital delivery</h2>
+  <p>Email <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a> with the registered mobile number, payment date, amount, order or payment reference and the missing entitlement. Findoly will investigate and apply the appropriate activation or payment-correction process.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
 </section>
         </div>
       </div>

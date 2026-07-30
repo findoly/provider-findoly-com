@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body class="portal-legal-body">
+  <header class="portal-legal-header">
+    <a href="/login" class="portal-legal-brand" aria-label="Findoly provider login">
+      <img src="/images/findoly-logo.png" alt="Findoly">
+      <span>Provider portal</span>
+    </a>
+    <a class="btn btn-light btn-sm" href="/login">Provider login</a>
+  </header>
+
+  <main id="policy-top" class="portal-legal-shell">
+    <article class="card portal-legal-card">
+      <div class="card-body">
+        <span class="portal-legal-kicker">Findoly Solutions LLP</span>
+        <h1>Marketplace Disclaimer</h1>
+        <p class="portal-legal-lead">Important limitations concerning Findoly’s marketplace role, lead quality, Provider services and business results.</p>
+        <p class="portal-legal-effective">Effective and last updated: 30 July 2026</p>
+        <aside class="portal-legal-callout is-important"><strong>No guaranteed business result</strong><p>Findoly does not guarantee that a lead will answer, convert, hire the Provider or generate revenue.</p></aside>
+        <nav class="portal-legal-toc" aria-label="Contents of Marketplace Disclaimer">
+          <strong>On this page</strong>
+          <ol>
+          <li><a href="#technology-platform">Technology marketplace only</a></li>
+          <li><a href="#no-endorsement">No endorsement or certification</a></li>
+          <li><a href="#lead-quality">No guarantee regarding leads</a></li>
+          <li><a href="#no-results">No guarantee of conversion or revenue</a></li>
+          <li><a href="#provider-due-diligence">Provider due diligence</a></li>
+          <li><a href="#contracts-payments">Independent contracts and payments</a></li>
+          <li><a href="#safety">Safety, emergencies and regulated advice</a></li>
+          <li><a href="#third-party">Third-party services</a></li>
+          <li><a href="#availability">Availability and changes</a></li>
+          <li><a href="#legal-rights">Non-waivable rights</a></li>
+          </ol>
+        </nav>
+        <div class="portal-legal-content">
+<section id="technology-platform">
+  <h2>1. Technology marketplace only</h2>
+  <p>Findoly operates a technology platform that helps approved service Providers discover potential customer enquiries. Findoly is not the contractor, tradesperson, professional, employer, broker, insurer, guarantor or service performer for work agreed between a Provider and Customer, unless a separate written agreement expressly states otherwise.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="no-endorsement">
+  <h2>2. No endorsement or certification</h2>
+  <p>Approval, listing, category matching or display does not constitute an endorsement, certification, warranty or recommendation of a Provider. Findoly may perform operational checks but does not guarantee a Provider’s licence, identity, solvency, insurance, staff, availability, workmanship or conduct.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="lead-quality">
+  <h2>3. No guarantee regarding leads</h2>
+  <p>Findoly does not guarantee that a lead is unique, complete, accurate, reachable, within budget, still active or suitable. A customer may change or withdraw a requirement, contact multiple Providers, hire someone else or decide not to proceed.</p>
+<p>Unlocking a lead is access to information, not a purchase of a confirmed job.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="no-results">
+  <h2>4. No guarantee of conversion or revenue</h2>
+  <p>Past lead volume, matching, conversion data, provider outcomes, examples or marketing statements do not guarantee future leads, appointments, sales, revenue, profit or return on investment. Business results depend on factors outside Findoly’s control.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="provider-due-diligence">
+  <h2>5. Provider due diligence</h2>
+  <p>Providers must independently verify the requirement, location, customer authority, site conditions, risks, pricing and ability to perform. Customers should independently evaluate Providers, quotations, credentials and references. Neither party should rely solely on Platform display.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="contracts-payments">
+  <h2>6. Independent contracts and payments</h2>
+  <p>Quotations, deposits, service payments, cancellations, refunds, warranties and disputes between a Provider and Customer are independent of the Provider’s payment to Findoly. Findoly is not responsible for money exchanged outside the Platform or for enforcing a private service contract.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="safety">
+  <h2>7. Safety, emergencies and regulated advice</h2>
+  <p>The Platform is not an emergency service. In an immediate risk to life, property or public safety, contact the appropriate emergency or public authority. Findoly does not provide legal, medical, financial, engineering or other regulated professional advice through general marketplace content.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="third-party">
+  <h2>8. Third-party services</h2>
+  <p>Payment, OTP, mapping, messaging and other integrations are operated by third parties and may be unavailable or governed by separate terms. Findoly is not responsible for their independent acts or omissions.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="availability">
+  <h2>9. Availability and changes</h2>
+  <p>Marketplace access, lead supply, eligibility, pricing, features and matching may change. Findoly does not guarantee continuous availability or preservation of a particular lead after its expiry, closure, unlock limit or status change.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section><section id="legal-rights">
+  <h2>10. Non-waivable rights</h2>
+  <p>This disclaimer applies to the fullest extent permitted by law and does not exclude liability or a remedy that cannot lawfully be excluded. Detailed limitations are stated in the Terms and Conditions.</p>
+  <a class="portal-legal-back-link" href="#policy-top">Back to contents</a>
+</section>
+        </div>
+      </div>
+    </article>
+
+    <section class="portal-legal-navigation" aria-label="Policies and support">
+      <strong>Policies and support</strong>
+      <%- include('../partials/policy-links', { policyLinksClass: 'portal-policy-links' }) %>
+    </section>
+  </main>
+
+  <footer class="portal-legal-page-footer">
+    <span>© <%= new Date().getFullYear() %> <%= legalEntityName %></span>
+    <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+  </footer>
+</body>
+</html>

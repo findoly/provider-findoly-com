@@ -238,18 +238,25 @@ npm audit --omit=dev
 
 ## Public policies and support
 
-The following routes are publicly accessible and linked from provider login, the Credits page and the desktop footer:
+The following routes are publicly accessible and linked from provider login, the Plans and Credits page and the desktop footer:
 
 ```text
 /terms-and-conditions
 /privacy-policy
 /cancellation-and-refund-policy
 /shipping-and-service-delivery-policy
+/acceptable-use-and-lead-data-policy
+/marketplace-disclaimer
+/cookie-and-storage-notice
+/intellectual-property-and-complaints-policy
+/grievance-redressal-policy
 /contact-us
 /help-support
 ```
 
-The legal entity is Findoly Solutions LLP. Provider support is email-only at `support@findoly.com`. Digital credits and subscriptions activate after verified payment, no physical delivery applies, and successfully purchased and activated credits or subscriptions are non-refundable.
+The expanded legal set covers Provider eligibility, OTP and account security, marketplace role, lead quality, digital-credit use and expiry, direct payments, non-refundable activated purchases, customer-data restrictions, cookies and browser storage, intellectual property, complaints and grievance handling. The legal entity is Findoly Solutions LLP. Provider support and grievances are email-only at `support@findoly.com`.
+
+Digital credits and subscriptions activate after verified payment, no physical delivery applies, and successfully purchased and activated credits or subscriptions are non-refundable. Marking a lead invalid does not automatically restore credits. The published text is an operational legal draft and should be reviewed by qualified Indian counsel before production publication, especially the named Grievance Officer designation and any business-specific liability or dispute terms.
 
 ## Nearby marketplace and transparency
 
