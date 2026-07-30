@@ -215,7 +215,23 @@ PROVIDER_OTP_RATE_WINDOW_SECONDS=60
 PROVIDER_OTP_SEND_ALLOW_UNCONFIRMED=true
 ```
 
-`OTP_API_URL`, `OTP_SEND_PATH`, `OTP_VERIFY_PATH`, `OTP_API_TOKEN` and `OTP_TIMEOUT_MS` remain supported as legacy deployment variables. All configured OTP URLs must use HTTPS in production. If the OTP service is unavailable, login fails safely; no local or fixed OTP fallback exists.
+`OTP_API_URL`, `OTP_SEND_PATH`, `OTP_VERIFY_PATH`, `OTP_API_TOKEN` and `OTP_TIMEOUT_MS` remain supported as legacy deployment variables. All configured OTP URLs must use HTTPS in production. If the OTP service is unavailable, login fails safely; no general local or fixed OTP fallback exists.
+
+### Temporary Razorpay review login
+
+Razorpay reviewers can use the approved review account only when this explicit deployment flag is enabled:
+
+```env
+RAZORPAY_REVIEW_LOGIN_ENABLED=true
+```
+
+With the flag enabled, mobile `8693097982` can sign in using OTP `7777`. The account must still exist, be active and have provider-portal access enabled. OTP send-rate limits continue to apply, the review OTP is not returned by the API or displayed in the browser, and every other mobile continues to use the live Findoly OTP service.
+
+Disable the exception immediately after Razorpay completes its review:
+
+```env
+RAZORPAY_REVIEW_LOGIN_ENABLED=false
+```
 
 Both CRM and provider services must use the same `MONGODB_URI` and database name. MongoDB Atlas or another replica set is required because credit allocation, plan fulfilment and lead unlock use transactions.
 
