@@ -4,7 +4,6 @@
 require("dotenv").config();
 
 const http = require("node:http");
-const path = require("node:path");
 const { loadAwsSecrets } = require("../config/load-aws-secrets");
 
 let server = null;
@@ -27,6 +26,62 @@ function shutdownTimeoutMs(env = process.env) {
   return Math.min(Math.max(Math.trunc(configured), 1000), 120000);
 }
 
+function startupRequestHandler(req, res) {
+  res.statusCode = 503;
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.setHeader("retry-after", "5");
+
+  if (req.method === "HEAD") {
+    res.end();
+    return;
+  }
+
+  res.end(
+    JSON.stringify({
+      success: false,
+      error: {
+        code: "SERVICE_STARTING",
+        message: "Provider portal is starting. Please retry shortly.",
+      },
+    }),
+  );
+}
+
+function configureServerTimeouts(target, env = process.env) {
+  target.requestTimeout = Number(env.REQUEST_TIMEOUT_MS || 30000);
+  target.headersTimeout = Number(env.HEADERS_TIMEOUT_MS || 35000);
+  target.keepAliveTimeout = Number(env.KEEP_ALIVE_TIMEOUT_MS || 5000);
+}
+
+function listenOnPort(target, port) {
+  return new Promise((resolve, reject) => {
+    const onError = (error) => {
+      target.off("error", onError);
+      reject(error);
+    };
+
+    target.once("error", onError);
+    target.listen(port, () => {
+      target.off("error", onError);
+      resolve();
+    });
+  });
+}
+
+async function closeHttpServer(target) {
+  if (!target || !target.listening || typeof target.close !== "function") return;
+
+  await new Promise((resolve) => {
+    target.close((error) => {
+      if (error) {
+        console.error("HTTP server close error:", error.message);
+      }
+      resolve();
+    });
+  });
+}
+
 async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -38,9 +93,7 @@ async function shutdown(signal) {
   }, shutdownTimeoutMs());
   forceTimer.unref();
 
-  if (server && server.listening) {
-    await new Promise((resolve) => server.close(resolve));
-  }
+  await closeHttpServer(server);
 
   if (mongoose && mongoose.connection.readyState !== 0) {
     await mongoose
@@ -77,49 +130,53 @@ async function start({
   loadMongoose = () => require("mongoose"),
   httpModule = http,
 } = {}) {
-  const secretResult = await loadSecrets();
-  if (!secretResult.skipped) {
-    console.log(
-      `Provider configuration loaded from AWS Secrets Manager (${secretResult.loaded} values)`,
-    );
-  }
-
-  const { validateEnvironment } = loadEnvironment();
-  validateEnvironment();
-
-  const connectDatabase = loadDatabase();
-  const app = loadApp();
-  mongoose = loadMongoose();
   const port = resolvePort();
+  let activeRequestHandler = startupRequestHandler;
 
-  await connectDatabase();
+  server = httpModule.createServer((req, res) =>
+    activeRequestHandler(req, res),
+  );
+  configureServerTimeouts(server);
 
-  app.set("port", port);
-  server = httpModule.createServer(app);
-  server.requestTimeout = Number(process.env.REQUEST_TIMEOUT_MS || 30000);
-  server.headersTimeout = Number(process.env.HEADERS_TIMEOUT_MS || 35000);
-  server.keepAliveTimeout = Number(process.env.KEEP_ALIVE_TIMEOUT_MS || 5000);
-
-  await new Promise((resolve, reject) => {
-    const onError = (error) => {
-      server.off("error", onError);
-      reject(error);
-    };
-
-    server.once("error", onError);
-    server.listen(port, () => {
-      server.off("error", onError);
-      resolve();
+  try {
+    // Hostinger requires listen() to be called almost immediately after the
+    // entry file loads. Keep the temporary 503 handler active until runtime
+    // secrets, validation and MongoDB are ready.
+    await listenOnPort(server, port);
+    server.on("error", (error) => {
+      console.error("HTTP server error:", error);
+      process.exitCode = 1;
     });
-  });
+    console.log(`Provider portal bootstrap listener active on port ${port}`);
 
-  server.on("error", (error) => {
-    console.error("HTTP server error:", error);
-    process.exitCode = 1;
-  });
+    const secretResult = await loadSecrets();
+    if (!secretResult.skipped) {
+      console.log(
+        `Provider configuration loaded from AWS Secrets Manager (${secretResult.loaded} values)`,
+      );
+    }
 
-  console.log(`Provider portal listening on port ${port}`);
-  return server;
+    // Apply timeout overrides that may have arrived from Secrets Manager.
+    configureServerTimeouts(server);
+
+    const { validateEnvironment } = loadEnvironment();
+    validateEnvironment();
+
+    const connectDatabase = loadDatabase();
+    const app = loadApp();
+    mongoose = loadMongoose();
+
+    app.set("port", port);
+    await connectDatabase();
+
+    activeRequestHandler = app;
+
+    console.log(`Provider portal listening on port ${port}`);
+    return server;
+  } catch (error) {
+    await closeHttpServer(server);
+    throw error;
+  }
 }
 
 function run() {
@@ -134,19 +191,15 @@ function run() {
   return runPromise;
 }
 
-const launchedDirectly = require.main === module;
-const launchedFromStart =
-  require.main && require.main.filename === path.resolve(__dirname, "../start.js");
-
-if (launchedDirectly || launchedFromStart) {
-  run().catch(() => {});
-}
-
 module.exports = {
+  closeHttpServer,
+  configureServerTimeouts,
   installSignalHandlers,
+  listenOnPort,
   resolvePort,
   run,
   shutdown,
   shutdownTimeoutMs,
   start,
+  startupRequestHandler,
 };

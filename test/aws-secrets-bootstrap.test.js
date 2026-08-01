@@ -175,10 +175,10 @@ test("AWS access failures stop startup without applying configuration", async ()
   assert.equal(env.MONGODB_URI, undefined);
 });
 
-test("provider server loads secrets before validation, app import, database and listen", async () => {
+test("provider server listens first, then loads secrets, app and database", async () => {
   const { start } = require("../bin/www");
   const events = [];
-  const app = { set() {} };
+  const app = Object.assign(() => {}, { set() {} });
   const fakeServer = new EventEmitter();
   fakeServer.listening = false;
   fakeServer.listen = (_port, callback) => {
@@ -186,10 +186,21 @@ test("provider server loads secrets before validation, app import, database and 
     fakeServer.listening = true;
     callback();
   };
+  fakeServer.close = (callback) => {
+    events.push("close");
+    fakeServer.listening = false;
+    callback();
+  };
 
-  await start({
+  let releaseSecrets;
+  const secretsReady = new Promise((resolve) => {
+    releaseSecrets = resolve;
+  });
+
+  const startupPromise = start({
     loadSecrets: async () => {
       events.push("secrets");
+      await secretsReady;
       return { loaded: 2, protectedCount: 0, skipped: false };
     },
     loadEnvironment: () => ({
@@ -208,19 +219,64 @@ test("provider server loads secrets before validation, app import, database and 
     httpModule: { createServer: () => fakeServer },
   });
 
+  assert.deepEqual(events, ["listen"]);
+  await Promise.resolve();
+  assert.deepEqual(events, ["listen", "secrets"]);
+  releaseSecrets();
+  await startupPromise;
+
   assert.deepEqual(events, [
+    "listen",
     "secrets",
     "validate",
     "app",
     "database",
-    "listen",
   ]);
 });
 
-test("secret or database failure prevents app import or HTTP listening", async () => {
+test("temporary startup handler returns a non-cacheable 503 response", () => {
+  const { startupRequestHandler } = require("../bin/www");
+  const headers = {};
+  let body = "";
+  const response = {
+    statusCode: 0,
+    setHeader(name, value) {
+      headers[name] = value;
+    },
+    end(value = "") {
+      body = value;
+    },
+  };
+
+  startupRequestHandler({ method: "GET" }, response);
+
+  assert.equal(response.statusCode, 503);
+  assert.equal(headers["cache-control"], "no-store");
+  assert.equal(headers["retry-after"], "5");
+  assert.equal(JSON.parse(body).error.code, "SERVICE_STARTING");
+});
+
+test("secret or database failure closes the bootstrap listener", async () => {
   const { start } = require("../bin/www");
   let appLoaded = false;
   let listenCalled = false;
+  let closeCalled = false;
+
+  function createFakeServer() {
+    const fakeServer = new EventEmitter();
+    fakeServer.listening = false;
+    fakeServer.listen = (_port, callback) => {
+      listenCalled = true;
+      fakeServer.listening = true;
+      callback();
+    };
+    fakeServer.close = (callback) => {
+      closeCalled = true;
+      fakeServer.listening = false;
+      callback();
+    };
+    return fakeServer;
+  }
 
   await assert.rejects(
     start({
@@ -230,15 +286,16 @@ test("secret or database failure prevents app import or HTTP listening", async (
       loadApp: () => {
         appLoaded = true;
       },
+      httpModule: { createServer: createFakeServer },
     }),
     /secret unavailable/,
   );
+  assert.equal(listenCalled, true);
+  assert.equal(closeCalled, true);
   assert.equal(appLoaded, false);
 
-  const fakeServer = new EventEmitter();
-  fakeServer.listen = () => {
-    listenCalled = true;
-  };
+  listenCalled = false;
+  closeCalled = false;
 
   await assert.rejects(
     start({
@@ -251,13 +308,14 @@ test("secret or database failure prevents app import or HTTP listening", async (
       loadDatabase: () => async () => {
         throw new Error("database unavailable");
       },
-      loadApp: () => ({ set() {} }),
+      loadApp: () => Object.assign(() => {}, { set() {} }),
       loadMongoose: () => ({ connection: { readyState: 0 } }),
-      httpModule: { createServer: () => fakeServer },
+      httpModule: { createServer: createFakeServer },
     }),
     /database unavailable/,
   );
-  assert.equal(listenCalled, false);
+  assert.equal(listenCalled, true);
+  assert.equal(closeCalled, true);
 });
 
 test("port binding failures reject provider startup", async () => {
@@ -292,9 +350,10 @@ test("Express Generator entrypoint structure and runtime scripts are preserved",
     fs.readFileSync(path.join(root, "package.json"), "utf8"),
   );
 
-  assert.match(startSource, /require\(["']\.\/bin\/www["']\)/);
+  assert.match(startSource, /require\(["']\.\/bin\/www["']\)\.run\(\)/);
   assert.match(serverSource, /require\(["']dotenv["']\)\.config\(\)/);
   assert.match(serverSource, /await loadSecrets\(\)/);
+  assert.doesNotMatch(serverSource, /require\.main/);
   assert.doesNotMatch(serverSource, /^const app = require\(["']\.\.\/app["']\)/m);
   assert.doesNotMatch(appSource, /require\(["']dotenv["']\)/);
   assert.equal(packageJson.scripts.start, "node ./start.js");
