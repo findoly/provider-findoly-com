@@ -5,6 +5,14 @@ require("dotenv").config();
 
 const http = require("node:http");
 const { loadAwsSecrets } = require("../config/load-aws-secrets");
+const { createCloudWatchLogger } = require("../services/logging/cloudwatch-logger");
+
+const cloudwatchLogger = createCloudWatchLogger({
+  service: "provider",
+  credentialPrefix: "PROVIDER_SECRETS_",
+  defaultLogGroup: "/findoly/provider/production",
+});
+cloudwatchLogger.install();
 
 let server = null;
 let mongoose = null;
@@ -104,6 +112,7 @@ async function shutdown(signal) {
   }
 
   clearTimeout(forceTimer);
+  await cloudwatchLogger.shutdown({ timeoutMs: 2000 });
   process.exit(0);
 }
 
@@ -150,6 +159,7 @@ async function start({
     console.log(`Provider portal bootstrap listener active on port ${port}`);
 
     const secretResult = await loadSecrets();
+    cloudwatchLogger.configureFromEnv();
     if (!secretResult.skipped) {
       console.log(
         `Provider configuration loaded from AWS Secrets Manager (${secretResult.loaded} values)`,
@@ -183,15 +193,17 @@ function run() {
   if (runPromise) return runPromise;
 
   installSignalHandlers();
-  runPromise = start().catch((error) => {
+  runPromise = start().catch(async (error) => {
     console.error("Provider portal failed to start:", error.message);
     process.exitCode = 1;
+    await cloudwatchLogger.flush({ timeoutMs: 2000 });
     throw error;
   });
   return runPromise;
 }
 
 module.exports = {
+  cloudwatchLogger,
   closeHttpServer,
   configureServerTimeouts,
   installSignalHandlers,
