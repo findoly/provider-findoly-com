@@ -1,2 +1,3 @@
-// start.js
+"use strict";
+
 require("./bin/www");

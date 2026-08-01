@@ -1,14 +1,31 @@
 #!/usr/bin/env node
+"use strict";
 
-const http = require("http");
-const mongoose = require("mongoose");
-const { validateEnvironment } = require("../config/env");
-const connectDatabase = require("../db/connection");
-const app = require("../app");
+require("dotenv").config();
 
-const port = Number(process.env.PORT || 3100);
-let server;
+const http = require("node:http");
+const path = require("node:path");
+const { loadAwsSecrets } = require("../config/load-aws-secrets");
+
+let server = null;
+let mongoose = null;
 let shuttingDown = false;
+let runPromise = null;
+let signalHandlersInstalled = false;
+
+function resolvePort(env = process.env) {
+  const port = Number(env.PORT || 3100);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("PORT must be a whole number between 1 and 65535");
+  }
+  return port;
+}
+
+function shutdownTimeoutMs(env = process.env) {
+  const configured = Number(env.SHUTDOWN_TIMEOUT_MS || 10000);
+  if (!Number.isFinite(configured)) return 10000;
+  return Math.min(Math.max(Math.trunc(configured), 1000), 120000);
+}
 
 async function shutdown(signal) {
   if (shuttingDown) return;
@@ -18,48 +35,118 @@ async function shutdown(signal) {
   const forceTimer = setTimeout(() => {
     console.error("Forced shutdown after timeout");
     process.exit(1);
-  }, 10000);
+  }, shutdownTimeoutMs());
   forceTimer.unref();
 
-  if (server) {
+  if (server && server.listening) {
     await new Promise((resolve) => server.close(resolve));
   }
-  await mongoose.disconnect().catch(() => {});
+
+  if (mongoose && mongoose.connection.readyState !== 0) {
+    await mongoose
+      .disconnect()
+      .catch((error) =>
+        console.error("MongoDB disconnect error:", error.message),
+      );
+  }
+
   clearTimeout(forceTimer);
   process.exit(0);
 }
 
-async function start() {
+function installSignalHandlers() {
+  if (signalHandlersInstalled) return;
+  signalHandlersInstalled = true;
+
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
+  process.on("unhandledRejection", (error) => {
+    console.error("Unhandled rejection", error);
+  });
+  process.on("uncaughtException", (error) => {
+    console.error("Uncaught exception", error);
+    shutdown("uncaughtException");
+  });
+}
+
+async function start({
+  loadSecrets = loadAwsSecrets,
+  loadEnvironment = () => require("../config/env"),
+  loadDatabase = () => require("../db/connection"),
+  loadApp = () => require("../app"),
+  loadMongoose = () => require("mongoose"),
+  httpModule = http,
+} = {}) {
+  const secretResult = await loadSecrets();
+  if (!secretResult.skipped) {
+    console.log(
+      `Provider configuration loaded from AWS Secrets Manager (${secretResult.loaded} values)`,
+    );
+  }
+
+  const { validateEnvironment } = loadEnvironment();
   validateEnvironment();
+
+  const connectDatabase = loadDatabase();
+  const app = loadApp();
+  mongoose = loadMongoose();
+  const port = resolvePort();
+
   await connectDatabase();
 
   app.set("port", port);
-  server = http.createServer(app);
+  server = httpModule.createServer(app);
   server.requestTimeout = Number(process.env.REQUEST_TIMEOUT_MS || 30000);
   server.headersTimeout = Number(process.env.HEADERS_TIMEOUT_MS || 35000);
   server.keepAliveTimeout = Number(process.env.KEEP_ALIVE_TIMEOUT_MS || 5000);
 
-  server.listen(port, () => {
-    console.log(`Provider portal listening on port ${port}`);
+  await new Promise((resolve, reject) => {
+    const onError = (error) => {
+      server.off("error", onError);
+      reject(error);
+    };
+
+    server.once("error", onError);
+    server.listen(port, () => {
+      server.off("error", onError);
+      resolve();
+    });
   });
 
   server.on("error", (error) => {
-    console.error(error);
-    process.exit(1);
+    console.error("HTTP server error:", error);
+    process.exitCode = 1;
   });
+
+  console.log(`Provider portal listening on port ${port}`);
+  return server;
 }
 
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("unhandledRejection", (error) => {
-  console.error("Unhandled rejection", error);
-});
-process.on("uncaughtException", (error) => {
-  console.error("Uncaught exception", error);
-  shutdown("uncaughtException");
-});
+function run() {
+  if (runPromise) return runPromise;
 
-start().catch((error) => {
-  console.error("Provider portal failed to start:", error.message);
-  process.exit(1);
-});
+  installSignalHandlers();
+  runPromise = start().catch((error) => {
+    console.error("Provider portal failed to start:", error.message);
+    process.exitCode = 1;
+    throw error;
+  });
+  return runPromise;
+}
+
+const launchedDirectly = require.main === module;
+const launchedFromStart =
+  require.main && require.main.filename === path.resolve(__dirname, "../start.js");
+
+if (launchedDirectly || launchedFromStart) {
+  run().catch(() => {});
+}
+
+module.exports = {
+  installSignalHandlers,
+  resolvePort,
+  run,
+  shutdown,
+  shutdownTimeoutMs,
+  start,
+};

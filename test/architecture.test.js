@@ -101,7 +101,10 @@ test("expired direct-payment reservations are released by a bounded CommonJS cle
   assert.match(direct, /marketplaceClosureReason:\s*""/);
   assert.match(cleanup, /LEAD_PAYMENT_CLEANUP_MAX_BATCHES/);
   assert.match(cleanup, /module\.exports/);
-  assert.equal(packageJson.scripts["cleanup:lead-reservations"], "node scripts/release-expired-lead-reservations.js");
+  assert.equal(
+    packageJson.scripts["cleanup:lead-reservations"],
+    "node scripts/run-with-runtime.js scripts/release-expired-lead-reservations.js",
+  );
 });
 
 test("locked lead presenter does not expose customer contact or contact-like details", () => {
