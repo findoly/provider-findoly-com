@@ -16,10 +16,10 @@ async function page(req, res, next) {
 async function create(req, res, next) {
   try {
     const data = await service.submit(req.body || {});
-    return res.status(data.duplicate || data.ignored ? 200 : 201).json({
+    return res.status(data.ignored ? 200 : 201).json({
       success: true,
-      message: data.duplicate
-        ? "A joining request already exists for this mobile number. Our team will contact you after reviewing it."
+      message: data.ignored
+        ? "Your request has been received."
         : "Your joining request has been submitted successfully. Our team will contact you shortly.",
       data,
     });
