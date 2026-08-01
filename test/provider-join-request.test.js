@@ -47,6 +47,7 @@ test("joining requests share a bounded indexed collection with CRM", () => {
   assert.match(model, /status:\s*1, createdAt:\s*-1/);
   assert.match(model, /normalizedMobile:\s*1, status:\s*1/);
   assert.match(model, /partialFilterExpression: \{ \$or:/);
+  assert.doesNotMatch(model, /normalizedMobile:\s*\{[^}]*index:\s*true/);
   assert.match(service, /OPEN_STATUSES/);
   assert.match(service, /duplicateQuery/);
   assert.match(service, /consent/);
