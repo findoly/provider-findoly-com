@@ -21,6 +21,7 @@ function errorHandler(error, req, res, next) {
       : error.message || "Something went wrong";
 
   console.error({
+    event: "http_request_error",
     requestId: req.requestId,
     method: req.method,
     path: req.originalUrl,
