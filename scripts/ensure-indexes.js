@@ -8,6 +8,7 @@ const PaymentOrder = require("../models/PaymentOrder");
 const WalletTransaction = require("../models/WalletTransaction");
 const ProviderSubscription = require("../models/ProviderSubscription");
 const ProviderOtpRateLimit = require("../models/ProviderOtpRateLimit");
+const ProviderJoinRequest = require("../models/ProviderJoinRequest");
 
 function indexedModels() {
   return [
@@ -17,6 +18,7 @@ function indexedModels() {
     WalletTransaction,
     ProviderSubscription,
     ProviderOtpRateLimit,
+    ProviderJoinRequest,
   ];
 }
 

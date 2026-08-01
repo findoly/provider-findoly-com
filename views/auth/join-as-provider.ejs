@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body class="portal-login-body portal-join-body" x-data="providerJoinPage()" x-init="init()">
+  <main class="portal-join-shell">
+    <div class="portal-login-brand">
+      <img src="/images/findoly-logo.png" alt="Findoly" class="portal-login-logo">
+      <span>Provider onboarding</span>
+    </div>
+
+    <section class="card portal-login-card portal-join-card" aria-labelledby="joinTitle">
+      <div class="card-body">
+        <div class="portal-join-heading">
+          <div>
+            <span class="portal-join-eyebrow">Provider network</span>
+            <h1 id="joinTitle" class="h3 mb-2">Grow your business with Findoly</h1>
+            <p class="text-muted mb-0">Tell us about your services. Our team will review your request and contact you regarding provider onboarding.</p>
+          </div>
+          <a href="/login" class="portal-join-login-link">Already registered? Sign in</a>
+        </div>
+
+        <div x-show="error" x-cloak class="alert alert-danger" role="alert" x-text="error"></div>
+        <div x-show="success" x-cloak class="alert alert-success portal-join-success" role="status">
+          <strong>Request submitted</strong>
+          <span x-text="success"></span>
+          <a href="/login" class="btn btn-primary mt-3">Return to provider login</a>
+        </div>
+
+        <form x-show="!success" @submit.prevent="submit()" novalidate class="portal-join-form">
+          <input class="portal-honeypot" type="text" name="website" tabindex="-1" autocomplete="off" x-model="form.website" aria-hidden="true">
+
+          <div class="portal-join-grid">
+            <label class="portal-join-field">
+              <span>Full name <b>*</b></span>
+              <input class="form-control" x-model.trim="form.name" maxlength="120" autocomplete="name" required>
+            </label>
+            <label class="portal-join-field">
+              <span>Business or shop name</span>
+              <input class="form-control" x-model.trim="form.businessName" maxlength="160" autocomplete="organization">
+            </label>
+            <label class="portal-join-field">
+              <span>Mobile number <b>*</b></span>
+              <div class="input-group">
+                <span class="input-group-text">+91</span>
+                <input class="form-control" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="10" x-model="form.mobile" @input="form.mobile = digits(form.mobile)" required>
+              </div>
+            </label>
+            <label class="portal-join-field">
+              <span>WhatsApp number <b>*</b></span>
+              <div class="input-group">
+                <span class="input-group-text">+91</span>
+                <input class="form-control" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="10" x-model="form.whatsappNumber" @input="form.whatsappNumber = digits(form.whatsappNumber)" :disabled="sameAsMobile" required>
+              </div>
+              <span class="portal-join-inline-check"><input type="checkbox" x-model="sameAsMobile" @change="syncWhatsapp()"> Same as mobile</span>
+            </label>
+            <label class="portal-join-field">
+              <span>Email address</span>
+              <input class="form-control" type="email" x-model.trim="form.email" maxlength="254" autocomplete="email">
+            </label>
+            <label class="portal-join-field">
+              <span>Primary category <b>*</b></span>
+              <select class="form-select" x-model="form.categoryId" required>
+                <option value="">Select your service category</option>
+                <% categories.forEach((category) => { %>
+                  <option value="<%= category.categoryId %>"><%= category.name %></option>
+                <% }) %>
+              </select>
+              <% if (!categories.length) { %><small class="text-danger">No active categories are currently available. Please contact support.</small><% } %>
+            </label>
+          </div>
+
+          <div class="portal-join-section">
+            <div class="portal-join-section-head">
+              <div><strong>Primary service address</strong><span>Search and select an address to fill city, state and PIN code automatically.</span></div>
+              <span class="portal-join-map-state" :class="mapsReady ? 'is-ready' : ''" x-text="mapsReady ? 'Google address search ready' : 'Manual address entry available'"></span>
+            </div>
+            <label class="portal-join-field portal-join-field-full">
+              <span>Search service address <b>*</b></span>
+              <input id="providerJoinAddress" class="form-control" x-model.trim="form.serviceAddress" @input="form.googlePlaceId=''; form.latitude=''; form.longitude=''" maxlength="500" autocomplete="street-address" placeholder="Start typing your business or service address" required>
+            </label>
+            <div class="portal-join-grid portal-join-location-grid">
+              <label class="portal-join-field">
+                <span>PIN code <b>*</b></span>
+                <input class="form-control" x-model="form.servicePincode" @input="form.servicePincode = digits(form.servicePincode).slice(0, 6)" inputmode="numeric" maxlength="6" autocomplete="postal-code" required>
+              </label>
+              <label class="portal-join-field">
+                <span>City <b>*</b></span>
+                <input class="form-control" x-model.trim="form.city" maxlength="100" autocomplete="address-level2" required>
+              </label>
+              <label class="portal-join-field">
+                <span>State <b>*</b></span>
+                <input class="form-control" x-model.trim="form.state" maxlength="100" autocomplete="address-level1" required>
+              </label>
+            </div>
+          </div>
+
+          <label class="portal-join-consent">
+            <input type="checkbox" x-model="form.consent" required>
+            <span>I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener">Terms and Conditions</a> and acknowledge the <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+          </label>
+
+          <div class="portal-join-actions">
+            <a class="btn btn-light" href="/login">Cancel</a>
+            <button class="btn btn-primary" type="submit" :disabled="loading || <%= categories.length ? 'false' : 'true' %>">
+              <span class="spinner-border spinner-border-sm me-2" x-show="loading" x-cloak></span>
+              <span x-text="loading ? 'Submitting…' : 'Submit joining request'"></span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <%- include('../partials/policy-links', { policyLinksClass: 'portal-login-policy-links' }) %>
+  </main>
+
+<%- include('../partials/scripts') %>
+<script nonce="<%= cspNonce %>">
+  window.initProviderJoinMaps = function initProviderJoinMaps() {
+    window.dispatchEvent(new Event('provider-join-maps-ready'));
+  };
+
+  function providerJoinPage() {
+    return {
+      loading: false,
+      error: '',
+      success: '',
+      sameAsMobile: true,
+      mapsReady: false,
+      autocomplete: null,
+      form: {
+        name: '', businessName: '', mobile: '', whatsappNumber: '', email: '', categoryId: '',
+        serviceAddress: '', servicePincode: '', city: '', state: '', googlePlaceId: '',
+        latitude: '', longitude: '', consent: false, website: ''
+      },
+      init() {
+        this.syncWhatsapp();
+        window.addEventListener('provider-join-maps-ready', () => this.setupAutocomplete(), { once: true });
+        if (window.google?.maps?.places) this.setupAutocomplete();
+      },
+      digits(value) {
+        let digits = String(value || '').replace(/\D/g, '');
+        if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
+        if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+        return digits.slice(0, 10);
+      },
+      syncWhatsapp() {
+        if (this.sameAsMobile) this.form.whatsappNumber = this.form.mobile;
+      },
+      setupAutocomplete() {
+        if (this.autocomplete || !window.google?.maps?.places) return;
+        const input = document.getElementById('providerJoinAddress');
+        if (!input) return;
+        this.autocomplete = new google.maps.places.Autocomplete(input, {
+          componentRestrictions: { country: 'in' },
+          fields: ['address_components', 'formatted_address', 'geometry', 'place_id'],
+          types: ['address']
+        });
+        this.autocomplete.addListener('place_changed', () => {
+          const place = this.autocomplete.getPlace();
+          if (!place?.address_components) return;
+          const components = {};
+          place.address_components.forEach((component) => component.types.forEach((type) => { components[type] = component.long_name; }));
+          this.form.serviceAddress = place.formatted_address || input.value || this.form.serviceAddress;
+          this.form.servicePincode = components.postal_code || this.form.servicePincode;
+          this.form.city = components.locality || components.postal_town || components.administrative_area_level_3 || components.administrative_area_level_2 || this.form.city;
+          this.form.state = components.administrative_area_level_1 || this.form.state;
+          this.form.googlePlaceId = place.place_id || '';
+          this.form.latitude = place.geometry?.location?.lat?.() ?? '';
+          this.form.longitude = place.geometry?.location?.lng?.() ?? '';
+        });
+        this.mapsReady = true;
+      },
+      validate() {
+        this.syncWhatsapp();
+        if (!String(this.form.name || '').trim()) throw new Error('Full name is required');
+        if (!/^[6-9]\d{9}$/.test(this.form.mobile)) throw new Error('Enter a valid 10-digit Indian mobile number');
+        if (!/^[6-9]\d{9}$/.test(this.form.whatsappNumber)) throw new Error('Enter a valid 10-digit WhatsApp number');
+        if (!this.form.categoryId) throw new Error('Select your primary service category');
+        if (!String(this.form.serviceAddress || '').trim()) throw new Error('Service address is required');
+        if (!/^[1-9]\d{5}$/.test(this.form.servicePincode)) throw new Error('Enter a valid 6-digit PIN code');
+        if (!String(this.form.city || '').trim()) throw new Error('City is required');
+        if (!String(this.form.state || '').trim()) throw new Error('State is required');
+        if (!this.form.consent) throw new Error('Please accept the Terms and Conditions and Privacy Policy');
+      },
+      async submit() {
+        if (this.loading) return;
+        this.error = '';
+        try {
+          this.validate();
+          this.loading = true;
+          const body = await apiFetch('/api/provider-requests', { method: 'POST', body: JSON.stringify(this.form) });
+          this.success = body.message || 'Your joining request has been submitted successfully.';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (error) {
+          this.error = error.message;
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } finally {
+          this.loading = false;
+        }
+      }
+    };
+  }
+</script>
+<% if (googleMapsApiKey) { %>
+<script nonce="<%= cspNonce %>" async defer src="https://maps.googleapis.com/maps/api/js?key=<%= encodeURIComponent(googleMapsApiKey) %>&amp;libraries=places&amp;callback=initProviderJoinMaps&amp;loading=async"></script>
+<% } %>
+</body>
+</html>

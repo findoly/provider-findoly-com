@@ -33,6 +33,15 @@ const verifyOtpLimiter = rateLimit({
   handler: jsonHandler("Too many OTP attempts. Try again later."),
 });
 
+
+const providerJoinLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: Math.min(50, Math.max(1, Number(process.env.PROVIDER_JOIN_REQUEST_LIMIT_PER_HOUR) || 5)),
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: jsonHandler("Too many joining requests. Please wait before trying again."),
+});
+
 const walletLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: Number(process.env.WALLET_RATE_LIMIT_PER_MINUTE || 20),
@@ -55,4 +64,5 @@ module.exports = {
   verifyOtpLimiter,
   walletLimiter,
   unlockLimiter,
+  providerJoinLimiter,
 };
