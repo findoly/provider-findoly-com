@@ -1,10 +1,12 @@
 const express = require("express");
 const frontendController = require("../controllers/frontendController");
 const { pageAuth, guestOnly } = require("../middleware/auth");
+const providerRequestController = require("../controllers/providerRequestController");
 
 const router = express.Router();
 
 router.get("/login", guestOnly, frontendController.login);
+router.get("/join-as-provider", guestOnly, providerRequestController.page);
 router.get("/terms-and-conditions", frontendController.terms);
 router.get("/privacy-policy", frontendController.privacy);
 router.get("/cancellation-and-refund-policy", frontendController.refunds);

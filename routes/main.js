@@ -7,6 +7,7 @@ const { verifyCsrf } = require("../middleware/security");
 const router = express.Router();
 
 router.use("/auth", require("./auth"));
+router.use("/provider-requests", require("./provider-request"));
 router.use(apiAuth);
 router.get("/dashboard", dashboardController.get);
 router.get("/profile", profileController.get);
