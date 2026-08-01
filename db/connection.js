@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { verifyDatabaseContract } = require("./shared-contract");
 
 function positiveInteger(value, fallback, maximum) {
   const parsed = Number(value);
@@ -6,7 +7,7 @@ function positiveInteger(value, fallback, maximum) {
   return Math.min(parsed, maximum);
 }
 
-async function connectDatabase() {
+async function connectDatabase(options = {}) {
   if (process.env.SKIP_DB === "true") return mongoose.connection;
   if ([1, 2].includes(mongoose.connection.readyState)) return mongoose.connection;
 
@@ -30,6 +31,10 @@ async function connectDatabase() {
     autoIndex: process.env.MONGO_AUTO_INDEX === "true",
   });
 
+  await verifyDatabaseContract(mongoose.connection, {
+    requireTransactions: options.requireTransactions,
+    verifySharedIndexes: options.verifySharedIndexes,
+  });
   console.log(`MongoDB connected: ${mongoose.connection.name}`);
   return mongoose.connection;
 }

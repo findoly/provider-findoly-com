@@ -41,6 +41,20 @@ function mobilePattern(mobile) {
   return new RegExp(`${digits}$`);
 }
 
+function legacyMobileLookupEnabled(env = process.env) {
+  const configured = String(env.PROVIDER_LEGACY_MOBILE_LOOKUP || "").trim().toLowerCase();
+  if (configured) return ["1", "true", "yes", "on"].includes(configured);
+  return String(env.NODE_ENV || "").trim() !== "production";
+}
+
+
+function boundedQuery(query) {
+  if (query && typeof query.maxTimeMS === "function") {
+    return query.maxTimeMS(Number(process.env.PROVIDER_QUERY_MAX_TIME_MS || 10000));
+  }
+  return query;
+}
+
 function providerMobile(value, label = "Mobile number") {
   const mobile = normalizeMobile(value);
   if (!/^[6-9]\d{9}$/.test(mobile)) {
@@ -56,16 +70,19 @@ async function findProvider(mobileInput) {
   const mobile = normalizeMobile(mobileInput);
   if (mobile.length !== 10) return null;
 
-  return Provider.findOne({
+  const normalizedQuery = Provider.findOne({ normalizedMobile: mobile })
+    .sort({ status: 1, portalAccessEnabled: -1, updatedAt: -1 });
+  const normalized = await boundedQuery(normalizedQuery).lean();
+  if (normalized || !legacyMobileLookupEnabled()) return normalized;
+
+  const legacyQuery = Provider.findOne({
     $or: [
-      { normalizedMobile: mobile },
       { mobile },
       { mobile: `+91${mobile}` },
       { mobile: mobilePattern(mobile) },
     ],
-  })
-    .sort({ status: 1, portalAccessEnabled: -1, updatedAt: -1 })
-    .lean();
+  }).sort({ status: 1, portalAccessEnabled: -1, updatedAt: -1 });
+  return boundedQuery(legacyQuery).lean();
 }
 
 async function assertLoginAllowed(mobile) {
@@ -177,4 +194,5 @@ module.exports = {
   findProvider,
   providerMobile,
   assertLoginAllowed,
+  legacyMobileLookupEnabled,
 };

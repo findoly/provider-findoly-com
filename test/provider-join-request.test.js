@@ -48,13 +48,17 @@ test("joining requests share a bounded indexed collection with CRM", () => {
   assert.match(model, /normalizedMobile:\s*1, status:\s*1/);
   assert.match(model, /partialFilterExpression: \{ \$or:/);
   assert.doesNotMatch(model, /normalizedMobile:\s*\{[^}]*index:\s*true/);
-  assert.match(service, /OPEN_STATUSES/);
-  assert.match(service, /duplicateQuery/);
+  assert.match(model, /normalizedEmail/);
+  assert.match(model, /conversionLockAt/);
+  assert.match(service, /withTransaction/);
+  assert.match(service, /syncEntityContacts/);
+  assert.match(service, /entityType:\s*"provider_join_request"/);
   assert.match(service, /consent/);
   assert.match(service, /website/);
   assert.match(service, /error\?\.code === 11000/);
   assert.match(service, /UNSUPPORTED_TEXT/);
   assert.match(indexes, /ProviderJoinRequest/);
+  assert.match(indexes, /ContactIdentity/);
 });
 
 test("provider CSP permits only the Google hosts needed by address autocomplete", () => {

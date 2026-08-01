@@ -24,6 +24,7 @@ function presentProvider(provider = {}) {
     name: provider.name || "",
     businessName: provider.businessName || "",
     mobile: provider.mobile || "",
+    whatsappNumber: provider.whatsappNumber || "",
     email: provider.email || "",
     status: provider.status || "",
     onboardingStage: provider.onboardingStage || "new",

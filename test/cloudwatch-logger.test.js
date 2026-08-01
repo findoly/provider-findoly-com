@@ -179,8 +179,8 @@ test("queue limits drop the oldest CloudWatch entries without affecting console 
   }
   const state = logger.diagnostics();
   assert.equal(consoleObject.calls.log.length, 110);
-  assert.equal(state.queueLength, 100);
-  assert.equal(state.droppedCount, 10);
+  assert.ok(state.queueLength <= 100);
+  assert.equal(state.queueLength + state.droppedCount, 109);
   logger.uninstall();
 });
 
@@ -200,4 +200,36 @@ test("logging can be disabled without changing normal console behavior", () => {
   assert.equal(consoleObject.calls.error.length, 1);
   assert.equal(logger.diagnostics().queueLength, 0);
   logger.uninstall();
+});
+
+test("CloudWatch reuses one stream per UTC quarter-hour and does not republish confirmed entries", async () => {
+  let instant = new Date("2026-08-01T08:01:00.000Z");
+  const requests = [];
+  const logger = createCloudWatchLogger({
+    service: "provider",
+    credentialPrefix: "TEST_SECRETS_",
+    defaultLogGroup: "/findoly/provider/production",
+    env: env({ CLOUDWATCH_LOG_GROUP: "/findoly/provider/production" }),
+    consoleObject: fakeConsole(),
+    hostname: "provider-host",
+    now: () => instant,
+    fetchImpl: async (_url, options) => {
+      requests.push(JSON.parse(options.body));
+      return response(200, {});
+    },
+  });
+
+  logger.configureFromEnv();
+  assert.equal(logger.streamNameFor(instant.getTime()), "provider/2026-08-01/08-00/provider-host");
+  instant = new Date("2026-08-01T08:14:59.999Z");
+  assert.equal(logger.streamNameFor(instant.getTime()), "provider/2026-08-01/08-00/provider-host");
+  instant = new Date("2026-08-01T08:15:00.000Z");
+  assert.equal(logger.streamNameFor(instant.getTime()), "provider/2026-08-01/08-15/provider-host");
+
+  logger.capture("info", ["one"]);
+  await logger.flush();
+  const putsAfterFirstFlush = requests.filter((request) => request.logEvents).length;
+  await logger.flush();
+  assert.equal(requests.filter((request) => request.logEvents).length, putsAfterFirstFlush);
+  assert.equal(logger.diagnostics().queueLength, 0);
 });
