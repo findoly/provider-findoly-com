@@ -25,7 +25,7 @@
       <div class="content workspace-content">
         <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
 
-<div class="provider-lead-page provider-minimal-page workspace-leads-page" x-data="leadList()" x-init="init()">
+<div class="provider-lead-page provider-minimal-page workspace-leads-page" x-data="leadList()" x-init="init()" @keydown.escape.window="filtersOpen = false">
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
   <div class="portal-location-required workspace-alert-card" x-show="!loading && !locationReady && filters.status !== 'unlocked'" x-cloak>
@@ -69,7 +69,14 @@
       </template>
     </div>
 
-    <section class="card portal-card provider-minimal-filter workspace-filter-card" aria-label="Lead filters">
+    <button class="btn btn-light provider-mobile-filter-launcher provider-action-outline" type="button" @click="filtersOpen = true" :aria-expanded="filtersOpen.toString()">
+      <span><svg class="icon"><use href="#i-search"></use></svg><svg class="icon"><use href="#i-filter"></use></svg>Search &amp; filters</span>
+      <span class="provider-filter-active-count" x-show="activeFilterCount()" x-cloak x-text="activeFilterCount()"></span>
+    </button>
+
+    <button class="provider-mobile-filter-backdrop" :class="{ 'is-open': filtersOpen }" type="button" x-show="filtersOpen" x-cloak @click="filtersOpen = false" aria-label="Close search and filters"></button>
+
+    <section class="card portal-card provider-minimal-filter workspace-filter-card" :class="{ 'is-mobile-open': filtersOpen }" aria-label="Lead filters">
       <div class="provider-filter-toolbar workspace-filter-toolbar provider-conversion-search-row">
         <label class="provider-filter-search workspace-search-field">
           <svg class="icon"><use href="#i-search"></use></svg>
@@ -130,6 +137,7 @@
       <div class="provider-advanced-panel workspace-filter-panel" x-show="filtersOpen" x-cloak>
         <div class="workspace-filter-heading"><div><strong>Advanced filters</strong><span>Refine opportunities by location, priority, activity and price.</span></div><button type="button" @click="filtersOpen = false" aria-label="Close filters">×</button></div>
         <div class="provider-advanced-grid workspace-filter-grid">
+          <label class="provider-filter-control provider-mobile-filter-search-control"><span>Search</span><input class="form-control" type="search" x-model="filters.q" @keydown.enter.prevent="apply(); filtersOpen = false" placeholder="Requirement, city or lead ID"></label>
           <label class="provider-filter-control"><span>Category</span><select class="form-select" x-model="filters.categorySlug"><option value="">All categories</option><template x-for="category in categories" :key="category"><option :value="category" x-text="humanize(category)"></option></template></select></label>
           <label class="provider-filter-control"><span>City</span><input class="form-control" type="text" x-model="filters.city" placeholder="Any city"></label>
           <label class="provider-filter-control"><span>PIN code</span><input class="form-control" type="text" inputmode="numeric" maxlength="6" x-model="filters.pincode" placeholder="Any PIN code"></label>

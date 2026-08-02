@@ -18,6 +18,8 @@ const {
 } = require("../../utils/pagination");
 const { normalizeSearchText, prefixRegex } = require("../../utils/normalization");
 
+const MARKETPLACE_COUNT_MAX_TIME_MS = Math.min(60000, Math.max(1000, Number(process.env.PROVIDER_QUERY_MAX_TIME_MS || 10000)));
+
 const MARKETPLACE_SELECT = Object.freeze({
   _id: 1,
   enquiryId: 1,
@@ -354,6 +356,48 @@ async function listMarketplace(provider, filters = {}) {
   };
 }
 
+async function countMarketplace(provider, options = {}) {
+  const providerId = providerIdentity(provider);
+  const cap = Math.min(5000, Math.max(1, Number(options.cap || 1000)));
+  const now = options.now instanceof Date ? options.now : new Date();
+  const baseQuery = buildMarketplaceQuery(provider, options.filters || {}, now);
+  const unlockCollection = ProviderLeadUnlock.collection.name;
+  const cursor = Enquiry.aggregate([
+    { $match: baseQuery },
+    {
+      $lookup: {
+        from: unlockCollection,
+        let: { enquiryId: "$enquiryId" },
+        pipeline: [
+          { $match: { $expr: { $and: [
+            { $eq: ["$providerId", providerId] },
+            { $eq: ["$enquiryId", "$$enquiryId"] },
+          ] } } },
+          { $limit: 1 },
+          { $project: { _id: 1 } },
+        ],
+        as: "providerUnlock",
+      },
+    },
+    { $match: { "providerUnlock.0": { $exists: false } } },
+    { $sort: { marketplacePublishedAt: -1, _id: -1 } },
+    { $project: MARKETPLACE_SELECT },
+  ])
+    .option({ maxTimeMS: MARKETPLACE_COUNT_MAX_TIME_MS })
+    .cursor({ batchSize: 250 });
+
+  let visible = 0;
+  for await (const lead of cursor) {
+    const visibleAt = visibilityFor(provider, lead).marketplaceVisibleAt;
+    if (visibleAt && visibleAt <= now) visible += 1;
+    if (visible > cap) {
+      await cursor.close();
+      return { value: cap, capped: true };
+    }
+  }
+  return { value: visible, capped: false };
+}
+
 module.exports = {
   MARKETPLACE_SELECT,
   publicId,
@@ -365,4 +409,5 @@ module.exports = {
   buildMarketplaceQuery,
   maximumDistance,
   listMarketplace,
+  countMarketplace,
 };

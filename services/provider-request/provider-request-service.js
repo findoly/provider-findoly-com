@@ -125,6 +125,7 @@ async function submit(input = {}) {
         entityType: "provider_join_request",
         entityId: providerJoinRequestId,
         contacts,
+        allowEmployeeRoleOverlap: true,
         session,
       });
       return created;

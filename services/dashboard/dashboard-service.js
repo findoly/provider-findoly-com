@@ -1,4 +1,3 @@
-const Enquiry = require("../../models/Enquiry");
 const ProviderLeadUnlock = require("../../models/ProviderLeadUnlock");
 const { providerIdentity, providerCategories, presentProvider } = require("../../utils/provider");
 const { presentLead } = require("../../utils/lead");
@@ -26,18 +25,9 @@ function cacheKey(provider) {
 async function activitySnapshot(provider) {
   const providerId = providerIdentity(provider);
   const categorySlugs = providerCategories(provider);
-  const now = new Date();
-  const marketplaceQuery = {
-    marketplaceAvailable: true,
-    marketplaceStatus: "published",
-    marketplacePublishedAt: { $lte: now },
-    marketplaceExpiresAt: { $gt: now },
-    remainingUnlocks: { $gt: 0 },
-    categorySlug: { $in: categorySlugs.slice(0, 50) },
-  };
 
   const [available, unlocked, followUp, confirmed, marketplacePage, unlockedPage, pendingOutcomeResult] = await Promise.all([
-    categorySlugs.length ? boundedCount(Enquiry, marketplaceQuery) : { value: 0, capped: false },
+    categorySlugs.length ? marketplaceService.countMarketplace(provider, { cap: COUNT_CAP }) : { value: 0, capped: false },
     boundedCount(ProviderLeadUnlock, { providerId }),
     boundedCount(ProviderLeadUnlock, { providerId, providerLeadStatus: "follow_up" }),
     boundedCount(ProviderLeadUnlock, { providerId, providerSaleOutcome: "confirmed" }),
