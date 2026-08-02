@@ -9,6 +9,7 @@ const ProviderJoinRequest = require("../models/ProviderJoinRequest");
 const ContactIdentity = require("../models/ContactIdentity");
 const Enquiry = require("../models/Enquiry");
 const ProviderLeadUnlock = require("../models/ProviderLeadUnlock");
+const ProviderCrmSyncEvent = require("../models/ProviderCrmSyncEvent");
 const PaymentOrder = require("../models/PaymentOrder");
 const WalletTransaction = require("../models/WalletTransaction");
 const ProviderSubscription = require("../models/ProviderSubscription");
@@ -21,6 +22,7 @@ function indexedModels() {
     ContactIdentity,
     Enquiry,
     ProviderLeadUnlock,
+    ProviderCrmSyncEvent,
     PaymentOrder,
     WalletTransaction,
     ProviderSubscription,

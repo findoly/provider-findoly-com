@@ -12,6 +12,9 @@ for (const name of [
   "OTP_SEND_PATH",
   "OTP_VERIFY_PATH",
   "RAZORPAY_REVIEW_LOGIN_ENABLED",
+  "RAZORPAY_REVIEW_MOBILE",
+  "RAZORPAY_REVIEW_OTP",
+  "RAZORPAY_REVIEW_EXPIRES_AT",
 ]) delete process.env[name];
 
 const otpClient = require("../services/access/otp-proxy-client");
@@ -116,16 +119,36 @@ function loadAuthService({
 }
 
 async function withReviewFlag(value, callback) {
-  const previous = process.env.RAZORPAY_REVIEW_LOGIN_ENABLED;
-  if (value === undefined) delete process.env.RAZORPAY_REVIEW_LOGIN_ENABLED;
-  else process.env.RAZORPAY_REVIEW_LOGIN_ENABLED = value;
+  const names = [
+    "RAZORPAY_REVIEW_LOGIN_ENABLED",
+    "RAZORPAY_REVIEW_MOBILE",
+    "RAZORPAY_REVIEW_OTP",
+    "RAZORPAY_REVIEW_EXPIRES_AT",
+    "NODE_ENV",
+  ];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  if (value === undefined) {
+    delete process.env.RAZORPAY_REVIEW_LOGIN_ENABLED;
+    delete process.env.RAZORPAY_REVIEW_MOBILE;
+    delete process.env.RAZORPAY_REVIEW_OTP;
+    delete process.env.RAZORPAY_REVIEW_EXPIRES_AT;
+  } else {
+    process.env.NODE_ENV = "development";
+    process.env.RAZORPAY_REVIEW_LOGIN_ENABLED = value;
+    process.env.RAZORPAY_REVIEW_MOBILE = "8693097982";
+    process.env.RAZORPAY_REVIEW_OTP = "654321";
+    process.env.RAZORPAY_REVIEW_EXPIRES_AT = "2099-01-01T00:00:00.000Z";
+  }
   try {
     return await callback();
   } finally {
-    if (previous === undefined) delete process.env.RAZORPAY_REVIEW_LOGIN_ENABLED;
-    else process.env.RAZORPAY_REVIEW_LOGIN_ENABLED = previous;
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
   }
 }
+
 
 test("provider server-side OTP endpoints default to the Findoly OTP namespace", () => {
   assert.equal(otpClient.OTP_SERVICE_BASE_URL, "https://api.findoly.com/otp");
@@ -161,12 +184,36 @@ test("Razorpay review login is disabled by default and still uses live OTP verif
     const { service, calls } = loadAuthService({ otpHandler: async () => { throw gatewayError; } });
 
     await assert.rejects(
-      service.verifyOtp("8693097982", "7777"),
+      service.verifyOtp("8693097982", "654321"),
       (error) => error?.code === "OTP_INVALID" && error?.status === 401,
     );
     assert.equal(calls.otp.length, 1);
     assert.match(calls.otp[0].url, /verify-otp$/);
   });
+});
+
+test("provider verification fails closed on ambiguous successful gateway responses", async () => {
+  const { service, calls } = loadAuthService({
+    otpHandler: async () => ({ success: true, message: "request processed" }),
+  });
+  await assert.rejects(
+    service.verifyOtp("8693097982", "000000"),
+    (error) => error?.code === "OTP_INVALID" && error?.status === 401,
+  );
+  assert.equal(calls.otp.length, 1);
+  assert.equal(calls.updates.length, 0);
+});
+
+test("provider verification rejects contradictory gateway flags", async () => {
+  const { service, calls } = loadAuthService({
+    otpHandler: async () => ({ verified: true, data: { verified: false } }),
+  });
+  await assert.rejects(
+    service.verifyOtp("8693097982", "000000"),
+    (error) => error?.code === "OTP_INVALID" && error?.status === 401,
+  );
+  assert.equal(calls.otp.length, 1);
+  assert.equal(calls.updates.length, 0);
 });
 
 test("enabled Razorpay review login bypasses OTP delivery only for the approved mobile", async () => {
@@ -186,36 +233,36 @@ test("enabled Razorpay review login bypasses OTP delivery only for the approved 
   });
 });
 
-test("enabled Razorpay review login accepts only OTP 7777 for the approved mobile", async () => {
+test("enabled non-production review login accepts only the configured expiring OTP", async () => {
   await withReviewFlag("true", async () => {
     const { service, calls } = loadAuthService({
       otpHandler: async () => { throw new Error("OTP gateway must not be called"); },
     });
 
-    const provider = await service.verifyOtp("8693097982", "7777");
+    const provider = await service.verifyOtp("8693097982", "654321");
     assert.equal(provider.providerId, "provider-review");
     assert.equal(calls.otp.length, 0);
     assert.equal(calls.updates.length, 1);
 
     await assert.rejects(
-      service.verifyOtp("8693097982", "7778"),
+      service.verifyOtp("8693097982", "654322"),
       (error) => error?.code === "OTP_INVALID" && error?.status === 401,
     );
     assert.equal(calls.otp.length, 0);
   });
 });
 
-test("OTP 7777 never bypasses verification for another mobile", async () => {
+test("configured review OTP never bypasses verification for another mobile", async () => {
   await withReviewFlag("true", async () => {
     const gatewayError = Object.assign(new Error("invalid"), { status: 401 });
     const { service, calls } = loadAuthService({ otpHandler: async () => { throw gatewayError; } });
 
     await assert.rejects(
-      service.verifyOtp("9876543210", "7777"),
+      service.verifyOtp("9876543210", "654321"),
       (error) => error?.code === "OTP_INVALID" && error?.status === 401,
     );
     assert.equal(calls.otp.length, 1);
-    assert.deepEqual(calls.otp[0].payload, { mobile: "9876543210", otp: "7777" });
+    assert.deepEqual(calls.otp[0].payload, { mobile: "9876543210", otp: "654321" });
   });
 });
 
@@ -235,7 +282,7 @@ test("Razorpay review login preserves provider eligibility restrictions", async 
       (error) => error?.code === "PROVIDER_INACTIVE" && error?.status === 403,
     );
     await assert.rejects(
-      service.verifyOtp("8693097982", "7777"),
+      service.verifyOtp("8693097982", "654321"),
       (error) => error?.code === "PROVIDER_INACTIVE" && error?.status === 403,
     );
     assert.equal(calls.claims.length, 0);

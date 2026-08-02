@@ -16,17 +16,35 @@ const {
   releaseSendSlot,
 } = require("../access/otp-rate-limit-service");
 
-const RAZORPAY_REVIEW_MOBILE = "8693097982";
-const RAZORPAY_REVIEW_OTP = "7777";
+function reviewLoginConfig(env = process.env, now = new Date()) {
+  const enabled = ["1", "true", "yes", "on"].includes(
+    String(env.RAZORPAY_REVIEW_LOGIN_ENABLED || "").trim().toLowerCase(),
+  );
+  if (!enabled || String(env.NODE_ENV || "").trim().toLowerCase() === "production") return null;
 
-function razorpayReviewLoginEnabled() {
-  return String(process.env.RAZORPAY_REVIEW_LOGIN_ENABLED || "")
-    .trim()
-    .toLowerCase() === "true";
+  const mobile = normalizeMobile(env.RAZORPAY_REVIEW_MOBILE || "");
+  const otp = String(env.RAZORPAY_REVIEW_OTP || "").trim();
+  const expiresAt = new Date(String(env.RAZORPAY_REVIEW_EXPIRES_AT || ""));
+  if (!/^[6-9]\d{9}$/.test(mobile) || !/^\d{6,8}$/.test(otp)) return null;
+  if (!Number.isFinite(expiresAt.getTime()) || expiresAt <= now) return null;
+  return { mobile, otp, expiresAt };
 }
 
-function isRazorpayReviewLogin(mobile) {
-  return razorpayReviewLoginEnabled() && mobile === RAZORPAY_REVIEW_MOBILE;
+function isRazorpayReviewLogin(mobile, env = process.env) {
+  return reviewLoginConfig(env)?.mobile === mobile;
+}
+
+
+function isExplicitOtpVerificationSuccess(body) {
+  const verificationFlags = [
+    body?.verified,
+    body?.verify,
+    body?.data?.verified,
+    body?.data?.verify,
+  ].filter((value) => value !== undefined);
+
+  return verificationFlags.length > 0
+    && verificationFlags.every((value) => value === true);
 }
 
 function invalidOtpError() {
@@ -154,16 +172,13 @@ async function verifyOtp(mobileInput, otpInput) {
   }
 
   await assertLoginAllowed(mobile);
-  if (isRazorpayReviewLogin(mobile)) {
-    if (otp !== RAZORPAY_REVIEW_OTP) throw invalidOtpError();
+  const reviewLogin = reviewLoginConfig();
+  if (reviewLogin?.mobile === mobile) {
+    if (otp !== reviewLogin.otp) throw invalidOtpError();
   } else {
     try {
       const verification = await requestOtpApi(VERIFY_OTP_URL, { mobile, otp });
-      const explicitVerified = verification?.verified
-        ?? verification?.verify
-        ?? verification?.data?.verified
-        ?? verification?.data?.verify;
-      if (explicitVerified === false) throw invalidOtpError();
+      if (!isExplicitOtpVerificationSuccess(verification)) throw invalidOtpError();
     } catch (error) {
       if (Number(error?.status) === 400 || Number(error?.status) === 401) {
         throw invalidOtpError();
@@ -195,4 +210,6 @@ module.exports = {
   providerMobile,
   assertLoginAllowed,
   legacyMobileLookupEnabled,
+  reviewLoginConfig,
+  isExplicitOtpVerificationSuccess,
 };

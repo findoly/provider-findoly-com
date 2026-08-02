@@ -4,6 +4,10 @@ function present(value) {
   return Boolean(String(value || "").trim());
 }
 
+function enabled(value) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
 function requireProduction(name, condition = true) {
   if (process.env.NODE_ENV === "production" && condition && !present(process.env[name])) {
     throw new Error(`${name} is required in production`);
@@ -61,6 +65,10 @@ function validateEnvironment() {
   integerFromEnv("MONGO_MAX_POOL_SIZE", 30, 1, 500);
   integerFromEnv("MONGO_MIN_POOL_SIZE", 2, 0, 100);
   integerFromEnv("MONGO_MAX_IDLE_TIME_MS", 60000, 1000, 600000);
+  integerFromEnv("CRM_SYNC_RETRY_INTERVAL_MS", 30000, 5000, 900000);
+  integerFromEnv("CRM_SYNC_MAX_ATTEMPTS", 20, 1, 100);
+  integerFromEnv("CRM_SYNC_EVENT_RETENTION_DAYS", 30, 1, 365);
+  integerFromEnv("CRM_SYNC_RETRY_MAX_EVENTS", 500, 1, 10000);
 
   const otpUrls = [
     process.env.PROVIDER_OTP_BASE_URL,
@@ -70,6 +78,37 @@ function validateEnvironment() {
   ].filter(Boolean);
   if (production && otpUrls.some((value) => !String(value).startsWith("https://"))) {
     throw new Error("Provider OTP service URLs must use HTTPS in production");
+  }
+
+  if (production && enabled(process.env.RAZORPAY_REVIEW_LOGIN_ENABLED)) {
+    throw new Error("RAZORPAY_REVIEW_LOGIN_ENABLED must be false in production");
+  }
+  if (!production && enabled(process.env.RAZORPAY_REVIEW_LOGIN_ENABLED)) {
+    if (!/^[6-9]\d{9}$/.test(String(process.env.RAZORPAY_REVIEW_MOBILE || "").trim())) {
+      throw new Error("RAZORPAY_REVIEW_MOBILE must be a valid 10-digit Indian mobile number");
+    }
+    if (!/^\d{6,8}$/.test(String(process.env.RAZORPAY_REVIEW_OTP || "").trim())) {
+      throw new Error("RAZORPAY_REVIEW_OTP must contain 6 to 8 digits");
+    }
+    const reviewExpiry = new Date(String(process.env.RAZORPAY_REVIEW_EXPIRES_AT || ""));
+    if (!Number.isFinite(reviewExpiry.getTime()) || reviewExpiry <= new Date()) {
+      throw new Error("RAZORPAY_REVIEW_EXPIRES_AT must be a future ISO timestamp");
+    }
+  }
+
+  const crmBaseUrl = String(process.env.CRM_API_BASE_URL || "").trim();
+  const crmToken = String(process.env.COMMUNICATION_EVENT_API_TOKEN || "").trim();
+  if (Boolean(crmBaseUrl) !== Boolean(crmToken)) {
+    throw new Error("CRM_API_BASE_URL and COMMUNICATION_EVENT_API_TOKEN must be configured together");
+  }
+  if (production && (!crmBaseUrl || !crmToken)) {
+    throw new Error("CRM_API_BASE_URL and COMMUNICATION_EVENT_API_TOKEN are required in production");
+  }
+  if (production && crmBaseUrl && !crmBaseUrl.startsWith("https://")) {
+    throw new Error("CRM_API_BASE_URL must use HTTPS in production");
+  }
+  if (production && crmToken && !strongSecret(crmToken, 32)) {
+    throw new Error("COMMUNICATION_EVENT_API_TOKEN must be a strong production secret of at least 32 characters");
   }
 
   const hasRazorpayKey = Boolean(process.env.RAZORPAY_KEY_ID);

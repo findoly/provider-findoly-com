@@ -8,11 +8,12 @@ const { providerIdentity, providerCategories, presentProvider } = require("../..
 const { leadCostCredits, paiseFromCredits } = require("../../utils/credits");
 const { presentLead } = require("../../utils/lead");
 const { normalizeSearchText, prefixRegex } = require("../../utils/normalization");
+const { assertDateRange, parseIsoDateFilter } = require("../../utils/date-filter");
 const { activeReservationKey } = require("../../utils/lead-unlock-key");
 const { withTransaction } = require("../../utils/transaction");
 const { validateLeadFeedback } = require("../../utils/lead-status");
 const creditService = require("../billing/credit-service");
-const crmService = require("../integration/crm-service");
+const crmSyncService = require("../integration/crm-sync-service");
 const marketplaceService = require("../marketplace/marketplace-service");
 
 function cleanId(value, label = "Identifier") {
@@ -23,22 +24,10 @@ function cleanId(value, label = "Identifier") {
   return id;
 }
 
-function normalizeDate(value, endOfDay = false) {
-  if (!value) return null;
-  const text = String(value).trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    throw Object.assign(new Error("Date filter is invalid"), { status: 400 });
-  }
-  const date = new Date(`${text}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`);
-  if (Number.isNaN(date.getTime())) {
-    throw Object.assign(new Error("Date filter is invalid"), { status: 400 });
-  }
-  return date;
-}
-
 function applyDateRange(query, field, filters = {}) {
-  const start = normalizeDate(filters.startDate);
-  const end = normalizeDate(filters.endDate, true);
+  const start = parseIsoDateFilter(filters.startDate);
+  const end = parseIsoDateFilter(filters.endDate, { endOfDay: true });
+  assertDateRange(start, end);
   if (start || end) {
     query[field] = query[field] && typeof query[field] === "object" ? query[field] : {};
     if (start) query[field].$gte = start;
@@ -208,39 +197,13 @@ function unlockSnapshot(enquiry, provider, input = {}) {
     chargedPaise: Number(input.chargedPaise || 0),
     walletTransactionId: input.walletTransactionId || "",
     paymentOrderId: input.paymentOrderId || "",
-    crmSyncStatus: "pending",
-    crmSyncUpdatedAt: new Date(),
+    ...crmSyncService.pendingSyncFields("provider_lead_unlocked", input.unlockedAt || new Date()),
   };
 }
 
 
-async function syncUnlockCommunication(unlock, enquiry, provider) {
-  const payload = {
-    providerLeadUnlockId: unlock.providerLeadUnlockId,
-    enquiryId: unlock.enquiryId,
-    providerId: unlock.providerId,
-    providerName: provider.businessName || provider.name || "",
-    unlockMethod: unlock.unlockMethod,
-    creditsUsed: unlock.chargedCredits,
-    unlockedAt: unlock.unlockedAt,
-    eventAt: unlock.unlockedAt,
-  };
-  try {
-    const response = await crmService.sendProviderUnlock(payload);
-    await ProviderLeadUnlock.updateOne(
-      { providerLeadUnlockId: unlock.providerLeadUnlockId },
-      { $set: {
-        crmSyncStatus: response.skipped || response.deliveryFailed ? "pending" : "synced",
-        crmSyncError: response.reason || response.deliveryWarning || "",
-        crmSyncUpdatedAt: new Date(),
-      } },
-    );
-  } catch (error) {
-    await ProviderLeadUnlock.updateOne(
-      { providerLeadUnlockId: unlock.providerLeadUnlockId },
-      { $set: { crmSyncStatus: "failed", crmSyncError: String(error.message || "CRM sync failed").slice(0, 1000), crmSyncUpdatedAt: new Date() } },
-    );
-  }
+async function syncUnlockCommunication(unlock) {
+  return crmSyncService.syncById(unlock.providerLeadUnlockId, { force: true });
 }
 
 async function unlock(provider, identifier) {
@@ -336,6 +299,11 @@ async function unlock(provider, identifier) {
           walletTransactionId,
         }),
       ], { session });
+      await crmSyncService.enqueue(
+        "provider_lead_unlocked",
+        createdUnlock.toObject(),
+        { session, now: createdUnlock.unlockedAt || new Date() },
+      );
       await marketplaceService.closeIfFull(claimed, session);
       return { enquiry: claimed.toObject(), unlock: createdUnlock.toObject(), provider: consumption.provider.toObject() };
     });
@@ -382,10 +350,13 @@ async function updateFeedback(provider, identifier, input = {}) {
     unlock.outcomeVerificationNote = "";
     unlock.outcomeVerifiedAt = null;
     unlock.outcomeVerifiedBy = "";
-    unlock.crmSyncStatus = "pending";
-    unlock.crmSyncError = "";
-    unlock.crmSyncUpdatedAt = now;
+    Object.assign(unlock, crmSyncService.pendingSyncFields("provider_feedback_updated", now));
     await unlock.save({ session });
+    await crmSyncService.enqueue(
+      "provider_feedback_updated",
+      unlock.toObject(),
+      { session, now },
+    );
 
     let enquiry = await Enquiry.findOneAndUpdate(
       { enquiryId: unlock.enquiryId },
@@ -407,33 +378,10 @@ async function updateFeedback(provider, identifier, input = {}) {
     return { unlock: unlock.toObject(), enquiry: enquiry.toObject() };
   });
 
-  try {
-    const sync = await crmService.sendProviderFeedback({
-      providerLeadUnlockId: result.unlock.providerLeadUnlockId,
-      enquiryId: result.unlock.enquiryId,
-      providerId,
-      providerName: provider.businessName || provider.name || "",
-      outcome: result.unlock.providerSaleOutcome,
-      outcomeNote: result.unlock.providerSaleOutcomeNote,
-      activityStatus: result.unlock.providerLeadStatus,
-      reason: result.unlock.providerLeadReason,
-      note: result.unlock.providerLeadNote,
-      eventAt: result.unlock.providerSaleOutcomeUpdatedAt,
-    });
-    await ProviderLeadUnlock.updateOne(
-      { providerLeadUnlockId: result.unlock.providerLeadUnlockId },
-      { $set: {
-        crmSyncStatus: sync.skipped || sync.deliveryFailed ? "pending" : "synced",
-        crmSyncError: sync.reason || sync.deliveryWarning || "",
-        crmSyncUpdatedAt: new Date(),
-      } },
-    );
-  } catch (error) {
-    await ProviderLeadUnlock.updateOne(
-      { providerLeadUnlockId: result.unlock.providerLeadUnlockId },
-      { $set: { crmSyncStatus: "failed", crmSyncError: String(error.message || "CRM sync failed").slice(0, 1000), crmSyncUpdatedAt: new Date() } },
-    );
-  }
+  await crmSyncService
+    .syncById(result.unlock.providerLeadUnlockId, { force: true })
+    .catch(() => ({ processed: false }));
+
 
   const updatedUnlock = await ProviderLeadUnlock.findOne({ providerLeadUnlockId: result.unlock.providerLeadUnlockId }).lean();
   return presentLead(result.enquiry, updatedUnlock || result.unlock, marketplaceService.visibilityFor(provider, result.enquiry));

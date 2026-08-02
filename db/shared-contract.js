@@ -7,12 +7,40 @@ function parseBoolean(value, fallback) {
   return fallback;
 }
 
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (!value || typeof value !== "object" || value instanceof Date) return value;
+  return Object.keys(value).sort().reduce((result, key) => {
+    result[key] = canonicalize(value[key]);
+    return result;
+  }, {});
+}
+
+function sameDocument(left, right) {
+  return JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
+}
+
 function sameKey(left, right) {
   return JSON.stringify(Object.entries(left || {})) === JSON.stringify(Object.entries(right || {}));
 }
 
-function findIndex(indexes, key, { unique } = {}) {
-  return indexes.find((index) => sameKey(index.key, key) && (unique === undefined || index.unique === unique));
+function findIndex(indexes, key, options = {}) {
+  return indexes.find((index) => {
+    if (!sameKey(index.key, key)) return false;
+    if (options.unique !== undefined && index.unique !== options.unique) return false;
+    if (options.name !== undefined && index.name !== options.name) return false;
+    if (Object.prototype.hasOwnProperty.call(options, "partialFilterExpression")) {
+      const actual = index.partialFilterExpression ?? null;
+      const expected = options.partialFilterExpression ?? null;
+      if (!sameDocument(actual, expected)) return false;
+    }
+    if (Object.prototype.hasOwnProperty.call(options, "collation")) {
+      const actual = index.collation ?? null;
+      const expected = options.collation ?? null;
+      if (!sameDocument(actual, expected)) return false;
+    }
+    return true;
+  });
 }
 
 async function collectionIndexes(connection, collectionName) {
@@ -26,21 +54,68 @@ async function collectionIndexes(connection, collectionName) {
 
 async function verifySharedIndexes(connection) {
   const requirements = [
-    ["providers", { normalizedMobile: 1 }, true, "unique provider mobile"],
-    ["providers", { normalizedWhatsappNumber: 1 }, true, "unique provider WhatsApp"],
-    ["providers", { normalizedEmail: 1 }, true, "unique provider email"],
-    ["providerjoinrequests", { normalizedMobile: 1 }, true, "unique open provider joining request mobile"],
-    ["providerjoinrequests", { normalizedEmail: 1, status: 1, createdAt: -1 }, undefined, "provider request email lookup"],
-    ["contactidentities", { key: 1 }, true, "unique shared contact identity"],
+    {
+      collectionName: "providers",
+      key: { normalizedMobile: 1 },
+      options: {
+        name: "provider_mobile_unique",
+        unique: true,
+        partialFilterExpression: { normalizedMobile: { $exists: true, $gt: "" } },
+      },
+      label: "unique provider mobile",
+    },
+    {
+      collectionName: "providers",
+      key: { normalizedWhatsappNumber: 1 },
+      options: {
+        name: "provider_whatsapp_unique",
+        unique: true,
+        partialFilterExpression: { normalizedWhatsappNumber: { $exists: true, $gt: "" } },
+      },
+      label: "unique provider WhatsApp",
+    },
+    {
+      collectionName: "providers",
+      key: { normalizedEmail: 1 },
+      options: {
+        name: "provider_email_unique",
+        unique: true,
+        partialFilterExpression: { normalizedEmail: { $exists: true, $gt: "" } },
+      },
+      label: "unique provider email",
+    },
+    {
+      collectionName: "providerjoinrequests",
+      key: { normalizedMobile: 1 },
+      options: {
+        name: "normalizedMobile_1",
+        unique: true,
+        partialFilterExpression: { $or: [{ status: "new" }, { status: "contacted" }] },
+      },
+      label: "unique open provider joining request mobile",
+    },
+    {
+      collectionName: "providerjoinrequests",
+      key: { normalizedEmail: 1, status: 1, createdAt: -1 },
+      options: { name: "normalizedEmail_1_status_1_createdAt_-1" },
+      label: "provider request email lookup",
+    },
+    {
+      collectionName: "contactidentities",
+      key: { key: 1 },
+      options: { name: "key_1", unique: true, partialFilterExpression: null },
+      label: "unique shared contact identity",
+    },
   ];
   const cache = new Map();
   const missing = [];
-  for (const [collectionName, key, unique, label] of requirements) {
+  for (const requirement of requirements) {
+    const { collectionName, key, options, label } = requirement;
     if (!cache.has(collectionName)) cache.set(collectionName, await collectionIndexes(connection, collectionName));
-    if (!findIndex(cache.get(collectionName), key, { unique })) missing.push(label);
+    if (!findIndex(cache.get(collectionName), key, options)) missing.push(label);
   }
   if (missing.length) {
-    const error = new Error(`Required shared MongoDB indexes are missing: ${missing.join(", ")}. Run npm run ensure:indexes after the CRM migrations.`);
+    const error = new Error(`Required shared MongoDB indexes are missing or incompatible: ${missing.join(", ")}. Run npm run ensure:indexes after the CRM migrations.`);
     error.code = "SHARED_INDEXES_MISSING";
     error.missingIndexes = missing;
     throw error;
@@ -76,9 +151,11 @@ async function verifyDatabaseContract(connection, options = {}) {
 
 module.exports = {
   assertTransactionsSupported,
+  canonicalize,
   collectionIndexes,
   findIndex,
   parseBoolean,
+  sameDocument,
   verifyDatabaseContract,
   verifySharedIndexes,
 };

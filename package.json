@@ -12,10 +12,11 @@
     "diagnose:provider": "node scripts/run-with-runtime.js scripts/diagnose-provider.js",
     "ensure:indexes": "node scripts/run-with-runtime.js scripts/ensure-indexes.js",
     "qa:static": "node scripts/qa-static.js",
-    "qa:critical": "node --test test/provider-ui.test.js test/provider-features.test.js test/priority-service-types-validation.test.js test/provider-communication-integration.test.js test/crm-manual-credit-compatibility.test.js test/production-invariants.test.js test/otp-http-security.test.js test/provider-otp-routing.test.js test/provider-otp-rate-limit.test.js test/provider-public-policies.test.js test/provider-crm-sync-hardening.test.js test/cloudwatch-logger.test.js test/provider-join-request.test.js",
+    "qa:critical": "node --test test/provider-ui.test.js test/provider-features.test.js test/priority-service-types-validation.test.js test/provider-communication-integration.test.js test/crm-manual-credit-compatibility.test.js test/production-invariants.test.js test/otp-http-security.test.js test/provider-otp-routing.test.js test/provider-otp-rate-limit.test.js test/provider-public-policies.test.js test/provider-crm-sync-hardening.test.js test/cloudwatch-logger.test.js test/provider-join-request.test.js test/linked-fixes-runtime.test.js test/empty-db-reqa-regressions.test.js",
     "qa:production": "npm run qa:static && npm run qa:critical",
     "cleanup:lead-reservations": "node scripts/run-with-runtime.js scripts/release-expired-lead-reservations.js",
-    "verify:indexes": "node scripts/run-with-runtime.js scripts/ensure-indexes.js --verify-only"
+    "verify:indexes": "node scripts/run-with-runtime.js scripts/ensure-indexes.js --verify-only",
+    "retry:crm-sync": "node scripts/run-with-runtime.js scripts/retry-crm-sync.js"
   },
   "engines": {
     "node": ">=18.18"

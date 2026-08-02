@@ -19,6 +19,7 @@ let mongoose = null;
 let shuttingDown = false;
 let runPromise = null;
 let signalHandlersInstalled = false;
+let crmSyncWorker = null;
 
 function resolvePort(env = process.env) {
   const port = Number(env.PORT || 3100);
@@ -103,6 +104,8 @@ async function shutdown(signal) {
 
   await closeHttpServer(server);
 
+  if (crmSyncWorker?.stopCrmSyncWorker) await crmSyncWorker.stopCrmSyncWorker();
+
   if (mongoose && mongoose.connection.readyState !== 0) {
     await mongoose
       .disconnect()
@@ -137,6 +140,7 @@ async function start({
   loadDatabase = () => require("../db/connection"),
   loadApp = () => require("../app"),
   loadMongoose = () => require("mongoose"),
+  loadCrmSyncWorker = () => require("../services/integration/crm-sync-worker"),
   httpModule = http,
 } = {}) {
   const port = resolvePort();
@@ -178,6 +182,8 @@ async function start({
 
     app.set("port", port);
     await connectDatabase();
+    crmSyncWorker = loadCrmSyncWorker();
+    crmSyncWorker.startCrmSyncWorker();
 
     activeRequestHandler = app;
 

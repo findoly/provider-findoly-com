@@ -56,6 +56,12 @@ const providerSchema = new mongoose.Schema(
     currentPlanStartedAt: { type: Date, default: null },
     currentPlanExpiresAt: { type: Date, default: null, index: true },
     currentSubscriptionId: { type: String, default: "", index: true },
+    nextPlanCode: { type: String, default: "", index: true },
+    nextPlanName: { type: String, default: "" },
+    nextBillingCycle: { type: String, default: "" },
+    nextPlanStartedAt: { type: Date, default: null },
+    nextPlanExpiresAt: { type: Date, default: null },
+    nextSubscriptionId: { type: String, default: "", index: true },
 
     lastLoginAt: { type: Date, default: null },
   },

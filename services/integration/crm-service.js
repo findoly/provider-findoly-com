@@ -1,5 +1,56 @@
 const { fetchJson } = require("../../utils/http");
 
+function plainObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function communicationFailure(message) {
+  const error = new Error(message);
+  error.status = 502;
+  error.code = "CRM_COMMUNICATION_FAILED";
+  return error;
+}
+
+function validateAcknowledgement(body, eventName, payload = {}) {
+  if (!plainObject(body) || body.success !== true || !plainObject(body.data)) {
+    throw communicationFailure(`CRM returned an invalid acknowledgement for ${eventName}`);
+  }
+  const acknowledgement = body.data.acknowledgement;
+  if (!plainObject(acknowledgement) || acknowledgement.accepted !== true) {
+    throw communicationFailure(`CRM did not explicitly acknowledge the ${eventName} communication event`);
+  }
+
+  const expectedEventId = String(payload.integrationEventId || "").trim();
+  const acknowledgedEventId = String(acknowledgement.integrationEventId || "").trim();
+  if (!expectedEventId || acknowledgedEventId !== expectedEventId) {
+    throw communicationFailure(`CRM acknowledgement event ID did not match the ${eventName} request`);
+  }
+
+  const expectedUnlockId = String(payload.providerLeadUnlockId || "").trim();
+  const acknowledgedUnlockId = String(acknowledgement.providerLeadUnlockId || "").trim();
+  if (!expectedUnlockId || acknowledgedUnlockId !== expectedUnlockId) {
+    throw communicationFailure(`CRM acknowledgement unlock ID did not match the ${eventName} request`);
+  }
+
+  const expectedSequence = payload.integrationEventSequence;
+  const acknowledgedSequence = acknowledgement.integrationEventSequence;
+  if (
+    typeof expectedSequence !== "number"
+    || !Number.isSafeInteger(expectedSequence)
+    || expectedSequence < 1
+    || typeof acknowledgedSequence !== "number"
+    || !Number.isSafeInteger(acknowledgedSequence)
+    || acknowledgedSequence !== expectedSequence
+  ) {
+    throw communicationFailure(`CRM acknowledgement sequence did not match the ${eventName} request`);
+  }
+
+  if (String(acknowledgement.eventName || "") !== eventName) {
+    throw communicationFailure(`CRM acknowledgement event name did not match the ${eventName} request`);
+  }
+  return acknowledgement;
+}
+
 function configured() {
   return Boolean(
     String(process.env.CRM_API_BASE_URL || "").trim() &&
@@ -27,14 +78,12 @@ async function sendEvent(eventName, payload = {}) {
     timeoutMs: Number(process.env.CRM_API_TIMEOUT_MS || 10000),
   });
 
-  if (!response.ok || body?.success === false) {
-    const error = new Error(body?.message || `CRM could not process the ${eventName} communication event`);
-    error.status = 502;
-    error.code = "CRM_COMMUNICATION_FAILED";
-    throw error;
+  if (!response.ok) {
+    throw communicationFailure(body?.message || `CRM could not process the ${eventName} communication event`);
   }
 
-  const data = body?.data || null;
+  const acknowledgement = validateAcknowledgement(body, eventName, payload);
+  const data = body.data;
   const channelDeliveries = Array.isArray(data?.channelDeliveries)
     ? data.channelDeliveries
     : [];
@@ -52,6 +101,7 @@ async function sendEvent(eventName, payload = {}) {
 
   return {
     synced: true,
+    acknowledgement,
     data,
     channelDeliveries,
     deliveryFailed: failedDeliveries.length > 0,
@@ -69,6 +119,7 @@ async function sendProviderUnlock(payload = {}) {
 
 module.exports = {
   configured,
+  validateAcknowledgement,
   sendEvent,
   sendProviderFeedback,
   sendProviderUnlock,

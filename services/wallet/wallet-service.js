@@ -129,6 +129,49 @@ function presentSubscription(subscription = {}) {
   };
 }
 
+async function syncProviderPlanState(providerId, now = new Date(), session = null) {
+  let activeQuery = ProviderSubscription.findOne({
+    providerId,
+    status: "active",
+    startsAt: { $lte: now },
+    expiresAt: { $gt: now },
+  }).sort({ startsAt: -1, _id: -1 });
+  let upcomingQuery = ProviderSubscription.findOne({
+    providerId,
+    status: "scheduled",
+    startsAt: { $gt: now },
+    expiresAt: { $gt: now },
+  }).sort({ startsAt: 1, _id: 1 });
+  if (session) {
+    activeQuery = activeQuery.session(session);
+    upcomingQuery = upcomingQuery.session(session);
+  }
+  // MongoDB transactions do not support parallel operations on one session.
+  const active = await activeQuery.lean();
+  const upcoming = await upcomingQuery.lean();
+  return Provider.findOneAndUpdate(
+    providerQuery(providerId),
+    {
+      $set: {
+        currentPlanCode: active?.planCode || "",
+        currentPlanName: active?.planName || "",
+        currentBillingCycle: active?.billingCycle || "",
+        currentPlanStartedAt: active?.startsAt || null,
+        currentPlanExpiresAt: active?.expiresAt || null,
+        currentSubscriptionId: active?.providerSubscriptionId || "",
+        nextPlanCode: upcoming?.planCode || "",
+        nextPlanName: upcoming?.planName || "",
+        nextBillingCycle: upcoming?.billingCycle || "",
+        nextPlanStartedAt: upcoming?.startsAt || null,
+        nextPlanExpiresAt: upcoming?.expiresAt || null,
+        nextSubscriptionId: upcoming?.providerSubscriptionId || "",
+        updatedAt: now,
+      },
+    },
+    { new: true, ...(session ? { session } : {}) },
+  );
+}
+
 async function expireSubscriptionRecords(providerId) {
   const now = new Date();
   await ProviderSubscription.updateMany(
@@ -144,8 +187,9 @@ async function expireSubscriptionRecords(providerId) {
 async function get(provider, filters = {}) {
   const providerId = providerIdentity(provider);
   const { cursor, limit } = getPagination(filters);
-  const syncedProvider = await creditService.syncCredits(providerId);
   await expireSubscriptionRecords(providerId);
+  await creditService.syncCredits(providerId);
+  const syncedProvider = await syncProviderPlanState(providerId);
 
   const [transactionPage, recentOrders, subscriptions] = await Promise.all([
     cursorPaginate(WalletTransaction, {
@@ -433,22 +477,7 @@ async function fulfillPlanOrder(paymentOrder, paymentId) {
       },
     ], { session });
 
-    const updatedProvider = await Provider.findOneAndUpdate(
-      providerQuery(order.providerId),
-      {
-        $set: {
-          currentPlanCode: plan.code,
-          currentPlanName: plan.name,
-          currentBillingCycle: plan.billingCycle,
-          currentPlanStartedAt: startsAt,
-          currentPlanExpiresAt: expiresAt,
-          currentSubscriptionId: providerSubscriptionId,
-          walletUpdatedAt: now,
-          updatedAt: now,
-        },
-      },
-      { new: true, session },
-    );
+    const updatedProvider = await syncProviderPlanState(order.providerId, now, session);
 
     await PaymentOrder.updateOne(
       { paymentOrderId: order.paymentOrderId, fulfilled: false },
@@ -681,6 +710,7 @@ module.exports = {
   createPlanOrder,
   get,
   presentPaymentOrder,
+  syncProviderPlanState,
   verify,
   verifyLead,
   webhook,

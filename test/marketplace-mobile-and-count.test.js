@@ -29,9 +29,11 @@ test("dashboard available count reuses marketplace visibility and excludes provi
 
   assert.match(marketplace, /async function countMarketplace/);
   assert.match(marketplace, /buildMarketplaceQuery\(provider/);
-  assert.match(marketplace, /ProviderLeadUnlock\.collection\.name/);
-  assert.match(marketplace, /visibilityFor\(provider, lead\)\.marketplaceVisibleAt/);
-  assert.match(marketplace, /visibleAt <= now/);
+  assert.match(marketplace, /ProviderLeadUnlock\.find\(/);
+  assert.match(marketplace, /visibilityFor\(provider, lead\)/);
+  assert.match(marketplace, /lead\.marketplaceVisibleAt <= now/);
+  assert.match(marketplace, /lead\.providerDistanceKm <= maxDistanceKm/);
+  assert.doesNotMatch(marketplace, /\.aggregate\s*\(|\$expr/);
   assert.match(dashboard, /marketplaceService\.countMarketplace\(provider/);
   assert.doesNotMatch(dashboard, /boundedCount\(Enquiry, marketplaceQuery/);
 });

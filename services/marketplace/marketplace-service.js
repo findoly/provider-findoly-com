@@ -17,6 +17,7 @@ const {
   encodeCursor,
 } = require("../../utils/pagination");
 const { normalizeSearchText, prefixRegex } = require("../../utils/normalization");
+const { assertDateRange, parseIsoDateFilter } = require("../../utils/date-filter");
 
 const MARKETPLACE_COUNT_MAX_TIME_MS = Math.min(60000, Math.max(1000, Number(process.env.PROVIDER_QUERY_MAX_TIME_MS || 10000)));
 
@@ -159,19 +160,6 @@ function listSort(filters = {}) {
     : { marketplacePublishedAt: -1, _id: -1 };
 }
 
-function parseDateFilter(value, endOfDay = false) {
-  if (!value) return null;
-  const text = String(value).trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    throw Object.assign(new Error("Date filter is invalid"), { status: 400 });
-  }
-  const date = new Date(`${text}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`);
-  if (!Number.isFinite(date.getTime())) {
-    throw Object.assign(new Error("Date filter is invalid"), { status: 400 });
-  }
-  return date;
-}
-
 function parseNonNegativeNumber(value, label) {
   if (value === undefined || value === null || value === "") return null;
   const number = Number(value);
@@ -179,6 +167,13 @@ function parseNonNegativeNumber(value, label) {
     throw Object.assign(new Error(`${label} is invalid`), { status: 400 });
   }
   return number;
+}
+
+function cursorStalledError() {
+  return Object.assign(new Error("Marketplace pagination could not advance"), {
+    status: 503,
+    code: "MARKETPLACE_CURSOR_STALLED",
+  });
 }
 
 function maximumDistance(filters = {}) {
@@ -199,8 +194,9 @@ function buildMarketplaceQuery(provider, filters = {}, now = new Date()) {
   if (requestedCategory && !categories.includes(requestedCategory)) {
     return { _id: { $exists: false } };
   }
-  const startDate = parseDateFilter(filters.startDate);
-  const endDate = parseDateFilter(filters.endDate, true);
+  const startDate = parseIsoDateFilter(filters.startDate);
+  const endDate = parseIsoDateFilter(filters.endDate, { endOfDay: true });
+  assertDateRange(startDate, endDate);
   const publishedAt = { $lte: now };
   if (startDate) publishedAt.$gte = startDate;
   if (endDate && endDate < now) publishedAt.$lte = endDate;
@@ -304,23 +300,24 @@ async function listMarketplace(provider, filters = {}) {
   const baseQuery = buildMarketplaceQuery(provider, filters, now);
   const maxDistanceKm = maximumDistance(filters);
   let cursorValues = decodeCursor(cursor, sort);
+  let sourceCursor = String(cursor || "");
   const selected = [];
-  let lastScanned = null;
-  let sourceHasMore = false;
   const scanLimit = Math.min(500, Math.max(limit * 4, 40));
-  const maxBatches = 4;
 
-  for (let batch = 0; batch < maxBatches && selected.length < limit + 1; batch += 1) {
+  // Distance rollout and provider-specific unlock exclusion cannot be expressed
+  // by the existing indexed enquiry query alone. Scan until the requested page
+  // is actually filled or the source is exhausted; never return false empty pages.
+  while (selected.length < limit + 1) {
     const condition = buildCursorCondition(sort, cursorValues);
-    const rows = await Enquiry.find(mergeQuery(baseQuery, condition))
+    let query = Enquiry.find(mergeQuery(baseQuery, condition))
       .select(MARKETPLACE_SELECT)
       .sort(sort)
-      .limit(scanLimit + 1)
-      .lean();
-    sourceHasMore = rows.length > scanLimit;
+      .limit(scanLimit + 1);
+    if (typeof query.maxTimeMS === "function") query = query.maxTimeMS(MARKETPLACE_COUNT_MAX_TIME_MS);
+    const rows = await query.lean();
+    const sourceHasMore = rows.length > scanLimit;
     const candidates = sourceHasMore ? rows.slice(0, scanLimit) : rows;
     if (!candidates.length) break;
-    lastScanned = candidates[candidates.length - 1];
 
     const visible = candidates
       .map((lead) => ({ ...lead, ...visibilityFor(provider, lead) }))
@@ -341,15 +338,15 @@ async function listMarketplace(provider, filters = {}) {
     }
 
     if (!sourceHasMore) break;
-    cursorValues = decodeCursor(encodeCursor(lastScanned, sort), sort);
+    const nextSourceCursor = encodeCursor(candidates[candidates.length - 1], sort);
+    if (!nextSourceCursor || nextSourceCursor === sourceCursor) throw cursorStalledError();
+    sourceCursor = nextSourceCursor;
+    cursorValues = decodeCursor(nextSourceCursor, sort);
   }
 
-  const hasNext = selected.length > limit || sourceHasMore;
+  const hasNext = selected.length > limit;
   const data = selected.slice(0, limit);
-  const cursorRow = selected.length > limit
-    ? data[data.length - 1]
-    : (sourceHasMore ? lastScanned : data[data.length - 1]);
-  const nextCursor = hasNext && cursorRow ? encodeCursor(cursorRow, sort) : "";
+  const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1], sort) : "";
   return {
     data,
     pagination: { limit, returned: data.length, hasNext, nextCursor },
@@ -360,43 +357,55 @@ async function countMarketplace(provider, options = {}) {
   const providerId = providerIdentity(provider);
   const cap = Math.min(5000, Math.max(1, Number(options.cap || 1000)));
   const now = options.now instanceof Date ? options.now : new Date();
-  const baseQuery = buildMarketplaceQuery(provider, options.filters || {}, now);
-  const unlockCollection = ProviderLeadUnlock.collection.name;
-  const cursor = Enquiry.aggregate([
-    { $match: baseQuery },
-    {
-      $lookup: {
-        from: unlockCollection,
-        let: { enquiryId: "$enquiryId" },
-        pipeline: [
-          { $match: { $expr: { $and: [
-            { $eq: ["$providerId", providerId] },
-            { $eq: ["$enquiryId", "$$enquiryId"] },
-          ] } } },
-          { $limit: 1 },
-          { $project: { _id: 1 } },
-        ],
-        as: "providerUnlock",
-      },
-    },
-    { $match: { "providerUnlock.0": { $exists: false } } },
-    { $sort: { marketplacePublishedAt: -1, _id: -1 } },
-    { $project: MARKETPLACE_SELECT },
-  ])
-    .option({ maxTimeMS: MARKETPLACE_COUNT_MAX_TIME_MS })
-    .cursor({ batchSize: 250 });
+  const filters = options.filters || {};
+  const baseQuery = buildMarketplaceQuery(provider, filters, now);
+  const maxDistanceKm = maximumDistance(filters);
+  const sort = normalizeSort({ marketplacePublishedAt: -1, _id: -1 });
+  const batchSize = Math.min(500, Math.max(50, Number(options.batchSize || 250)));
+  let cursorValues = null;
+  let sourceCursor = "";
+  let visibleCount = 0;
 
-  let visible = 0;
-  for await (const lead of cursor) {
-    const visibleAt = visibilityFor(provider, lead).marketplaceVisibleAt;
-    if (visibleAt && visibleAt <= now) visible += 1;
-    if (visible > cap) {
-      await cursor.close();
-      return { value: cap, capped: true };
+  // Count exactly up to cap+1. A capped result now means "more than cap",
+  // never "the scan stopped before we knew the answer".
+  while (true) {
+    const condition = buildCursorCondition(sort, cursorValues);
+    let query = Enquiry.find(mergeQuery(baseQuery, condition))
+      .select(MARKETPLACE_SELECT)
+      .sort(sort)
+      .limit(batchSize + 1);
+    if (typeof query.maxTimeMS === "function") query = query.maxTimeMS(MARKETPLACE_COUNT_MAX_TIME_MS);
+    const rows = await query.lean();
+    const sourceHasMore = rows.length > batchSize;
+    const candidates = sourceHasMore ? rows.slice(0, batchSize) : rows;
+    if (!candidates.length) return { value: visibleCount, capped: false };
+
+    const visible = candidates
+      .map((lead) => ({ ...lead, ...visibilityFor(provider, lead) }))
+      .filter((lead) => lead.marketplaceVisibleAt && lead.marketplaceVisibleAt <= now)
+      .filter((lead) => maxDistanceKm === null
+        || (lead.providerDistanceKm !== null && lead.providerDistanceKm <= maxDistanceKm));
+
+    if (visible.length) {
+      const unlocked = await ProviderLeadUnlock.find({
+        providerId,
+        enquiryId: { $in: visible.map((lead) => lead.enquiryId) },
+      }).select({ enquiryId: 1 }).lean();
+      const unlockedIds = new Set(unlocked.map((row) => row.enquiryId));
+      for (const lead of visible) {
+        if (!unlockedIds.has(lead.enquiryId)) visibleCount += 1;
+        if (visibleCount > cap) return { value: cap, capped: true };
+      }
     }
+
+    if (!sourceHasMore) return { value: visibleCount, capped: false };
+    const nextSourceCursor = encodeCursor(candidates[candidates.length - 1], sort);
+    if (!nextSourceCursor || nextSourceCursor === sourceCursor) throw cursorStalledError();
+    sourceCursor = nextSourceCursor;
+    cursorValues = decodeCursor(nextSourceCursor, sort);
   }
-  return { value: visible, capped: false };
 }
+
 
 module.exports = {
   MARKETPLACE_SELECT,
@@ -407,6 +416,7 @@ module.exports = {
   loadMarketplaceEnquiry,
   closeIfFull,
   buildMarketplaceQuery,
+  cursorStalledError,
   maximumDistance,
   listMarketplace,
   countMarketplace,

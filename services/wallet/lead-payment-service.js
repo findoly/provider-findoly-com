@@ -11,7 +11,7 @@ const { withTransaction } = require("../../utils/transaction");
 const { directPaymentQuote } = require("../../config/plans");
 const { activeReservationKey } = require("../../utils/lead-unlock-key");
 const creditService = require("../billing/credit-service");
-const crmService = require("../integration/crm-service");
+const crmSyncService = require("../integration/crm-sync-service");
 const marketplaceService = require("../marketplace/marketplace-service");
 const leadService = require("../lead/lead-service");
 
@@ -386,32 +386,8 @@ async function cancelLeadOrder(provider, enquiryIdInput, input = {}) {
   return { cancelled: result.released };
 }
 
-async function syncUnlock(unlock, provider) {
-  try {
-    const response = await crmService.sendProviderUnlock({
-      providerLeadUnlockId: unlock.providerLeadUnlockId,
-      enquiryId: unlock.enquiryId,
-      providerId: unlock.providerId,
-      providerName: provider.businessName || provider.name || "",
-      unlockMethod: "direct_payment",
-      creditsUsed: unlock.chargedCredits,
-      unlockedAt: unlock.unlockedAt,
-      eventAt: unlock.unlockedAt,
-    });
-    await ProviderLeadUnlock.updateOne(
-      { providerLeadUnlockId: unlock.providerLeadUnlockId },
-      { $set: {
-        crmSyncStatus: response.skipped || response.deliveryFailed ? "pending" : "synced",
-        crmSyncError: response.reason || response.deliveryWarning || "",
-        crmSyncUpdatedAt: new Date(),
-      } },
-    );
-  } catch (error) {
-    await ProviderLeadUnlock.updateOne(
-      { providerLeadUnlockId: unlock.providerLeadUnlockId },
-      { $set: { crmSyncStatus: "failed", crmSyncError: String(error.message || "CRM sync failed").slice(0, 1000), crmSyncUpdatedAt: new Date() } },
-    );
-  }
+async function syncUnlock(unlock) {
+  return crmSyncService.syncById(unlock.providerLeadUnlockId, { force: true });
 }
 
 async function fulfillLeadOrder(paymentOrderInput, paymentId) {
@@ -498,6 +474,11 @@ async function fulfillLeadOrder(paymentOrderInput, paymentId) {
         paymentOrderId: order.paymentOrderId,
       }),
     ], { session });
+    await crmSyncService.enqueue(
+      "provider_lead_unlocked",
+      unlock.toObject(),
+      { session, now: unlock.unlockedAt || new Date() },
+    );
 
     await marketplaceService.closeIfFull(enquiry, session);
 

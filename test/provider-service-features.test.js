@@ -29,7 +29,10 @@ test("marketplace query uses denormalized availability counters and bounded date
     assert.match(marketplace, new RegExp(field));
   }
   assert.match(marketplace, /const scanLimit = Math\.min\(500/);
-  assert.match(marketplace, /const maxBatches = 4/);
+  assert.match(marketplace, /while \(selected\.length < limit \+ 1\)/);
+  assert.doesNotMatch(marketplace, /const maxBatches = 4/);
+  assert.match(marketplace, /parseIsoDateFilter/);
+  assert.match(marketplace, /assertDateRange/);
 });
 
 test("provider feedback requires a mandatory sale outcome before database access", () => {

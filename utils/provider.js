@@ -66,6 +66,12 @@ function presentProvider(provider = {}) {
     currentPlanStartedAt: provider.currentPlanStartedAt || null,
     currentPlanExpiresAt: provider.currentPlanExpiresAt || null,
     currentSubscriptionId: provider.currentSubscriptionId || "",
+    nextPlanCode: provider.nextPlanCode || "",
+    nextPlanName: provider.nextPlanName || "",
+    nextBillingCycle: provider.nextBillingCycle || "",
+    nextPlanStartedAt: provider.nextPlanStartedAt || null,
+    nextPlanExpiresAt: provider.nextPlanExpiresAt || null,
+    nextSubscriptionId: provider.nextSubscriptionId || "",
     lastLoginAt: provider.lastLoginAt || null,
     updatedAt: provider.updatedAt || null,
   };

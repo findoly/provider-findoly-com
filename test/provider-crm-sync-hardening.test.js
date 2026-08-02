@@ -100,12 +100,21 @@ test("production environment requires an explicit shared database and manual ind
     MONGO_AUTO_INDEX: "true",
   }, validateEnvironment), /MONGO_AUTO_INDEX must remain false/);
 
+  assert.throws(() => withEnv({
+    NODE_ENV: "production",
+    MONGODB_URI: "mongodb+srv://user:pass@example.mongodb.net/findoly_prod",
+    JWT_SECRET: "a".repeat(40),
+    MONGO_AUTO_INDEX: "false",
+  }, validateEnvironment), /CRM_API_BASE_URL and COMMUNICATION_EVENT_API_TOKEN are required/);
+
   assert.doesNotThrow(() => withEnv({
     NODE_ENV: "production",
     MONGODB_URI: "mongodb+srv://user:pass@example.mongodb.net/findoly_prod",
     PROVIDER_EXPECTED_DATABASE_NAME: "findoly_prod",
     JWT_SECRET: "a".repeat(40),
     MONGO_AUTO_INDEX: "false",
+    CRM_API_BASE_URL: "https://crm.example.com",
+    COMMUNICATION_EVENT_API_TOKEN: "c".repeat(40),
   }, validateEnvironment));
 });
 
@@ -116,6 +125,7 @@ test("provider index provisioning includes the shared CRM collections", () => {
   assert.match(indexes, /require\("\.\.\/models\/Provider"\)/);
   assert.match(indexes, /require\("\.\.\/models\/ProviderJoinRequest"\)/);
   assert.match(indexes, /require\("\.\.\/models\/ContactIdentity"\)/);
+  assert.match(indexes, /require\("\.\.\/models\/ProviderCrmSyncEvent"\)/);
   assert.match(indexes, /verifySharedIndexes/);
   assert.match(contract, /MONGODB_TRANSACTIONS_REQUIRED/);
   assert.match(contract, /SHARED_INDEXES_MISSING/);

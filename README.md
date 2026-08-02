@@ -34,6 +34,7 @@ The portal reads and writes the same core collections used by the CRM:
 providers
 enquiries
 providerleadunlocks
+providercrmsyncevents
 wallettransactions
 paymentorders
 ```
@@ -217,21 +218,19 @@ PROVIDER_OTP_SEND_ALLOW_UNCONFIRMED=true
 
 `OTP_API_URL`, `OTP_SEND_PATH`, `OTP_VERIFY_PATH`, `OTP_API_TOKEN` and `OTP_TIMEOUT_MS` remain supported as legacy deployment variables. All configured OTP URLs must use HTTPS in production. If the OTP service is unavailable, login fails safely; no general local or fixed OTP fallback exists.
 
-### Temporary Razorpay review login
+### Temporary non-production review login
 
-Razorpay reviewers can use the approved review account only when this explicit deployment flag is enabled:
+A time-limited review login can be enabled only outside production. The mobile, OTP and expiry must be supplied through deployment secrets; no credential is stored in source:
 
 ```env
+NODE_ENV=staging
 RAZORPAY_REVIEW_LOGIN_ENABLED=true
+RAZORPAY_REVIEW_MOBILE=<approved-10-digit-mobile>
+RAZORPAY_REVIEW_OTP=<temporary-6-to-8-digit-otp>
+RAZORPAY_REVIEW_EXPIRES_AT=<future-ISO-8601-timestamp>
 ```
 
-With the flag enabled, mobile `8693097982` can sign in using OTP `7777`. The account must still exist, be active and have provider-portal access enabled. OTP send-rate limits continue to apply, the review OTP is not returned by the API or displayed in the browser, and every other mobile continues to use the live Findoly OTP service.
-
-Disable the exception immediately after Razorpay completes its review:
-
-```env
-RAZORPAY_REVIEW_LOGIN_ENABLED=false
-```
+The account must exist, be active and have provider-portal access enabled. OTP send-rate limits continue to apply, and every other mobile continues to use the live Findoly OTP service. Production startup rejects `RAZORPAY_REVIEW_LOGIN_ENABLED=true`; disable and remove all review secrets after the review.
 
 Both CRM and provider services must use the same `MONGODB_URI` and database name. MongoDB Atlas or another replica set is required because credit allocation, plan fulfilment and lead unlock use transactions.
 
@@ -344,7 +343,7 @@ POST /api/communication/events/provider_feedback_updated
 
 A successful credit or direct-payment unlock sends an internal Slack event and an email confirmation to the provider email stored in CRM. A successful provider outcome/status update does the same. The provider portal never supplies the destination email address.
 
-A CRM communication failure does not discard an unlock or provider update. The API response includes a pending/failed communication warning, and the CRM Communication Center retains per-channel delivery status for review and retry.
+A CRM communication failure does not discard an unlock or provider update. Each committed action writes an independent transactional outbox row in `providercrmsyncevents`, then retries with an atomic lease and exponential backoff. Successful rows expire after the configured retention period; repeatedly failing rows move to dead-letter state. The automatic worker runs while the Provider Portal is online; operators can execute `npm run retry:crm-sync -- --max=100` or explicitly reattempt dead letters with `npm run retry:crm-sync -- --max=100 --include-dead-letter`. CRM delivery is idempotent by the stable outbox event ID and ordered by a monotonic per-unlock sequence, so delayed older feedback cannot overwrite a newer committed update.
 
 ## Seven-day outcome reminder
 
