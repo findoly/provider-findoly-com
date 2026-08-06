@@ -230,10 +230,18 @@ function createCloudWatchLogger({
   if (!present(credentialPrefix)) throw new Error("CloudWatch logger credentialPrefix is required");
   if (!validLogGroup(defaultLogGroup)) throw new Error("CloudWatch logger defaultLogGroup is invalid");
 
+  const bindConsoleMethod = (name, fallback = "log") => {
+    const method = typeof consoleObject[name] === "function"
+      ? consoleObject[name]
+      : consoleObject[fallback];
+    return typeof method === "function" ? method.bind(consoleObject) : () => {};
+  };
   const originals = {
-    log: consoleObject.log.bind(consoleObject),
-    warn: consoleObject.warn.bind(consoleObject),
-    error: consoleObject.error.bind(consoleObject),
+    log: bindConsoleMethod("log"),
+    info: bindConsoleMethod("info"),
+    debug: bindConsoleMethod("debug"),
+    warn: bindConsoleMethod("warn"),
+    error: bindConsoleMethod("error"),
   };
   const safeHost = String(hostname || "host").replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 80);
   const safeService = String(service).replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 80);
@@ -360,6 +368,14 @@ function createCloudWatchLogger({
       originals.log(...args);
       capture("info", args, { source: "console" });
     };
+    consoleObject.info = (...args) => {
+      originals.info(...args);
+      capture("info", args, { source: "console" });
+    };
+    consoleObject.debug = (...args) => {
+      originals.debug(...args);
+      capture("info", args, { source: "console" });
+    };
     consoleObject.warn = (...args) => {
       originals.warn(...args);
       capture("warn", args, { source: "console" });
@@ -375,6 +391,8 @@ function createCloudWatchLogger({
   function uninstall() {
     if (!installed) return;
     consoleObject.log = originals.log;
+    consoleObject.info = originals.info;
+    consoleObject.debug = originals.debug;
     consoleObject.warn = originals.warn;
     consoleObject.error = originals.error;
     installed = false;

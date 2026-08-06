@@ -274,3 +274,108 @@ test("production environment requires a strong Provider CRM action token", () =>
   assert.match(env, /PROVIDER_CRM_ACTION_API_TOKEN is required in production/);
   assert.match(env, /PROVIDER_CRM_ACTION_API_TOKEN must be a strong production secret/);
 });
+
+
+test("Provider Portal action authentication logs only safe credential fingerprints", () => {
+  const previous = process.env.PROVIDER_CRM_ACTION_API_TOKEN;
+  const configured = "configured-secret-value-that-must-never-be-logged";
+  const supplied = "supplied-secret-value-that-must-never-be-logged";
+  process.env.PROVIDER_CRM_ACTION_API_TOKEN = configured;
+  const router = loadWithStubs("routes/internal-whatsapp.js", {
+    express: { Router() { return { post() {} }; } },
+    "../controllers/internalWhatsappController": {},
+  });
+  const originalInfo = console.info;
+  const originalWarn = console.warn;
+  const logs = [];
+  console.info = (entry) => logs.push(entry);
+  console.warn = (entry) => logs.push(entry);
+  try {
+    router.authorized({
+      requestId: "request-1",
+      body: actionBody(),
+      get: () => `Bearer ${supplied}`,
+    }, {
+      status() { return this; },
+      json(value) { return value; },
+    }, () => assert.fail("mismatched credentials must not be authorized"));
+    const failed = logs.find((entry) => entry.event === "provider_whatsapp_action_auth_failed");
+    assert.ok(failed);
+    assert.equal(failed.configuredCredentialFingerprint.length, 12);
+    assert.equal(failed.suppliedCredentialFingerprint.length, 12);
+    const serialized = JSON.stringify(logs);
+    assert.doesNotMatch(serialized, new RegExp(configured));
+    assert.doesNotMatch(serialized, new RegExp(supplied));
+    assert.doesNotMatch(serialized, /9867079691|919867079691/);
+  } finally {
+    console.info = originalInfo;
+    console.warn = originalWarn;
+    if (previous === undefined) delete process.env.PROVIDER_CRM_ACTION_API_TOKEN;
+    else process.env.PROVIDER_CRM_ACTION_API_TOKEN = previous;
+  }
+});
+
+test("WhatsApp action exposes provider, enquiry, transaction and internal failure categories", () => {
+  const service = loadWithStubs("services/lead/whatsapp-action-service.js", {
+    "../../models/Provider": {},
+    "../../models/ProviderLeadUnlock": {},
+    "./lead-service": {},
+  });
+  assert.equal(service.businessFailure({ code: "PROVIDER_NOT_FOUND" }).status, "provider_not_found");
+  assert.equal(service.businessFailure({ code: "PROVIDER_INACTIVE" }).status, "provider_ineligible");
+  assert.equal(service.businessFailure({ code: "LEAD_NOT_FOUND" }).status, "enquiry_not_found");
+  assert.equal(service.businessFailure({ code: "LEAD_UNLOCK_CONFLICT" }).status, "lead_unavailable");
+  assert.equal(service.businessFailure({ code: "MONGODB_TRANSACTIONS_REQUIRED" }).status, "transaction_failed");
+  assert.equal(service.businessFailure({}).status, "internal_error");
+});
+
+test("WhatsApp action service emits safe processing logs and passes diagnostic context to lead service", async () => {
+  const provider = {
+    providerId: "provider-1",
+    status: "active",
+    portalAccessEnabled: true,
+    normalizedWhatsappNumber: "9867079691",
+    walletBalancePaise: 5000,
+  };
+  let receivedOptions = null;
+  const service = loadWithStubs("services/lead/whatsapp-action-service.js", {
+    "../../models/Provider": { findOne() { return queryResult(provider); } },
+    "../../models/ProviderLeadUnlock": { findOne() { return queryResult(null); } },
+    "./lead-service": {
+      async unlock(_provider, _enquiryId, options) {
+        receivedOptions = options;
+        return { enquiryId: "enquiry-1", chargedCredits: 10 };
+      },
+    },
+  });
+  const originalInfo = console.info;
+  const logs = [];
+  console.info = (entry) => logs.push(entry);
+  try {
+    const result = await service.processAction(actionBody(), actionHeaders(), { requestId: "request-1" });
+    assert.equal(result.status, "unlocked");
+    assert.equal(receivedOptions.source, "whatsapp_action");
+    assert.equal(receivedOptions.communicationId, "communication-1");
+    assert.ok(logs.some((entry) => entry.event === "provider_whatsapp_action_provider_lookup_completed"));
+    assert.ok(logs.some((entry) => entry.event === "provider_whatsapp_action_lead_access_completed"));
+    assert.doesNotMatch(JSON.stringify(logs), /9867079691|919867079691/);
+  } finally {
+    console.info = originalInfo;
+  }
+});
+
+test("Provider lead transaction diagnostics are limited to WhatsApp action calls", () => {
+  const lead = source("services/lead/lead-service.js");
+  assert.match(lead, /options\.source[^\n]+whatsapp_action/);
+  assert.match(lead, /provider_whatsapp_credit_transaction_started/);
+  assert.match(lead, /provider_whatsapp_credit_decision/);
+  assert.match(lead, /provider_whatsapp_credit_transaction_completed/);
+  assert.match(lead, /provider_whatsapp_credit_transaction_rolled_back/);
+});
+
+test("Provider Portal mounts structured request logging and forwards Morgan output to CloudWatch console capture", () => {
+  const app = source("app.js");
+  assert.match(app, /requestLoggingMiddleware/);
+  assert.match(app, /morganCloudWatchStream/);
+  assert.ok(app.indexOf("app.use(requestLoggingMiddleware)") < app.indexOf("helmet({"));
+});

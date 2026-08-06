@@ -10,6 +10,10 @@ const { attachProvider } = require("./middleware/auth");
 const { ensureCsrfToken } = require("./middleware/security");
 const { apiLimiter, internalWhatsappLimiter } = require("./middleware/rate-limit");
 const { notFound, errorHandler } = require("./middleware/error");
+const {
+  morganCloudWatchStream,
+  requestLoggingMiddleware,
+} = require("./middleware/request-logging");
 const { rejectUnsupportedFormText } = require("./middleware/plain-text");
 const walletController = require("./controllers/walletController");
 const frontendRoutes = require("./routes/frontend");
@@ -45,6 +49,8 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(requestLoggingMiddleware);
+
 app.use(
   helmet({
     crossOriginEmbedderPolicy: false,
@@ -78,6 +84,7 @@ app.use(compression());
 app.use(
   morgan(process.env.NODE_ENV === "production" ? "combined" : "dev", {
     skip: (req) => req.path === "/api/health",
+    stream: morganCloudWatchStream(),
   }),
 );
 

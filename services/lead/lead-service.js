@@ -16,6 +16,21 @@ const creditService = require("../billing/credit-service");
 const crmSyncService = require("../integration/crm-sync-service");
 const marketplaceService = require("../marketplace/marketplace-service");
 
+function whatsappActionDiagnostics(options = {}) {
+  return String(options.source || "") === "whatsapp_action";
+}
+
+function logWhatsappAction(options, event, fields = {}, level = "info") {
+  if (!whatsappActionDiagnostics(options)) return;
+  const log = typeof console[level] === "function" ? console[level] : console.info;
+  log({
+    event,
+    requestId: String(options.requestId || "").slice(0, 80),
+    communicationId: String(options.communicationId || "").slice(0, 128),
+    ...fields,
+  });
+}
+
 function cleanId(value, label = "Identifier") {
   const id = String(value || "").trim();
   if (!id || id.length > 120 || /[\0\r\n]/.test(id)) {
@@ -206,11 +221,15 @@ async function syncUnlockCommunication(unlock) {
   return crmSyncService.syncById(unlock.providerLeadUnlockId, { force: true });
 }
 
-async function unlock(provider, identifier) {
+async function unlock(provider, identifier, options = {}) {
   const providerId = providerIdentity(provider);
   const enquiryId = cleanId(identifier, "Lead reference");
   const existing = await ProviderLeadUnlock.findOne({ providerId, $or: [{ providerLeadUnlockId: enquiryId }, { enquiryId }] }).lean();
   if (existing) {
+    logWhatsappAction(options, "provider_whatsapp_lead_already_available", {
+      providerId,
+      enquiryId: existing.enquiryId || enquiryId,
+    });
     const enquiry = await Enquiry.findOne({ enquiryId: existing.enquiryId }).lean();
     return presentLead(enquiry || {}, existing, marketplaceService.visibilityFor(provider, enquiry || {}));
   }
@@ -224,12 +243,21 @@ async function unlock(provider, identifier) {
     reservedUntil: { $gt: new Date() },
   }).select({ paymentOrderId: 1, reservedUntil: 1 }).lean();
   if (activeDirectPayment) {
+    logWhatsappAction(options, "provider_whatsapp_lead_access_decision", {
+      providerId,
+      enquiryId,
+      decision: "direct_payment_pending",
+    }, "warn");
     throw Object.assign(
       new Error("A direct-payment checkout is already reserving this lead. Complete or cancel that checkout first."),
       { status: 409, code: "DIRECT_PAYMENT_PENDING" },
     );
   }
 
+  logWhatsappAction(options, "provider_whatsapp_credit_transaction_started", {
+    providerId,
+    enquiryId,
+  });
   let transactionResult;
   try {
     transactionResult = await withTransaction(async (session) => {
@@ -252,6 +280,11 @@ async function unlock(provider, identifier) {
       const marketplaceLead = await marketplaceService.loadMarketplaceEnquiry(provider, enquiryId, { session, includeContact: true });
       const costCredits = Math.max(0, leadCostCredits(marketplaceLead));
       const costMinorCredits = paiseFromCredits(costCredits);
+      logWhatsappAction(options, "provider_whatsapp_credit_decision", {
+        providerId,
+        enquiryId: marketplaceLead.enquiryId,
+        requiredCredits: costCredits,
+      });
       const claimed = await Enquiry.findOneAndUpdate(
         {
           enquiryId: marketplaceLead.enquiryId,
@@ -311,12 +344,35 @@ async function unlock(provider, identifier) {
     if (error?.code === 11000) {
       const duplicate = await ProviderLeadUnlock.findOne({ providerId, enquiryId }).lean();
       if (duplicate) {
+        logWhatsappAction(options, "provider_whatsapp_credit_transaction_completed", {
+          providerId,
+          enquiryId,
+          result: "duplicate_recovered",
+          chargedCredits: Number(duplicate.chargedCredits || 0),
+        });
         const enquiry = await Enquiry.findOne({ enquiryId: duplicate.enquiryId }).lean();
         return presentLead(enquiry || {}, duplicate, marketplaceService.visibilityFor(provider, enquiry || {}));
       }
     }
+    logWhatsappAction(options, "provider_whatsapp_credit_transaction_rolled_back", {
+      providerId,
+      enquiryId,
+      resultCode: String(error?.code || "TRANSACTION_FAILED"),
+      status: Number(error?.status || 500),
+      errorName: String(error?.name || "Error"),
+      requiredCredits: Number(error?.requiredCredits || 0),
+      availableCredits: Number(error?.availableCredits || 0),
+    }, "error");
     throw error;
   }
+
+  logWhatsappAction(options, "provider_whatsapp_credit_transaction_completed", {
+    providerId,
+    enquiryId,
+    result: "committed",
+    chargedCredits: Number(transactionResult.unlock?.chargedCredits || 0),
+    walletTransactionCreated: Boolean(transactionResult.unlock?.walletTransactionId),
+  });
 
   syncUnlockCommunication(transactionResult.unlock, transactionResult.enquiry, provider).catch(() => {});
   return presentLead(

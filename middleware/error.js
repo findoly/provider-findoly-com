@@ -27,6 +27,8 @@ function errorHandler(error, req, res, next) {
     path: req.originalUrl,
     status,
     code: error.code,
+    actorId: String(req.provider?.providerId || req.internalActor?.providerId || "").slice(0, 120),
+    actorType: String(req.provider?.providerId ? "provider" : req.internalActor?.type || "").slice(0, 80),
     message: error.message,
     stack: process.env.NODE_ENV === "production" ? undefined : error.stack,
   });

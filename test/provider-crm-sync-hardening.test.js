@@ -115,6 +115,7 @@ test("production environment requires an explicit shared database and manual ind
     MONGO_AUTO_INDEX: "false",
     CRM_API_BASE_URL: "https://crm.example.com",
     COMMUNICATION_EVENT_API_TOKEN: "c".repeat(40),
+    PROVIDER_CRM_ACTION_API_TOKEN: "p".repeat(48),
   }, validateEnvironment));
 });
 

@@ -12,10 +12,12 @@ const {
 } = require("../services/logging/cloudwatch-logger");
 
 function fakeConsole() {
-  const calls = { log: [], warn: [], error: [] };
+  const calls = { log: [], info: [], debug: [], warn: [], error: [] };
   return {
     calls,
     log(...args) { calls.log.push(args); },
+    info(...args) { calls.info.push(args); },
+    debug(...args) { calls.debug.push(args); },
     warn(...args) { calls.warn.push(args); },
     error(...args) { calls.error.push(args); },
   };
@@ -232,4 +234,36 @@ test("CloudWatch reuses one stream per UTC quarter-hour and does not republish c
   await logger.flush();
   assert.equal(requests.filter((request) => request.logEvents).length, putsAfterFirstFlush);
   assert.equal(logger.diagnostics().queueLength, 0);
+});
+
+
+test("structured console.info and console.debug events are captured for Provider CloudWatch logs", async () => {
+  const requests = [];
+  const consoleObject = fakeConsole();
+  const logger = createCloudWatchLogger({
+    service: "provider",
+    credentialPrefix: "TEST_SECRETS_",
+    defaultLogGroup: "/findoly/provider/production",
+    env: env({ CLOUDWATCH_LOG_GROUP: "/findoly/provider/production" }),
+    consoleObject,
+    hostname: "provider-host",
+    fetchImpl: async (_url, options) => {
+      requests.push(JSON.parse(options.body));
+      return response(200, {});
+    },
+  });
+
+  logger.install();
+  consoleObject.info({ event: "http_request_started", requestId: "request-1" });
+  consoleObject.debug({ event: "provider_debug", requestId: "request-1" });
+  await logger.flush();
+
+  assert.equal(consoleObject.calls.info.length, 1);
+  assert.equal(consoleObject.calls.debug.length, 1);
+  const messages = requests
+    .filter((request) => Array.isArray(request.logEvents))
+    .flatMap((request) => request.logEvents.map((entry) => entry.message));
+  assert.ok(messages.some((message) => /http_request_started/.test(message)));
+  assert.ok(messages.some((message) => /provider_debug/.test(message)));
+  logger.uninstall();
 });

@@ -84,18 +84,40 @@ function businessFailure(error = {}) {
   if (code === "DIRECT_PAYMENT_PENDING") {
     return { status: "direct_payment_pending", code };
   }
+  if (code === "PROVIDER_NOT_FOUND") {
+    return { status: "provider_not_found", code };
+  }
   if ([
-    "PROVIDER_NOT_FOUND",
     "PROVIDER_INACTIVE",
     "PORTAL_ACCESS_DISABLED",
     "PROVIDER_ID_MISSING",
   ].includes(code)) {
     return { status: "provider_ineligible", code };
   }
-  if (["LEAD_NOT_FOUND", "LEAD_NOT_AVAILABLE", "LEAD_UNLOCK_CONFLICT"].includes(code)) {
+  if (code === "LEAD_NOT_FOUND") {
+    return { status: "enquiry_not_found", code };
+  }
+  if (["LEAD_NOT_AVAILABLE", "LEAD_UNLOCK_CONFLICT"].includes(code)) {
     return { status: "lead_unavailable", code };
   }
-  return { status: "failed", code: code || "WHATSAPP_ACTION_FAILED" };
+  if ([
+    "MONGODB_TRANSACTIONS_REQUIRED",
+    "TRANSACTION_ABORTED",
+    "CREDIT_BALANCE_INCONSISTENT",
+  ].includes(code)) {
+    return { status: "transaction_failed", code };
+  }
+  return { status: "internal_error", code: code || "WHATSAPP_ACTION_INTERNAL_ERROR" };
+}
+
+function logContext(input = {}) {
+  return {
+    requestId: String(input.requestId || "").slice(0, 80),
+    providerId: String(input.providerId || "").slice(0, 128),
+    enquiryId: String(input.enquiryId || "").slice(0, 128),
+    communicationId: String(input.communicationId || "").slice(0, 128),
+    inboundMessageId: String(input.inboundMessageId || "").slice(0, 128),
+  };
 }
 
 async function loadProvider(providerId) {
@@ -112,8 +134,9 @@ async function currentProvider(providerId, fallback = {}) {
   }
 }
 
-async function processAction(body = {}, headers = {}) {
+async function processAction(body = {}, headers = {}, options = {}) {
   const input = requestInput(body, headers);
+  const context = logContext(input);
   if (!/^[6-9]\d{9}$/.test(input.providerWhatsapp)) {
     throw validationError("Provider WhatsApp number is invalid", "PROVIDER_WHATSAPP_INVALID");
   }
@@ -121,8 +144,23 @@ async function processAction(body = {}, headers = {}) {
   let provider;
   try {
     provider = await loadProvider(input.providerId);
+    console.info({
+      event: "provider_whatsapp_action_provider_lookup_completed",
+      ...context,
+      providerFound: true,
+      providerEligible: true,
+    });
   } catch (error) {
-    return businessFailure(error);
+    const result = businessFailure(error);
+    console.warn({
+      event: "provider_whatsapp_action_provider_lookup_failed",
+      ...context,
+      resultStatus: result.status,
+      resultCode: result.code,
+      providerFound: result.status !== "provider_not_found",
+      providerEligible: false,
+    });
+    return result;
   }
 
   if (providerWhatsapp(provider) !== input.providerWhatsapp) {
@@ -136,11 +174,33 @@ async function processAction(body = {}, headers = {}) {
     providerId: input.providerId,
     enquiryId: input.enquiryId,
   }).select({ providerLeadUnlockId: 1 }).lean();
+  console.info({
+    event: "provider_whatsapp_action_enquiry_lookup_completed",
+    ...context,
+    alreadyAvailable: Boolean(existing),
+  });
 
   try {
-    const lead = await leadService.unlock(provider, input.enquiryId);
+    console.info({
+      event: "provider_whatsapp_action_lead_access_started",
+      ...context,
+      alreadyAvailable: Boolean(existing),
+    });
+    const lead = await leadService.unlock(provider, input.enquiryId, {
+      source: "whatsapp_action",
+      requestId: options.requestId || input.requestId,
+      communicationId: input.communicationId,
+      idempotencyKey: input.idempotencyKey,
+    });
+    const status = existing ? "already_unlocked" : "unlocked";
+    console.info({
+      event: "provider_whatsapp_action_lead_access_completed",
+      ...context,
+      resultStatus: status,
+      chargedCredits: Number(lead?.chargedCredits || 0),
+    });
     return {
-      status: existing ? "already_unlocked" : "unlocked",
+      status,
       lead,
       provider: await currentProvider(input.providerId, provider),
       request: {
@@ -153,7 +213,20 @@ async function processAction(body = {}, headers = {}) {
       },
     };
   } catch (error) {
-    return businessFailure(error);
+    const result = businessFailure(error);
+    const log = ["internal_error", "transaction_failed"].includes(result.status)
+      ? console.error
+      : console.warn;
+    log({
+      event: "provider_whatsapp_action_lead_access_failed",
+      ...context,
+      resultStatus: result.status,
+      resultCode: result.code,
+      errorName: String(error.name || "Error"),
+      requiredCredits: Number(result.requiredCredits || 0),
+      availableCredits: Number(result.availableCredits || 0),
+    });
+    return result;
   }
 }
 
@@ -162,4 +235,5 @@ module.exports = {
   requestInput,
   providerWhatsapp,
   businessFailure,
+  logContext,
 };
