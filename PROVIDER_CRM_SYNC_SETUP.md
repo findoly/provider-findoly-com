@@ -147,3 +147,25 @@ CRM owns lead and provider service-location data. Provider Portal treats provide
 10. Smoke-test approval, marketplace listing/count parity, credit unlock, direct-payment unlock, CRM outage/recovery, cancellation/expiry and provider outcome updates.
 
 Do **not** run structure, contact, location, date or other backfill migrations for this empty database. They are retained only for future deployments that already contain legacy data. Deploy these CRM and Provider packages as a matched pair because the Provider outbox requires CRM's explicit acknowledgement contract.
+
+## 9. CRM-to-Provider WhatsApp enquiry action
+
+The CRM quick-reply handler calls the Provider Portal through this authenticated internal endpoint:
+
+```text
+POST /api/internal/whatsapp/lead-unlock
+```
+
+Configure the same independently generated secret in both applications:
+
+```env
+# CRM
+CRM_PROVIDER_ACTION_API_URL=https://provider.findoly.com/api/internal/whatsapp/lead-unlock
+CRM_PROVIDER_ACTION_API_TOKEN=<strong-random-secret>
+
+# Provider Portal
+PROVIDER_CRM_ACTION_API_TOKEN=<same-strong-random-secret>
+PROVIDER_WHATSAPP_ACTION_RATE_LIMIT_PER_MINUTE=120
+```
+
+The endpoint verifies the Bearer token, provider identity, registered WhatsApp contact, provider eligibility, request identifiers and idempotency key. It delegates credit deduction and enquiry access to the existing transactional lead service, so repeat clicks cannot create a second provider-enquiry access record or a second credit debit.

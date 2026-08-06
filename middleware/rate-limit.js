@@ -50,6 +50,14 @@ const walletLimiter = rateLimit({
   handler: jsonHandler("Too many payment requests. Please wait a moment."),
 });
 
+const internalWhatsappLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: Number(process.env.PROVIDER_WHATSAPP_ACTION_RATE_LIMIT_PER_MINUTE || 120),
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: jsonHandler("Too many WhatsApp action requests. Please wait a moment."),
+});
+
 const unlockLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: Number(process.env.UNLOCK_RATE_LIMIT_PER_MINUTE || 20),
@@ -65,4 +73,5 @@ module.exports = {
   walletLimiter,
   unlockLimiter,
   providerJoinLimiter,
+  internalWhatsappLimiter,
 };

@@ -8,12 +8,13 @@ const morgan = require("morgan");
 const mongoose = require("mongoose");
 const { attachProvider } = require("./middleware/auth");
 const { ensureCsrfToken } = require("./middleware/security");
-const { apiLimiter } = require("./middleware/rate-limit");
+const { apiLimiter, internalWhatsappLimiter } = require("./middleware/rate-limit");
 const { notFound, errorHandler } = require("./middleware/error");
 const { rejectUnsupportedFormText } = require("./middleware/plain-text");
 const walletController = require("./controllers/walletController");
 const frontendRoutes = require("./routes/frontend");
 const apiRoutes = require("./routes/main");
+const internalWhatsappRoutes = require("./routes/internal-whatsapp");
 
 const app = express();
 
@@ -91,6 +92,11 @@ app.use(express.urlencoded({ extended: false, limit: "128kb" }));
 app.use(rejectUnsupportedFormText);
 app.use(cookieParser());
 app.use(ensureCsrfToken);
+app.use(
+  "/api/internal/whatsapp",
+  internalWhatsappLimiter,
+  internalWhatsappRoutes,
+);
 app.use(
   express.static(path.join(__dirname, "public"), {
     etag: true,

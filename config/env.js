@@ -111,6 +111,15 @@ function validateEnvironment() {
     throw new Error("COMMUNICATION_EVENT_API_TOKEN must be a strong production secret of at least 32 characters");
   }
 
+  const providerActionToken = String(process.env.PROVIDER_CRM_ACTION_API_TOKEN || "").trim();
+  if (production && !providerActionToken) {
+    throw new Error("PROVIDER_CRM_ACTION_API_TOKEN is required in production");
+  }
+  if (production && providerActionToken && !strongSecret(providerActionToken, 32)) {
+    throw new Error("PROVIDER_CRM_ACTION_API_TOKEN must be a strong production secret of at least 32 characters");
+  }
+  integerFromEnv("PROVIDER_WHATSAPP_ACTION_RATE_LIMIT_PER_MINUTE", 120, 1, 10000);
+
   const hasRazorpayKey = Boolean(process.env.RAZORPAY_KEY_ID);
   const hasRazorpaySecret = Boolean(process.env.RAZORPAY_KEY_SECRET);
   if (hasRazorpayKey !== hasRazorpaySecret) {
