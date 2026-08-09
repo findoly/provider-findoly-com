@@ -62,6 +62,7 @@ function validateEnvironment() {
 
   integerFromEnv("PROVIDER_QUERY_MAX_TIME_MS", 10000, 1000, 60000);
   integerFromEnv("MONGO_SERVER_SELECTION_TIMEOUT_MS", 10000, 1000, 120000);
+  integerFromEnv("AUTH_COOKIE_DAYS", 90, 1, 365);
   integerFromEnv("MONGO_MAX_POOL_SIZE", 30, 1, 500);
   integerFromEnv("MONGO_MIN_POOL_SIZE", 2, 0, 100);
   integerFromEnv("MONGO_MAX_IDLE_TIME_MS", 60000, 1000, 600000);
