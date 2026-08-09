@@ -2,6 +2,12 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "provider_auth";
+const DEFAULT_SESSION_DAYS = 90;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function sessionDurationDays() {
+  return Number(process.env.AUTH_COOKIE_DAYS || DEFAULT_SESSION_DAYS);
+}
 
 function jwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -18,7 +24,7 @@ function cookieOptions() {
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.AUTH_COOKIE_SAME_SITE || "lax",
     path: "/",
-    maxAge: Number(process.env.AUTH_COOKIE_DAYS || 14) * 86400000,
+    maxAge: sessionDurationDays() * DAY_MS,
     priority: "high",
   };
   if (process.env.AUTH_COOKIE_DOMAIN) {
@@ -42,7 +48,7 @@ function createSessionToken(providerId) {
     jwtSecret(),
     {
       algorithm: "HS256",
-      expiresIn: `${Number(process.env.AUTH_COOKIE_DAYS || 14)}d`,
+      expiresIn: `${sessionDurationDays()}d`,
       issuer: process.env.JWT_ISSUER || "provider-lead-portal",
       audience: process.env.JWT_AUDIENCE || "provider-portal-browser",
     },

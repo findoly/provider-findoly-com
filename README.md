@@ -52,6 +52,8 @@ providersubscriptions
 
 The browser stores only a signed HTTP-only provider session cookie. The provider object is not cached in application memory.
 
+New Provider sessions default to 90 days. Keep `JWT_SECRET`, `AUTH_COOKIE_NAME`, and `AUTH_COOKIE_DOMAIN` unchanged across routine deployments; rotating `JWT_SECRET` invalidates all existing Provider login cookies and intentionally signs users out.
+
 For every protected page and every protected `/api` request, the portal:
 
 1. verifies the signed cookie;
@@ -189,6 +191,10 @@ Required in production:
 NODE_ENV=production
 MONGODB_URI=mongodb+srv://.../service_crm_admin
 JWT_SECRET=<long-random-secret>
+AUTH_COOKIE_NAME=provider_auth
+AUTH_COOKIE_DAYS=90
+AUTH_COOKIE_SAME_SITE=lax
+AUTH_COOKIE_DOMAIN=
 RAZORPAY_KEY_ID=rzp_live_...
 RAZORPAY_KEY_SECRET=...
 RAZORPAY_WEBHOOK_SECRET=...
