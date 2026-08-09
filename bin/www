@@ -20,6 +20,7 @@ let shuttingDown = false;
 let runPromise = null;
 let signalHandlersInstalled = false;
 let crmSyncWorker = null;
+let providerCommunicationOutboxWorker = null;
 
 function resolvePort(env = process.env) {
   const port = Number(env.PORT || 3100);
@@ -105,6 +106,11 @@ async function shutdown(signal) {
   await closeHttpServer(server);
 
   if (crmSyncWorker?.stopCrmSyncWorker) await crmSyncWorker.stopCrmSyncWorker();
+  if (providerCommunicationOutboxWorker?.stop) {
+    await providerCommunicationOutboxWorker.stop().catch((error) =>
+      console.error("Provider communication worker shutdown error:", error.message),
+    );
+  }
 
   if (mongoose && mongoose.connection.readyState !== 0) {
     await mongoose
@@ -141,6 +147,7 @@ async function start({
   loadApp = () => require("../app"),
   loadMongoose = () => require("mongoose"),
   loadCrmSyncWorker = () => require("../services/integration/crm-sync-worker"),
+  loadProviderCommunicationOutboxWorker = () => require("../services/integration/provider-communication-outbox-worker"),
   httpModule = http,
 } = {}) {
   const port = resolvePort();
@@ -184,6 +191,8 @@ async function start({
     await connectDatabase();
     crmSyncWorker = loadCrmSyncWorker();
     crmSyncWorker.startCrmSyncWorker();
+    providerCommunicationOutboxWorker = loadProviderCommunicationOutboxWorker();
+    providerCommunicationOutboxWorker.start();
 
     activeRequestHandler = app;
 

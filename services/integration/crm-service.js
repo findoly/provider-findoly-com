@@ -25,6 +25,18 @@ function validateAcknowledgement(body, eventName, payload = {}) {
   if (!expectedEventId || acknowledgedEventId !== expectedEventId) {
     throw communicationFailure(`CRM acknowledgement event ID did not match the ${eventName} request`);
   }
+  if (String(acknowledgement.eventName || "") !== eventName) {
+    throw communicationFailure(`CRM acknowledgement event name did not match the ${eventName} request`);
+  }
+
+  if (eventName === "provider_join_request_submitted") {
+    const expectedRequestId = String(payload.providerJoinRequestId || "").trim();
+    const acknowledgedRequestId = String(acknowledgement.providerJoinRequestId || "").trim();
+    if (!expectedRequestId || acknowledgedRequestId !== expectedRequestId) {
+      throw communicationFailure(`CRM acknowledgement provider joining request ID did not match the ${eventName} request`);
+    }
+    return acknowledgement;
+  }
 
   const expectedUnlockId = String(payload.providerLeadUnlockId || "").trim();
   const acknowledgedUnlockId = String(acknowledgement.providerLeadUnlockId || "").trim();
@@ -43,10 +55,6 @@ function validateAcknowledgement(body, eventName, payload = {}) {
     || acknowledgedSequence !== expectedSequence
   ) {
     throw communicationFailure(`CRM acknowledgement sequence did not match the ${eventName} request`);
-  }
-
-  if (String(acknowledgement.eventName || "") !== eventName) {
-    throw communicationFailure(`CRM acknowledgement event name did not match the ${eventName} request`);
   }
   return acknowledgement;
 }

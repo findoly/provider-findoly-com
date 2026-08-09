@@ -341,7 +341,7 @@ POST /api/communication/events/provider_lead_unlocked
 POST /api/communication/events/provider_feedback_updated
 ```
 
-A successful credit or direct-payment unlock sends an internal Slack event and an email confirmation to the provider email stored in CRM. A successful provider outcome/status update does the same. The provider portal never supplies the destination email address.
+A successful credit or direct-payment unlock sends the provider confirmation email configured in CRM. A successful provider outcome/status update uses the same CRM-owned confirmation flow. Internal operational alerts are handled by the CRM Amazon SES configuration; the Provider Portal never supplies an alert recipient or provider destination email address.
 
 A CRM communication failure does not discard an unlock or provider update. Each committed action writes an independent transactional outbox row in `providercrmsyncevents`, then retries with an atomic lease and exponential backoff. Successful rows expire after the configured retention period; repeatedly failing rows move to dead-letter state. The automatic worker runs while the Provider Portal is online; operators can execute `npm run retry:crm-sync -- --max=100` or explicitly reattempt dead letters with `npm run retry:crm-sync -- --max=100 --include-dead-letter`. CRM delivery is idempotent by the stable outbox event ID and ordered by a monotonic per-unlock sequence, so delayed older feedback cannot overwrite a newer committed update.
 
@@ -359,3 +359,15 @@ The provider portal is locked to the lightweight **Professional Blue** appearanc
 ## Rich Lead Card Refinement
 
 The provider lead list now uses compact, coloured insight tiles to reduce empty space and improve scanning. Marketplace cards show preferred timing, lead age, provider interest, and current result. Unlocked cards show customer, preferred timing, outcome, activity, and unlock/action timing. Lead titles are sentence-cased only when displayed; stored records are not modified.
+
+## Provider joining request internal email alert
+
+Every committed provider joining request also creates a Provider-owned transactional outbox event named `provider_join_request_submitted`. The Provider Portal sends the event to CRM immediately and retries temporary CRM, network, or Amazon SES delivery failures with an atomic lease and exponential backoff. CRM sends the operational alert through Amazon SES to `INTERNAL_ALERT_EMAIL` (normally `alert@findoly.com`). A failed alert never rolls back or duplicates the submitted joining request.
+
+Optional retry settings:
+
+```env
+PROVIDER_COMMUNICATION_RETRY_INTERVAL_MS=30000
+PROVIDER_COMMUNICATION_MAX_ATTEMPTS=20
+PROVIDER_COMMUNICATION_EVENT_RETENTION_DAYS=30
+```

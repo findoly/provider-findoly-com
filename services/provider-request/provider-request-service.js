@@ -9,6 +9,7 @@ const {
   duplicateContactError,
   syncEntityContacts,
 } = require("../contact-identity/contact-identity-service");
+const providerCommunicationOutbox = require("../integration/provider-communication-outbox-service");
 
 const OPEN_STATUSES = Object.freeze(["new", "contacted"]);
 const UNSUPPORTED_TEXT = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\uFE0F\u20E3]|<\/?[A-Za-z][^>]*>|&(?:#\d+|#x[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);/u;
@@ -84,6 +85,7 @@ async function submit(input = {}) {
 
   const providerJoinRequestId = uuid();
   let row;
+  let communicationEventId = "";
   try {
     row = await withTransaction(async (session) => {
       const category = await Category.findOne({
@@ -128,6 +130,8 @@ async function submit(input = {}) {
         allowEmployeeRoleOverlap: true,
         session,
       });
+      const event = await providerCommunicationOutbox.enqueue(created, { session });
+      communicationEventId = event.eventId;
       return created;
     }, { operationLabel: "Provider joining requests" });
   } catch (error) {
@@ -136,6 +140,17 @@ async function submit(input = {}) {
   }
 
   console.log(`Provider joining request submitted: ${row.providerJoinRequestId}`);
+  if (communicationEventId) {
+    await providerCommunicationOutbox.dispatchById(communicationEventId, { force: true }).catch((error) => {
+      console.error({
+        event: "provider_join_request_immediate_dispatch_failed",
+        integrationEventId: communicationEventId,
+        providerJoinRequestId: row.providerJoinRequestId,
+        code: String(error?.code || "PROVIDER_COMMUNICATION_FAILED"),
+        message: String(error?.message || error).slice(0, 1000),
+      });
+    });
+  }
   return {
     accepted: true,
     providerJoinRequestId: row.providerJoinRequestId,

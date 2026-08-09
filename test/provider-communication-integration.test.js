@@ -46,3 +46,37 @@ test("provider outcome update remains saved before CRM synchronization is attemp
   assert.ok(saveIndex >= 0 && syncIndex > saveIndex);
   assert.match(source, /\.catch\(\(\) => \(\{ processed: false \}\)\)/);
 });
+
+test("provider joining requests enqueue a durable internal email event for CRM", () => {
+  const requestService = read("services/provider-request/provider-request-service.js");
+  const outboxModel = read("models/ProviderCommunicationEventOutbox.js");
+  const outboxService = read("services/integration/provider-communication-outbox-service.js");
+  const worker = read("services/integration/provider-communication-outbox-worker.js");
+  const startup = read("bin/www");
+  const indexes = read("scripts/ensure-indexes.js");
+
+  assert.match(requestService, /providerCommunicationOutbox\.enqueue\(created, \{ session \}\)/);
+  assert.match(requestService, /providerCommunicationOutbox\.dispatchById/);
+  assert.match(outboxModel, /provider_join_request_submitted/);
+  assert.match(outboxModel, /providercommunicationeventoutbox/);
+  assert.match(outboxService, /provider-join-request-submitted:/);
+  assert.match(outboxService, /deliveryFailed/);
+  assert.match(outboxService, /dead_letter/);
+  assert.match(worker, /setInterval/);
+  assert.match(startup, /loadProviderCommunicationOutboxWorker/);
+  assert.match(indexes, /ProviderCommunicationEventOutbox/);
+});
+
+test("CRM acknowledgement validates provider joining request identity", () => {
+  const source = read("services/integration/crm-service.js");
+  assert.match(source, /eventName === "provider_join_request_submitted"/);
+  assert.match(source, /providerJoinRequestId/);
+});
+
+
+test("Provider-owned communication outbox indexes are ensured and verified explicitly", () => {
+  const indexes = read("scripts/ensure-indexes.js");
+  assert.match(indexes, /ensureOwnedIndexes\(ProviderCommunicationEventOutbox/);
+  assert.match(indexes, /verifyOwnedIndexes\(ProviderCommunicationEventOutbox/);
+  assert.match(indexes, /INDEX_VERIFICATION_FAILED/);
+});

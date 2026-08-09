@@ -68,7 +68,7 @@ test("secret values overwrite app env while Hostinger bootstrap values stay prot
       MONGODB_URI: "mongodb://new-value",
       JWT_SECRET: "x".repeat(40),
       MONGO_MAX_POOL_SIZE: 30,
-      SYSTEM_EVENT_SLACK_ENABLED: false,
+      RAZORPAY_REVIEW_LOGIN_ENABLED: false,
       NODE_ENV: "development",
       PORT: 9999,
       PROVIDER_SECRETS_REGION: "us-east-1",
@@ -79,7 +79,7 @@ test("secret values overwrite app env while Hostinger bootstrap values stay prot
   assert.equal(env.MONGODB_URI, "mongodb://new-value");
   assert.equal(env.JWT_SECRET, "x".repeat(40));
   assert.equal(env.MONGO_MAX_POOL_SIZE, "30");
-  assert.equal(env.SYSTEM_EVENT_SLACK_ENABLED, "false");
+  assert.equal(env.RAZORPAY_REVIEW_LOGIN_ENABLED, "false");
   assert.equal(env.NODE_ENV, "production");
   assert.equal(env.PORT, "3100");
   assert.equal(env.PROVIDER_SECRETS_REGION, "ap-south-1");

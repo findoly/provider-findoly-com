@@ -69,6 +69,9 @@ function validateEnvironment() {
   integerFromEnv("CRM_SYNC_MAX_ATTEMPTS", 20, 1, 100);
   integerFromEnv("CRM_SYNC_EVENT_RETENTION_DAYS", 30, 1, 365);
   integerFromEnv("CRM_SYNC_RETRY_MAX_EVENTS", 500, 1, 10000);
+  integerFromEnv("PROVIDER_COMMUNICATION_RETRY_INTERVAL_MS", 30000, 5000, 600000);
+  integerFromEnv("PROVIDER_COMMUNICATION_MAX_ATTEMPTS", 20, 1, 100);
+  integerFromEnv("PROVIDER_COMMUNICATION_EVENT_RETENTION_DAYS", 30, 1, 365);
 
   const otpUrls = [
     process.env.PROVIDER_OTP_BASE_URL,
