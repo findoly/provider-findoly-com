@@ -77,7 +77,7 @@ test("pricing page is focused on buying credits without subscription controls", 
   assert.doesNotMatch(pricing, /GST/);
 });
 
-test("wallet page keeps activity separate from credit pricing", () => {
+test("wallet page keeps activity separate from credit pricing and hides legacy subscription wording", () => {
   const wallet = source("views/wallet/index.ejs");
 
   assert.match(wallet, /Wallet &amp; activity/);
@@ -85,6 +85,12 @@ test("wallet page keeps activity separate from credit pricing", () => {
   assert.match(wallet, /Credit activity/);
   assert.match(wallet, /Payment history/);
   assert.match(wallet, /href="\/plans">Buy credits/);
+  assert.match(wallet, /transactionDescription\(transaction\)/);
+  assert.match(wallet, /paymentDescription\(order\)/);
+  assert.match(wallet, /transaction\.source === 'plan_purchase'/);
+  assert.match(wallet, /order\.purpose === 'plan_purchase'/);
+  assert.doesNotMatch(wallet, /x-text="transaction\.description \|\|/);
+  assert.doesNotMatch(wallet, /x-text="order\.description"/);
   assert.doesNotMatch(wallet, /portal-billing-toggle|Choose your plan|Monthly|Yearly|purchase\(plan\)|Razorpay/);
 });
 
