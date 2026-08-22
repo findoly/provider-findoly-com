@@ -74,7 +74,7 @@
                     <template x-for="transaction in transactions" :key="transaction.walletTransactionId">
                       <tr>
                         <td><span class="badge" :class="transactionBadgeClass(transaction)" x-text="humanize(transaction.type)"></span></td>
-                        <td><div class="fw-semibold" x-text="transaction.description || humanize(transaction.source)"></div></td>
+                        <td><div class="fw-semibold" x-text="transactionDescription(transaction)"></div></td>
                         <td class="fw-semibold" :class="transaction.type === 'credit' ? 'text-success' : (transaction.type === 'debit' || transaction.type === 'expiry' ? 'text-danger' : 'text-muted')" x-text="transactionAmount(transaction)"></td>
                         <td x-text="credits(transaction.balanceAfterCredits)"></td>
                         <td x-text="formatDate(transaction.createdAt)"></td>
@@ -110,7 +110,7 @@
                   <div class="list-group-item portal-payment-row">
                     <span class="portal-payment-state" :class="order.fulfilled ? 'is-paid' : (order.fulfillmentStatus === 'manual_review' ? 'is-review' : 'is-pending')"></span>
                     <div class="flex-grow-1 min-w-0">
-                      <div class="fw-semibold" x-text="order.description"></div>
+                      <div class="fw-semibold" x-text="paymentDescription(order)"></div>
                       <div class="text-muted fs-sm">
                         <span x-text="money(order.totalAmountPaise)"></span>
                         <span> · </span>
@@ -165,9 +165,23 @@
         return 'bg-light text-muted border';
       },
 
+      transactionDescription(transaction) {
+        if (transaction.source === 'plan_purchase' && transaction.type === 'credit') {
+          return `${Number(transaction.amountCredits || 0).toLocaleString('en-IN')} credits purchased`;
+        }
+        return transaction.description || humanize(transaction.source);
+      },
+
       transactionAmount(transaction) {
         if (transaction.type === 'credit') return `+${credits(transaction.amountCredits)}`;
         return `-${credits(transaction.amountCredits)}`;
+      },
+
+      paymentDescription(order) {
+        if (order.purpose === 'plan_purchase') {
+          return `${Number(order.totalCredits || 0).toLocaleString('en-IN')} credits`;
+        }
+        return order.description || humanize(order.purpose);
       },
 
       paymentStatus(order) {
