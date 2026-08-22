@@ -20,31 +20,31 @@
           <small class="d-block mt-1" x-show="errorRequestId" x-text="`Reference: ${errorRequestId}`"></small>
         </div>
 
-        <section class="provider-plans-intro mb-4" aria-labelledby="wallet-title">
+        <section class="provider-plans-intro mb-4" aria-labelledby="lead-usage-title">
           <div>
-            <span class="provider-section-kicker">Credits</span>
-            <h1 id="wallet-title">Wallet &amp; activity</h1>
-            <p>Your balance, credit usage and payment history in one place.</p>
+            <span class="provider-section-kicker">Lead Credits</span>
+            <h1 id="lead-usage-title">Lead usage</h1>
+            <p>Your available Lead Credits, lead usage and purchase history in one place.</p>
           </div>
-          <a class="btn btn-primary" href="/plans">Buy credits</a>
+          <a class="btn btn-primary" href="/plans">Get Lead Credits</a>
         </section>
 
-        <section class="card portal-card portal-credit-balance-card provider-credit-overview mb-4" aria-label="Available credit balance">
+        <section class="card portal-card portal-credit-balance-card provider-credit-overview mb-4" aria-label="Available Lead Credits">
           <div class="card-body">
             <div class="provider-credit-overview-heading">
-              <span class="provider-credit-overview-icon"><svg class="icon"><use href="#i-wallet"></use></svg></span>
+              <span class="provider-credit-overview-icon"><svg class="icon"><use href="#i-credit"></use></svg></span>
               <div>
-                <span>Available credits</span>
-                <small>Ready to unlock matched leads</small>
+                <span>Available Lead Credits</span>
+                <small>Ready to unlock matching customer leads</small>
               </div>
             </div>
-            <strong class="provider-credit-overview-value" x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong>
+            <strong class="provider-credit-overview-value" x-text="leadCredits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Lead Credits</strong>
             <div class="provider-credit-overview-meta">
-              <span>Purchased credits never expire.</span>
+              <span>Purchased Lead Credits never expire.</span>
             </div>
             <div class="provider-credit-overview-actions">
-              <a class="btn btn-light btn-sm" href="/leads?status=offered">Use credits</a>
-              <a class="btn btn-outline-light btn-sm" href="/plans">Buy more credits</a>
+              <a class="btn btn-light btn-sm" href="/leads?status=offered">Use Lead Credits</a>
+              <a class="btn btn-outline-light btn-sm" href="/plans">Get more Lead Credits</a>
             </div>
           </div>
         </section>
@@ -54,8 +54,8 @@
             <div class="card portal-card">
               <div class="card-header border-bottom d-flex align-items-center">
                 <div>
-                  <h5 class="mb-1">Credit activity</h5>
-                  <div class="text-muted fs-sm">Purchases, lead deductions and credit adjustments.</div>
+                  <h5 class="mb-1">Lead usage history</h5>
+                  <div class="text-muted fs-sm">Lead Pack purchases, lead unlocks and Lead Credit adjustments.</div>
                 </div>
                 <span class="badge bg-light text-body border ms-auto" x-text="`${pagination.returned || 0}${pagination.hasNext ? '+' : ''} shown`"></span>
               </div>
@@ -65,8 +65,8 @@
                     <tr>
                       <th>Activity</th>
                       <th>Description</th>
-                      <th>Credits</th>
-                      <th>Balance</th>
+                      <th>Lead Credits</th>
+                      <th>Remaining</th>
                       <th>Date</th>
                     </tr>
                   </thead>
@@ -76,16 +76,16 @@
                         <td><span class="badge" :class="transactionBadgeClass(transaction)" x-text="humanize(transaction.type)"></span></td>
                         <td><div class="fw-semibold" x-text="transactionDescription(transaction)"></div></td>
                         <td class="fw-semibold" :class="transaction.type === 'credit' ? 'text-success' : (transaction.type === 'debit' || transaction.type === 'expiry' ? 'text-danger' : 'text-muted')" x-text="transactionAmount(transaction)"></td>
-                        <td x-text="credits(transaction.balanceAfterCredits)"></td>
+                        <td x-text="leadCredits(transaction.balanceAfterCredits)"></td>
                         <td x-text="formatDate(transaction.createdAt)"></td>
                       </tr>
                     </template>
-                    <tr x-show="loading"><td colspan="5" class="text-center text-muted py-5">Loading credit activity…</td></tr>
+                    <tr x-show="loading"><td colspan="5" class="text-center text-muted py-5">Loading Lead Credit activity…</td></tr>
                     <tr x-show="!loading && !transactions.length">
                       <td colspan="5" class="text-center py-5">
                         <div class="portal-empty-icon"><svg class="icon"><use href="#i-credit"></use></svg></div>
-                        <div class="fw-semibold mt-2">No credit activity yet</div>
-                        <div class="text-muted fs-sm mt-1">Credit purchases and lead deductions will appear here.</div>
+                        <div class="fw-semibold mt-2">No Lead Credit activity yet</div>
+                        <div class="text-muted fs-sm mt-1">Lead Pack purchases and lead unlocks will appear here.</div>
                       </td>
                     </tr>
                   </tbody>
@@ -102,8 +102,8 @@
           <div class="col-xl-5">
             <div class="card portal-card">
               <div class="card-header border-bottom">
-                <h5 class="mb-1">Payment history</h5>
-                <div class="text-muted fs-sm">Credit purchases and direct lead payments.</div>
+                <h5 class="mb-1">Purchase history</h5>
+                <div class="text-muted fs-sm">Lead Pack purchases and direct lead payments.</div>
               </div>
               <div class="list-group list-group-flush">
                 <template x-for="order in paymentOrders" :key="order.paymentOrderId">
@@ -121,7 +121,7 @@
                   </div>
                 </template>
                 <div class="list-group-item text-center py-5" x-show="!loading && !paymentOrders.length">
-                  <div class="text-muted">No payments yet.</div>
+                  <div class="text-muted">No purchases yet.</div>
                 </div>
               </div>
             </div>
@@ -131,9 +131,9 @@
         <section class="card portal-card provider-payment-policy-card mt-4" aria-labelledby="payment-policy-title">
           <div class="card-body">
             <div>
-              <span class="provider-section-kicker">Payment information</span>
-              <h5 id="payment-policy-title" class="mb-1">Digital credit delivery</h5>
-              <p class="text-muted mb-0">Credits are added after verified payment and remain available until used. No physical delivery applies. Successfully delivered digital credits are non-refundable.</p>
+              <span class="provider-section-kicker">Purchase information</span>
+              <h5 id="payment-policy-title" class="mb-1">Digital Lead Credit delivery</h5>
+              <p class="text-muted mb-0">Lead Credits are added after verified payment and remain available until used. No physical delivery applies. Successfully delivered digital Lead Credits are non-refundable.</p>
             </div>
             <%- include('../partials/policy-links', { policyLinksClass: 'provider-payment-policy-links' }) %>
             <a href="mailto:<%= supportEmail %>" class="provider-payment-support"><%= supportEmail %></a>
@@ -159,6 +159,10 @@
       error: '',
       errorRequestId: '',
 
+      leadCredits(value) {
+        return `${Number(value || 0).toLocaleString('en-IN')} Lead Credits`;
+      },
+
       transactionBadgeClass(transaction) {
         if (transaction.type === 'credit') return 'bg-success-subtle text-success';
         if (transaction.type === 'debit' || transaction.type === 'expiry') return 'bg-danger-subtle text-danger';
@@ -167,19 +171,23 @@
 
       transactionDescription(transaction) {
         if (transaction.source === 'plan_purchase' && transaction.type === 'credit') {
-          return `${Number(transaction.amountCredits || 0).toLocaleString('en-IN')} credits purchased`;
+          return `${Number(transaction.amountCredits || 0).toLocaleString('en-IN')} Lead Credits purchased`;
         }
         return transaction.description || humanize(transaction.source);
       },
 
       transactionAmount(transaction) {
-        if (transaction.type === 'credit') return `+${credits(transaction.amountCredits)}`;
-        return `-${credits(transaction.amountCredits)}`;
+        const amount = Number(transaction.amountCredits || 0).toLocaleString('en-IN');
+        if (transaction.type === 'credit') return `+${amount}`;
+        return `-${amount}`;
       },
 
       paymentDescription(order) {
         if (order.purpose === 'plan_purchase') {
-          return `${Number(order.totalCredits || 0).toLocaleString('en-IN')} credits`;
+          return `${Number(order.totalCredits || 0).toLocaleString('en-IN')} Lead Credits`;
+        }
+        if (order.purpose === 'credit_purchase') {
+          return `${Number(order.totalCredits || 0).toLocaleString('en-IN')} Lead Credits`;
         }
         return order.description || humanize(order.purpose);
       },
