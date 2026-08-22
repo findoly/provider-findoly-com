@@ -72,6 +72,7 @@ test("provider Lead Packs use final prices, bonuses, non-expiring credits and 50
 test("Lead Pack pricing page is focused, lead-oriented and has horizontal mobile comparison", () => {
   const pricing = source("views/wallet/plans.ejs");
   const pricingCss = source("public/css/lead-plans.css");
+  const head = source("views/partials/head.ejs");
 
   assert.match(pricing, /Get more leads/);
   assert.match(pricing, /Choose a Lead Pack/);
@@ -85,7 +86,7 @@ test("Lead Pack pricing page is focused, lead-oriented and has horizontal mobile
   assert.match(pricing, /\/api\/wallet\/credits\/order/);
   assert.match(pricing, /\/api\/wallet\/credits\/verify/);
   assert.match(pricing, /purpose: 'credit_purchase'/);
-  assert.match(pricing, /\/css\/lead-plans\.css/);
+  assert.match(head, /\/css\/lead-plans\.css/);
   assert.doesNotMatch(pricing, /Wallet &amp; activity/);
   assert.doesNotMatch(pricing, /Monthly|Yearly|\/ month|\/ year|billingCycle|Renewal scheduled|Choose your plan/);
   assert.doesNotMatch(pricing, /GST/);
