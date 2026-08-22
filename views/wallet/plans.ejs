@@ -27,17 +27,12 @@
             <h1 id="credits-title">Buy credits</h1>
             <p>Lead unlocks start from 50 credits. Buy once, use anytime — your credits never expire.</p>
           </div>
-          <a class="btn btn-light" href="/wallet">Wallet &amp; activity</a>
-        </section>
-
-        <section class="card portal-card mb-4" aria-label="Current credit balance">
-          <div class="card-body d-flex flex-column flex-md-row align-items-md-center gap-3">
-            <div class="flex-grow-1">
-              <div class="text-muted fs-sm mb-1">Available credits</div>
-              <div class="h3 mb-1" x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</div>
-              <div class="text-muted fs-sm">Your existing and newly purchased credits do not expire.</div>
+          <div class="d-flex align-items-center gap-3">
+            <div class="text-end d-none d-sm-block">
+              <div class="text-muted fs-sm">Available credits</div>
+              <strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong>
             </div>
-            <a class="btn btn-light" href="/leads?status=offered">Browse leads</a>
+            <a class="btn btn-light" href="/wallet">Wallet &amp; activity</a>
           </div>
         </section>
 
@@ -79,7 +74,7 @@
                   </ul>
 
                   <button
-                    class="btn w-100 mt-auto pt-2"
+                    class="btn w-100 mt-auto"
                     :class="creditPackage.recommended ? 'btn-primary' : 'btn-outline-primary'"
                     type="button"
                     @click="purchase(creditPackage)"
