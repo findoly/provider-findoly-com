@@ -15,7 +15,7 @@ const CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
     credits: 1000,
   }),
   Object.freeze({
-    code: "growth",
+    code: "growth-plus",
     name: "Growth",
     tagline: "For providers unlocking leads regularly",
     recommended: true,
@@ -37,9 +37,7 @@ const CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
     credits: 6000,
   }),
   Object.freeze({
-    // Keep the existing internal code so already-created credit_purchase
-    // orders can still be fulfilled safely after the provider-facing rename.
-    code: "business",
+    code: "pro",
     name: "Pro",
     tagline: "For high-volume providers maximising lead opportunities",
     recommended: false,
@@ -48,6 +46,34 @@ const CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
     baseCredits: 10000,
     bonusPercent: 30,
     credits: 13000,
+  }),
+]);
+
+// These hidden definitions exist only so already-created credit_purchase
+// orders from the previous package set can still fulfill the exact credits
+// recorded when checkout began. They are never returned by listCreditPackages.
+const LEGACY_CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    code: "growth",
+    name: "Growth",
+    tagline: "Legacy credit purchase compatibility",
+    recommended: false,
+    bestValue: false,
+    finalPricePaise: 299900,
+    baseCredits: 3000,
+    bonusPercent: 0,
+    credits: 3000,
+  }),
+  Object.freeze({
+    code: "business",
+    name: "Business",
+    tagline: "Legacy credit purchase compatibility",
+    recommended: false,
+    bestValue: false,
+    finalPricePaise: 999900,
+    baseCredits: 10000,
+    bonusPercent: 0,
+    credits: 10000,
   }),
 ]);
 
@@ -180,7 +206,10 @@ function presentCreditPackage(definition) {
 
 function getCreditPackage(packageCode) {
   const code = String(packageCode || "").trim().toLowerCase();
-  const definition = CREDIT_PACKAGE_DEFINITIONS.find((item) => item.code === code);
+  const definition = [
+    ...CREDIT_PACKAGE_DEFINITIONS,
+    ...LEGACY_CREDIT_PACKAGE_DEFINITIONS,
+  ].find((item) => item.code === code);
   if (!definition) {
     throw Object.assign(new Error("Select a valid Lead Pack"), {
       status: 400,
