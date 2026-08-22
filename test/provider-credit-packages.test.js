@@ -56,6 +56,8 @@ test("pricing page is focused on buying credits without subscription controls", 
   assert.match(pricing, /\/api\/wallet\/credits\/order/);
   assert.match(pricing, /\/api\/wallet\/credits\/verify/);
   assert.match(pricing, /purpose: 'credit_purchase'/);
+  assert.doesNotMatch(pricing, /provider-credit-overview/);
+  assert.doesNotMatch(pricing, /Current credit balance/);
   assert.doesNotMatch(pricing, /Monthly|Yearly|\/ month|\/ year|billingCycle|Renewal scheduled|Choose your plan/);
   assert.doesNotMatch(pricing, /GST/);
 });
