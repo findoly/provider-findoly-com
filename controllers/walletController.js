@@ -11,6 +11,54 @@ async function get(req, res, next) {
   }
 }
 
+async function packages(req, res, next) {
+  try {
+    return res.json({
+      success: true,
+      data: await walletService.packages(req.provider),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function createCreditOrder(req, res, next) {
+  try {
+    return res.status(201).json({
+      success: true,
+      data: await walletService.createCreditOrder(req.provider, req.body),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function cancelCreditOrder(req, res, next) {
+  try {
+    return res.json({
+      success: true,
+      data: await walletService.cancelCreditOrder(req.provider, req.body),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function verifyCredits(req, res, next) {
+  try {
+    return res.json({
+      success: true,
+      data: await walletService.verify(req.provider, req.body, {
+        purpose: "credit_purchase",
+      }),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+// Legacy subscription endpoints remain available so a plan checkout that was
+// already opened before the credit-model rollout can still finish safely.
 async function createPlanOrder(req, res, next) {
   try {
     return res.status(201).json({
@@ -60,4 +108,14 @@ async function webhook(req, res, next) {
   }
 }
 
-module.exports = { get, createPlanOrder, cancelPlanOrder, verify, webhook };
+module.exports = {
+  get,
+  packages,
+  createCreditOrder,
+  cancelCreditOrder,
+  verifyCredits,
+  createPlanOrder,
+  cancelPlanOrder,
+  verify,
+  webhook,
+};
