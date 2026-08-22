@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<%- include('../partials/head') %>
+<body
+  x-data='providerShell({ title: <%- JSON.stringify(title || "") %>, subtitle: <%- JSON.stringify(subtitle || "") %> })'
+  x-init="initShell()"
+  @wallet-updated.window="refreshProfile()"
+  @credits-updated.window="refreshProfile()"
+  @portal-notify.window="notify($event.detail)"
+>
+<%- include('../partials/navbar') %>
+<div class="page-content workspace-page-shell">
+  <%- include('../partials/sidebar') %>
+  <div class="content-wrapper">
+    <div class="content-inner">
+      <div class="content provider-plans-content" x-data="creditPackagesPage()" x-init="load()">
+        <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
+        <div x-show="error" x-cloak class="alert alert-danger portal-flash" role="alert">
+          <span x-text="error"></span>
+          <small class="d-block mt-1" x-show="errorRequestId" x-text="`Reference: ${errorRequestId}`"></small>
+        </div>
+        <div x-show="success" x-cloak class="alert alert-success portal-flash" x-text="success"></div>
+
+        <section class="provider-plans-intro mb-4" aria-labelledby="credits-title">
+          <div>
+            <span class="provider-section-kicker">Credits</span>
+            <h1 id="credits-title">Buy credits</h1>
+            <p>Lead unlocks start from 50 credits. Buy once, use anytime — your credits never expire.</p>
+          </div>
+          <a class="btn btn-light" href="/wallet">Wallet &amp; activity</a>
+        </section>
+
+        <section class="card portal-card mb-4" aria-label="Current credit balance">
+          <div class="card-body d-flex flex-column flex-md-row align-items-md-center gap-3">
+            <div class="flex-grow-1">
+              <div class="text-muted fs-sm mb-1">Available credits</div>
+              <div class="h3 mb-1" x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</div>
+              <div class="text-muted fs-sm">Your existing and newly purchased credits do not expire.</div>
+            </div>
+            <a class="btn btn-light" href="/leads?status=offered">Browse leads</a>
+          </div>
+        </section>
+
+        <div x-show="data.razorpay && !data.razorpay.enabled" x-cloak class="alert alert-warning mb-4">
+          Credit checkout is temporarily unavailable because secure payment is not configured.
+        </div>
+
+        <div class="row g-4 portal-plan-grid mb-3" :class="loading ? 'portal-loading' : ''">
+          <template x-for="creditPackage in creditPackages" :key="creditPackage.code">
+            <div class="col-lg-4">
+              <div class="card portal-card portal-plan-card h-100" :class="creditPackage.recommended ? 'is-recommended' : ''">
+                <div class="portal-plan-ribbon" x-show="creditPackage.recommended">Most Popular</div>
+                <div class="card-body d-flex flex-column">
+                  <div class="mb-4">
+                    <h4 class="mb-1" x-text="creditPackage.name"></h4>
+                    <p class="text-muted mb-0" x-text="creditPackage.tagline"></p>
+                  </div>
+
+                  <div class="portal-plan-price">
+                    <strong x-text="money(creditPackage.finalPricePaise)"></strong>
+                  </div>
+                  <div class="text-muted fs-sm mt-1">Total payable</div>
+
+                  <div class="portal-credit-total my-4">
+                    <span>You receive</span>
+                    <strong x-text="credits(creditPackage.credits)"></strong>
+                    <small>Credits never expire</small>
+                  </div>
+
+                  <div class="mb-4">
+                    <div class="text-muted fs-sm">Estimated lead access</div>
+                    <div class="h5 mb-0" x-text="`Up to ${Number(creditPackage.estimatedLeads || 0).toLocaleString('en-IN')} leads*`"></div>
+                  </div>
+
+                  <ul class="portal-plan-features">
+                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Use credits whenever you need</span></li>
+                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Use on any eligible lead</span></li>
+                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Added after successful payment</span></li>
+                  </ul>
+
+                  <button
+                    class="btn w-100 mt-auto pt-2"
+                    :class="creditPackage.recommended ? 'btn-primary' : 'btn-outline-primary'"
+                    type="button"
+                    @click="purchase(creditPackage)"
+                    :disabled="submitting || loading || !data.razorpay?.enabled"
+                  >
+                    <span class="spinner-border spinner-border-sm me-2" x-show="submittingPackage === creditPackage.code" x-cloak></span>
+                    <span x-text="submittingPackage === creditPackage.code ? 'Opening secure checkout…' : `Buy ${Number(creditPackage.credits || 0).toLocaleString('en-IN')} credits`"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <p class="text-muted fs-sm mb-4">*Estimated using leads starting from 50 credits. Actual credits required vary by lead.</p>
+
+        <section class="card portal-card mb-4" aria-label="Credit purchase reassurance">
+          <div class="card-body d-flex flex-column flex-md-row justify-content-between gap-3">
+            <div><strong>Secure payment</strong><div class="text-muted fs-sm">Checkout is handled securely through Razorpay.</div></div>
+            <div><strong>Credits added automatically</strong><div class="text-muted fs-sm">Verified payments update your balance automatically.</div></div>
+            <div><strong>Credits never expire</strong><div class="text-muted fs-sm">Keep them until you are ready to unlock a lead.</div></div>
+          </div>
+        </section>
+
+        <div class="d-flex flex-wrap align-items-center gap-3 text-muted fs-sm">
+          <a href="/wallet">View wallet &amp; payment activity</a>
+          <span>·</span>
+          <a href="/help-support">How Findoly credits work</a>
+        </div>
+      </div>
+
+      <%- include('../partials/footer') %>
+    </div>
+  </div>
+</div>
+<div class="portal-sidebar-overlay" data-portal-menu-overlay aria-hidden="true"></div>
+<script nonce="<%= cspNonce %>" src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<%- include('../partials/scripts') %>
+<script nonce="<%= cspNonce %>">
+  function creditPackagesPage() {
+    return {
+      data: {},
+      creditPackages: [],
+      loading: true,
+      submitting: false,
+      submittingPackage: '',
+      error: '',
+      errorRequestId: '',
+      success: '',
+
+      async load() {
+        this.loading = true;
+        this.error = '';
+        this.errorRequestId = '';
+        try {
+          this.data = (await apiFetch('/api/wallet/packages')).data;
+          this.creditPackages = this.data.creditPackages || [];
+        } catch (error) {
+          this.error = error.message;
+          this.errorRequestId = error.requestId || '';
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      async purchase(creditPackage) {
+        if (this.submitting || !this.data.razorpay?.enabled) return;
+        this.submitting = true;
+        this.submittingPackage = creditPackage.code;
+        this.error = '';
+        this.errorRequestId = '';
+        this.success = '';
+
+        try {
+          if (typeof Razorpay !== 'function') throw new Error('Razorpay Checkout could not be loaded. Check your connection and try again.');
+          const order = (await apiFetch('/api/wallet/credits/order', {
+            method: 'POST',
+            body: JSON.stringify({ packageCode: creditPackage.code })
+          })).data;
+
+          const cancelPendingOrder = async () => {
+            await apiFetch('/api/wallet/credits/cancel', {
+              method: 'POST',
+              body: JSON.stringify({ paymentOrderId: order.paymentOrderId })
+            }).catch(() => {});
+          };
+
+          const checkout = new Razorpay({
+            key: order.keyId,
+            amount: order.amountPaise,
+            currency: order.currency,
+            name: 'Findoly',
+            description: `${Number(order.creditPackage.credits || 0).toLocaleString('en-IN')} credits · never expire`,
+            order_id: order.razorpayOrderId,
+            retry: { enabled: true },
+            remember_customer: false,
+            prefill: {
+              name: order.provider?.name || '',
+              email: order.provider?.email || '',
+              contact: order.provider?.mobile || ''
+            },
+            notes: {
+              paymentOrderId: order.paymentOrderId,
+              purpose: 'credit_purchase',
+              packageCode: order.creditPackage.code
+            },
+            theme: { color: '#2563eb' },
+            handler: async (payment) => {
+              try {
+                const verification = (await apiFetch('/api/wallet/credits/verify', {
+                  method: 'POST',
+                  body: JSON.stringify(payment)
+                })).data;
+                if (verification.status === 'pending') {
+                  this.success = verification.message || 'Payment is authorised and will complete after capture.';
+                } else {
+                  this.success = `${credits(order.creditPackage.credits)} added successfully. Your credits do not expire.`;
+                  this.$dispatch('credits-updated');
+                }
+                await this.load();
+              } catch (error) {
+                this.error = error.message;
+                this.errorRequestId = error.requestId || '';
+              } finally {
+                this.submitting = false;
+                this.submittingPackage = '';
+              }
+            },
+            modal: {
+              confirm_close: true,
+              ondismiss: async () => {
+                await cancelPendingOrder();
+                this.submitting = false;
+                this.submittingPackage = '';
+                await this.load();
+              }
+            }
+          });
+
+          checkout.on('payment.failed', async (response) => {
+            this.error = response.error?.description || 'Razorpay payment failed';
+            await cancelPendingOrder();
+            this.submitting = false;
+            this.submittingPackage = '';
+            await this.load();
+          });
+          checkout.open();
+        } catch (error) {
+          this.error = error.message;
+          this.errorRequestId = error.requestId || '';
+          this.submitting = false;
+          this.submittingPackage = '';
+        }
+      }
+    };
+  }
+</script>
+</body>
+</html>
