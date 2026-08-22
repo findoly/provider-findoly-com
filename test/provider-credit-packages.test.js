@@ -109,5 +109,4 @@ test("credit routes are separate while legacy plan routes remain available for i
   assert.match(frontend, /"wallet\/index"/);
   assert.match(sidebar, />Buy credits</);
   assert.match(sidebar, />Wallet &amp; activity</);
-}
-);
+});
