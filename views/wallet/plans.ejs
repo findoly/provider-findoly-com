@@ -187,7 +187,7 @@
             amount: order.amountPaise,
             currency: order.currency,
             name: 'Findoly',
-            description: `${leadCredits(order.creditPackage.credits)} · never expire`,
+            description: `${this.leadCredits(order.creditPackage.credits)} · never expire`,
             order_id: order.razorpayOrderId,
             retry: { enabled: true },
             remember_customer: false,
@@ -211,7 +211,7 @@
                 if (verification.status === 'pending') {
                   this.success = verification.message || 'Payment is authorised and will complete after capture.';
                 } else {
-                  this.success = `${leadCredits(order.creditPackage.credits)} added successfully. They never expire.`;
+                  this.success = `${this.leadCredits(order.creditPackage.credits)} added successfully. They never expire.`;
                   this.$dispatch('credits-updated');
                 }
                 await this.load();
