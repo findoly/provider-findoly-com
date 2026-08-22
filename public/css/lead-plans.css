@@ -22,7 +22,7 @@
 }
 
 .lead-pack-card.is-best-value {
-  border-color: #c8d5e8;
+  border-color: var(--portal-border);
 }
 
 .lead-pack-badge {
@@ -41,8 +41,8 @@
 }
 
 .lead-pack-badge.is-value {
-  background: #f2f5f9;
-  color: #42526a;
+  background: var(--portal-surface-soft);
+  color: var(--portal-text);
 }
 
 .lead-pack-header {
@@ -140,7 +140,7 @@
   display: flex;
   align-items: center;
   gap: .5rem;
-  color: #4d5a6d;
+  color: var(--portal-muted);
   font-size: .8rem;
 }
 
@@ -169,7 +169,7 @@
   padding: .5rem .7rem;
   border: 1px solid var(--portal-border-soft);
   border-radius: 999px;
-  background: #fff;
+  background: var(--portal-surface);
   color: var(--portal-muted);
   font-size: .76rem;
 }
