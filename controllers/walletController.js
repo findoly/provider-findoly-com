@@ -57,17 +57,14 @@ async function verifyCredits(req, res, next) {
   }
 }
 
-// Legacy subscription endpoints remain available so a plan checkout that was
-// already opened before the credit-model rollout can still finish safely.
+// New subscription orders are disabled. Legacy cancellation and verification
+// remain available so a plan checkout opened before the credit-model rollout
+// can still be closed or completed safely.
 async function createPlanOrder(req, res, next) {
-  try {
-    return res.status(201).json({
-      success: true,
-      data: await walletService.createPlanOrder(req.provider, req.body),
-    });
-  } catch (error) {
-    return next(error);
-  }
+  return next(Object.assign(
+    new Error("Subscription purchases are no longer available. Choose a credit package instead."),
+    { status: 409, code: "PLAN_PURCHASE_DISABLED" },
+  ));
 }
 
 async function cancelPlanOrder(req, res, next) {
