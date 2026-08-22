@@ -65,7 +65,7 @@
                   </div>
 
                   <div class="lead-pack-price">
-                    <strong x-text="money(creditPackage.finalPricePaise)"></strong>
+                    <strong x-text="packPrice(creditPackage.finalPricePaise)"></strong>
                     <span>one-time purchase</span>
                   </div>
 
@@ -142,6 +142,15 @@
 
       leadCredits(value) {
         return `${Number(value || 0).toLocaleString('en-IN')} Lead Credits`;
+      },
+
+      packPrice(paise) {
+        return new Intl.NumberFormat('en-IN', {
+          style: 'currency',
+          currency: 'INR',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).format(Number(paise || 0) / 100);
       },
 
       async load() {
