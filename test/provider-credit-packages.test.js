@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
+const Module = require("node:module");
 
 const {
   getCreditPackage,
@@ -11,6 +12,20 @@ const {
 
 function source(relativePath) {
   return fs.readFileSync(path.join(__dirname, "..", relativePath), "utf8");
+}
+
+function compile(relativePath, mocks = {}) {
+  const filename = path.join(__dirname, "..", relativePath);
+  const loaded = new Module(filename, module);
+  loaded.filename = filename;
+  loaded.paths = Module._nodeModulePaths(path.dirname(filename));
+  loaded.require = (request) => (
+    Object.prototype.hasOwnProperty.call(mocks, request)
+      ? mocks[request]
+      : Module.createRequire(filename)(request)
+  );
+  loaded._compile(fs.readFileSync(filename, "utf8"), filename);
+  return loaded.exports;
 }
 
 test("provider credit packages use final prices, non-expiring credits and 50-credit lead estimates", () => {
@@ -100,7 +115,7 @@ test("existing purchased credit allocations are converted to non-expiring balanc
 
 test("credit routes are separate and new legacy subscription orders are blocked", () => {
   const routes = source("routes/wallet.js");
-  const controller = source("controllers/walletController.js");
+  const controllerSource = source("controllers/walletController.js");
   const frontend = source("controllers/frontendController.js");
   const sidebar = source("views/partials/sidebar.ejs");
 
@@ -108,11 +123,29 @@ test("credit routes are separate and new legacy subscription orders are blocked"
   assert.match(routes, /"\/credits\/cancel"/);
   assert.match(routes, /"\/credits\/verify"/);
   assert.match(routes, /"\/plan\/order"/);
-  assert.match(controller, /PLAN_PURCHASE_DISABLED/);
-  assert.match(controller, /Subscription purchases are no longer available/);
-  assert.doesNotMatch(controller, /data: await walletService\.createPlanOrder/);
+  assert.match(controllerSource, /PLAN_PURCHASE_DISABLED/);
+  assert.match(controllerSource, /Subscription purchases are no longer available/);
+  assert.doesNotMatch(controllerSource, /data: await walletService\.createPlanOrder/);
   assert.match(frontend, /"wallet\/plans"/);
   assert.match(frontend, /"wallet\/index"/);
   assert.match(sidebar, />Buy credits</);
   assert.match(sidebar, />Wallet &amp; activity</);
+});
+
+test("legacy plan order creation is rejected at runtime without calling the old service", () => {
+  let createCalls = 0;
+  const controller = compile("controllers/walletController.js", {
+    "../services/wallet/wallet-service": {
+      async createPlanOrder() {
+        createCalls += 1;
+        throw new Error("must not be called");
+      },
+    },
+  });
+  let forwarded = null;
+  controller.createPlanOrder({}, {}, (error) => { forwarded = error; });
+  assert.equal(createCalls, 0);
+  assert.equal(forwarded?.status, 409);
+  assert.equal(forwarded?.code, "PLAN_PURCHASE_DISABLED");
+  assert.match(forwarded?.message || "", /Choose a credit package/);
 });
