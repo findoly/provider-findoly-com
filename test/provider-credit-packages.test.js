@@ -49,9 +49,9 @@ test("provider Lead Packs use final prices, bonuses, non-expiring credits and 50
     })),
     [
       { code: "starter", name: "Starter", price: 99900, baseCredits: 1000, bonusPercent: 0, bonusCredits: 0, credits: 1000, leads: 20, expiry: null, recommended: false, bestValue: false },
-      { code: "growth", name: "Growth", price: 299900, baseCredits: 3000, bonusPercent: 10, bonusCredits: 300, credits: 3300, leads: 66, expiry: null, recommended: true, bestValue: false },
+      { code: "growth-plus", name: "Growth", price: 299900, baseCredits: 3000, bonusPercent: 10, bonusCredits: 300, credits: 3300, leads: 66, expiry: null, recommended: true, bestValue: false },
       { code: "scale", name: "Scale", price: 499900, baseCredits: 5000, bonusPercent: 20, bonusCredits: 1000, credits: 6000, leads: 120, expiry: null, recommended: false, bestValue: false },
-      { code: "business", name: "Pro", price: 999900, baseCredits: 10000, bonusPercent: 30, bonusCredits: 3000, credits: 13000, leads: 260, expiry: null, recommended: false, bestValue: true },
+      { code: "pro", name: "Pro", price: 999900, baseCredits: 10000, bonusPercent: 30, bonusCredits: 3000, credits: 13000, leads: 260, expiry: null, recommended: false, bestValue: true },
     ],
   );
 
@@ -61,12 +61,21 @@ test("provider Lead Packs use final prices, bonuses, non-expiring credits and 50
     assert.equal(item.expiryLabel, "Never expires");
   }
 
-  assert.equal(getCreditPackage("growth").credits, 3300);
-  assert.equal(getCreditPackage("business").name, "Pro");
+  assert.equal(getCreditPackage("growth-plus").credits, 3300);
+  assert.equal(getCreditPackage("pro").name, "Pro");
   assert.throws(
     () => getCreditPackage("monthly"),
     (error) => error.code === "CREDIT_PACKAGE_INVALID",
   );
+});
+
+test("legacy in-flight credit package codes retain their original fulfillment totals", () => {
+  const visibleCodes = listCreditPackages().map((item) => item.code);
+  assert.doesNotMatch(visibleCodes.join(","), /(^|,)growth(,|$)|(^|,)business(,|$)/);
+  assert.equal(getCreditPackage("growth").credits, 3000);
+  assert.equal(getCreditPackage("growth").bonusCredits, 0);
+  assert.equal(getCreditPackage("business").credits, 10000);
+  assert.equal(getCreditPackage("business").bonusCredits, 0);
 });
 
 test("Lead Pack pricing page is focused, lead-oriented and has horizontal mobile comparison", () => {
