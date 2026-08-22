@@ -21,56 +21,73 @@
         </div>
         <div x-show="success" x-cloak class="alert alert-success portal-flash" x-text="success"></div>
 
-        <section class="provider-plans-intro mb-4" aria-labelledby="credits-title">
+        <section class="provider-plans-intro mb-4" aria-labelledby="lead-packs-title">
           <div>
-            <span class="provider-section-kicker">Credits</span>
-            <h1 id="credits-title">Buy credits</h1>
-            <p>Lead unlocks start from 50 credits. Buy once, use anytime — your credits never expire.</p>
+            <span class="provider-section-kicker">Lead Packs</span>
+            <h1 id="lead-packs-title">Get more leads</h1>
+            <p>Choose a Lead Pack and use your Lead Credits whenever an eligible customer enquiry matches your business.</p>
           </div>
           <div class="d-flex align-items-center gap-3">
             <div class="text-end d-none d-sm-block">
-              <div class="text-muted fs-sm">Available credits</div>
-              <strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong>
+              <div class="text-muted fs-sm">Available Lead Credits</div>
+              <strong x-text="leadCredits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Lead Credits</strong>
             </div>
-            <a class="btn btn-light" href="/wallet">Wallet &amp; activity</a>
+            <a class="btn btn-light" href="/wallet">Lead usage</a>
           </div>
         </section>
 
         <div x-show="data.razorpay && !data.razorpay.enabled" x-cloak class="alert alert-warning mb-4">
-          Credit checkout is temporarily unavailable because secure payment is not configured.
+          Lead Pack checkout is temporarily unavailable because secure payment is not configured.
         </div>
 
-        <div class="row g-4 portal-plan-grid mb-3" :class="loading ? 'portal-loading' : ''">
+        <div class="lead-pack-mobile-hint" aria-hidden="true">
+          <strong>4 Lead Packs</strong>
+          <span>Swipe to compare →</span>
+        </div>
+
+        <div class="lead-pack-track mb-2" :class="loading ? 'portal-loading' : ''">
           <template x-for="creditPackage in creditPackages" :key="creditPackage.code">
-            <div class="col-lg-4">
-              <div class="card portal-card portal-plan-card h-100" :class="creditPackage.recommended ? 'is-recommended' : ''">
-                <div class="portal-plan-ribbon" x-show="creditPackage.recommended">Most Popular</div>
+            <div class="lead-pack-item">
+              <div
+                class="card portal-card portal-plan-card lead-pack-card"
+                :class="{ 'is-recommended': creditPackage.recommended, 'is-best-value': creditPackage.bestValue }"
+              >
                 <div class="card-body d-flex flex-column">
-                  <div class="mb-4">
+                  <div class="lead-pack-header">
+                    <div
+                      class="lead-pack-badge"
+                      :class="creditPackage.bestValue ? 'is-value' : ''"
+                      x-show="creditPackage.recommended || creditPackage.bestValue"
+                      x-text="creditPackage.recommended ? 'Most Popular' : 'Best Value'"
+                    ></div>
                     <h4 class="mb-1" x-text="creditPackage.name"></h4>
-                    <p class="text-muted mb-0" x-text="creditPackage.tagline"></p>
+                    <p class="text-muted mb-0 fs-sm" x-text="creditPackage.tagline"></p>
                   </div>
 
-                  <div class="portal-plan-price">
-                    <strong x-text="money(creditPackage.finalPricePaise)"></strong>
-                  </div>
-                  <div class="text-muted fs-sm mt-1">Total payable</div>
-
-                  <div class="portal-credit-total my-4">
-                    <span>You receive</span>
-                    <strong x-text="credits(creditPackage.credits)"></strong>
-                    <small>Credits never expire</small>
+                  <div class="lead-pack-price">
+                    <strong x-text="packPrice(creditPackage.finalPricePaise)"></strong>
+                    <span>one-time purchase</span>
                   </div>
 
-                  <div class="mb-4">
-                    <div class="text-muted fs-sm">Estimated lead access</div>
-                    <div class="h5 mb-0" x-text="`Up to ${Number(creditPackage.estimatedLeads || 0).toLocaleString('en-IN')} leads*`"></div>
+                  <div class="lead-pack-credit-box">
+                    <span>You get</span>
+                    <strong x-text="leadCredits(creditPackage.credits)"></strong>
+                    <div
+                      class="lead-pack-bonus"
+                      x-show="Number(creditPackage.bonusPercent || 0) > 0"
+                      x-text="`${Number(creditPackage.bonusCredits || 0).toLocaleString('en-IN')} extra · ${creditPackage.bonusPercent}% bonus`"
+                    ></div>
                   </div>
 
-                  <ul class="portal-plan-features">
-                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Use credits whenever you need</span></li>
+                  <div class="lead-pack-estimate">
+                    <span>Estimated lead access*</span>
+                    <strong x-text="`Up to ${Number(creditPackage.estimatedLeads || 0).toLocaleString('en-IN')} unlocks`"></strong>
+                  </div>
+
+                  <ul class="lead-pack-features">
+                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Lead Credits never expire</span></li>
                     <li><svg class="icon"><use href="#i-check"></use></svg><span>Use on any eligible lead</span></li>
-                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Added after successful payment</span></li>
+                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Added automatically after payment</span></li>
                   </ul>
 
                   <button
@@ -81,7 +98,7 @@
                     :disabled="submitting || loading || !data.razorpay?.enabled"
                   >
                     <span class="spinner-border spinner-border-sm me-2" x-show="submittingPackage === creditPackage.code" x-cloak></span>
-                    <span x-text="submittingPackage === creditPackage.code ? 'Opening secure checkout…' : `Buy ${Number(creditPackage.credits || 0).toLocaleString('en-IN')} credits`"></span>
+                    <span x-text="submittingPackage === creditPackage.code ? 'Opening secure checkout…' : `Get ${creditPackage.name} Pack`"></span>
                   </button>
                 </div>
               </div>
@@ -89,20 +106,18 @@
           </template>
         </div>
 
-        <p class="text-muted fs-sm mb-4">*Estimated using leads starting from 50 credits. Actual credits required vary by lead.</p>
+        <p class="text-muted fs-sm mb-2">*Estimated using leads starting from 50 Lead Credits. Actual Lead Credits required vary by lead.</p>
 
-        <section class="card portal-card mb-4" aria-label="Credit purchase reassurance">
-          <div class="card-body d-flex flex-column flex-md-row justify-content-between gap-3">
-            <div><strong>Secure payment</strong><div class="text-muted fs-sm">Checkout is handled securely through Razorpay.</div></div>
-            <div><strong>Credits added automatically</strong><div class="text-muted fs-sm">Verified payments update your balance automatically.</div></div>
-            <div><strong>Credits never expire</strong><div class="text-muted fs-sm">Keep them until you are ready to unlock a lead.</div></div>
-          </div>
-        </section>
+        <div class="lead-pack-reassurance mb-4" aria-label="Lead Pack purchase reassurance">
+          <span><svg class="icon"><use href="#i-lock"></use></svg>Secure Razorpay checkout</span>
+          <span><svg class="icon"><use href="#i-check"></use></svg>Lead Credits added automatically</span>
+          <span><svg class="icon"><use href="#i-clock"></use></svg>Lead Credits never expire</span>
+        </div>
 
         <div class="d-flex flex-wrap align-items-center gap-3 text-muted fs-sm">
-          <a href="/wallet">View wallet &amp; payment activity</a>
+          <a href="/wallet">View Lead Credit activity</a>
           <span>·</span>
-          <a href="/help-support">How Findoly credits work</a>
+          <a href="/help-support">How Findoly Lead Credits work</a>
         </div>
       </div>
 
@@ -124,6 +139,19 @@
       error: '',
       errorRequestId: '',
       success: '',
+
+      leadCredits(value) {
+        return `${Number(value || 0).toLocaleString('en-IN')} Lead Credits`;
+      },
+
+      packPrice(paise) {
+        return new Intl.NumberFormat('en-IN', {
+          style: 'currency',
+          currency: 'INR',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).format(Number(paise || 0) / 100);
+      },
 
       async load() {
         this.loading = true;
@@ -167,7 +195,7 @@
             amount: order.amountPaise,
             currency: order.currency,
             name: 'Findoly',
-            description: `${Number(order.creditPackage.credits || 0).toLocaleString('en-IN')} credits · never expire`,
+            description: `${this.leadCredits(order.creditPackage.credits)} · never expire`,
             order_id: order.razorpayOrderId,
             retry: { enabled: true },
             remember_customer: false,
@@ -191,7 +219,7 @@
                 if (verification.status === 'pending') {
                   this.success = verification.message || 'Payment is authorised and will complete after capture.';
                 } else {
-                  this.success = `${credits(order.creditPackage.credits)} added successfully. Your credits do not expire.`;
+                  this.success = `${this.leadCredits(order.creditPackage.credits)} added successfully. They never expire.`;
                   this.$dispatch('credits-updated');
                 }
                 await this.load();

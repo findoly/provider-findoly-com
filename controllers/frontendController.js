@@ -18,7 +18,7 @@ const frontendController = {
   dashboard: render(
     "dashboard/index",
     "Dashboard",
-    "Category-matched leads and credit activity",
+    "Category-matched leads and Lead Credit activity",
   ),
   leads: render(
     "lead/index",
@@ -28,13 +28,13 @@ const frontendController = {
   lead: render("lead/show", "Lead details"),
   plans: render(
     "wallet/plans",
-    "Buy credits",
-    "Choose credits once and use them whenever you need",
+    "Get Lead Credits",
+    "Choose a Lead Pack and unlock more matching opportunities",
   ),
   wallet: render(
     "wallet/index",
-    "Wallet & activity",
-    "Your credit balance, activity and payment history",
+    "Lead usage",
+    "Your available Lead Credits, usage and purchase history",
   ),
   profile: render(
     "profile/index",
