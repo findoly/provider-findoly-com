@@ -53,6 +53,21 @@ async function createLegacyAllocation(provider, session) {
   return allocation.toObject();
 }
 
+async function makePurchasedCreditsNonExpiring(providerId, session) {
+  const now = new Date();
+  return CreditAllocation.updateMany(
+    {
+      providerId,
+      source: "plan_purchase",
+      status: "active",
+      remainingMinorCredits: { $gt: 0 },
+      expiresAt: { $ne: null },
+    },
+    { $set: { expiresAt: null, updatedAt: now } },
+    { session },
+  );
+}
+
 async function expireAllocations(provider, session, now = new Date()) {
   const providerId = String(provider.providerId || provider.id || "");
   const expiring = await sessionQuery(
@@ -165,6 +180,7 @@ async function syncWithinSession(providerId, session) {
   }
 
   await createLegacyAllocation(provider, session);
+  await makePurchasedCreditsNonExpiring(providerId, session);
   provider = await expireAllocations(provider, session);
   return provider;
 }
@@ -369,6 +385,7 @@ module.exports = {
   addCredits,
   consumeCredits,
   extendActivePlanAllocations,
+  makePurchasedCreditsNonExpiring,
   syncCredits,
   syncWithinSession,
 };
