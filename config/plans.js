@@ -8,23 +8,71 @@ const CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
     name: "Starter",
     tagline: "A simple way to start unlocking customer leads",
     recommended: false,
+    bestValue: false,
     finalPricePaise: 99900,
+    baseCredits: 1000,
+    bonusPercent: 0,
     credits: 1000,
   }),
   Object.freeze({
-    code: "growth",
+    code: "growth-plus",
     name: "Growth",
     tagline: "For providers unlocking leads regularly",
     recommended: true,
+    bestValue: false,
     finalPricePaise: 299900,
+    baseCredits: 3000,
+    bonusPercent: 10,
+    credits: 3300,
+  }),
+  Object.freeze({
+    code: "scale",
+    name: "Scale",
+    tagline: "For growing businesses that want more lead access",
+    recommended: false,
+    bestValue: false,
+    finalPricePaise: 499900,
+    baseCredits: 5000,
+    bonusPercent: 20,
+    credits: 6000,
+  }),
+  Object.freeze({
+    code: "pro",
+    name: "Pro",
+    tagline: "For high-volume providers maximising lead opportunities",
+    recommended: false,
+    bestValue: true,
+    finalPricePaise: 999900,
+    baseCredits: 10000,
+    bonusPercent: 30,
+    credits: 13000,
+  }),
+]);
+
+// These hidden definitions exist only so already-created credit_purchase
+// orders from the previous package set can still fulfill the exact credits
+// recorded when checkout began. They are never returned by listCreditPackages.
+const LEGACY_CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    code: "growth",
+    name: "Growth",
+    tagline: "Legacy credit purchase compatibility",
+    recommended: false,
+    bestValue: false,
+    finalPricePaise: 299900,
+    baseCredits: 3000,
+    bonusPercent: 0,
     credits: 3000,
   }),
   Object.freeze({
     code: "business",
     name: "Business",
-    tagline: "For teams and high-volume lead activity",
+    tagline: "Legacy credit purchase compatibility",
     recommended: false,
+    bestValue: false,
     finalPricePaise: 999900,
+    baseCredits: 10000,
+    bonusPercent: 0,
     credits: 10000,
   }),
 ]);
@@ -128,12 +176,15 @@ function presentCreditPackage(definition) {
   const totalAmountPaise = Number(definition.finalPricePaise || 0);
   const gstAmountPaise = calculateIncludedGst(totalAmountPaise);
   const credits = Number(definition.credits || 0);
+  const baseCredits = Number(definition.baseCredits || credits);
+  const bonusCredits = Math.max(0, credits - baseCredits);
   return {
     packageCode: definition.code,
     code: definition.code,
     name: definition.name,
     tagline: definition.tagline,
     recommended: definition.recommended === true,
+    bestValue: definition.bestValue === true,
     finalPricePaise: totalAmountPaise,
     listedPricePaise: totalAmountPaise,
     subtotalPaise: totalAmountPaise - gstAmountPaise,
@@ -141,6 +192,9 @@ function presentCreditPackage(definition) {
     totalAmountPaise,
     gstRatePercent: GST_RATE_PERCENT,
     gstIncluded: true,
+    baseCredits,
+    bonusPercent: Number(definition.bonusPercent || 0),
+    bonusCredits,
     credits,
     totalCredits: credits,
     minimumLeadCredits: MINIMUM_LEAD_CREDITS,
@@ -152,9 +206,12 @@ function presentCreditPackage(definition) {
 
 function getCreditPackage(packageCode) {
   const code = String(packageCode || "").trim().toLowerCase();
-  const definition = CREDIT_PACKAGE_DEFINITIONS.find((item) => item.code === code);
+  const definition = [
+    ...CREDIT_PACKAGE_DEFINITIONS,
+    ...LEGACY_CREDIT_PACKAGE_DEFINITIONS,
+  ].find((item) => item.code === code);
   if (!definition) {
-    throw Object.assign(new Error("Select a valid credit package"), {
+    throw Object.assign(new Error("Select a valid Lead Pack"), {
       status: 400,
       code: "CREDIT_PACKAGE_INVALID",
     });
