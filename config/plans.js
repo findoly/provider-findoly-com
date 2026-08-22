@@ -1,6 +1,37 @@
 const GST_RATE_PERCENT = 18;
 const GST_RATE_BASIS_POINTS = GST_RATE_PERCENT * 100;
+const MINIMUM_LEAD_CREDITS = 50;
 
+const CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    code: "starter",
+    name: "Starter",
+    tagline: "A simple way to start unlocking customer leads",
+    recommended: false,
+    finalPricePaise: 99900,
+    credits: 1000,
+  }),
+  Object.freeze({
+    code: "growth",
+    name: "Growth",
+    tagline: "For providers unlocking leads regularly",
+    recommended: true,
+    finalPricePaise: 299900,
+    credits: 3000,
+  }),
+  Object.freeze({
+    code: "business",
+    name: "Business",
+    tagline: "For teams and high-volume lead activity",
+    recommended: false,
+    finalPricePaise: 999900,
+    credits: 10000,
+  }),
+]);
+
+// Legacy subscription definitions remain available only so already-created
+// plan_purchase orders and historical records can still be fulfilled/read
+// safely after the portal moves to one-time credit purchases.
 const PLAN_DEFINITIONS = Object.freeze([
   Object.freeze({
     code: "starter",
@@ -93,6 +124,48 @@ function baseCreditsForPrice(listedPricePaise) {
   return rupees % 100 === 99 ? rupees + 1 : rupees;
 }
 
+function presentCreditPackage(definition) {
+  const totalAmountPaise = Number(definition.finalPricePaise || 0);
+  const gstAmountPaise = calculateIncludedGst(totalAmountPaise);
+  const credits = Number(definition.credits || 0);
+  return {
+    packageCode: definition.code,
+    code: definition.code,
+    name: definition.name,
+    tagline: definition.tagline,
+    recommended: definition.recommended === true,
+    finalPricePaise: totalAmountPaise,
+    listedPricePaise: totalAmountPaise,
+    subtotalPaise: totalAmountPaise - gstAmountPaise,
+    gstAmountPaise,
+    totalAmountPaise,
+    gstRatePercent: GST_RATE_PERCENT,
+    gstIncluded: true,
+    credits,
+    totalCredits: credits,
+    minimumLeadCredits: MINIMUM_LEAD_CREDITS,
+    estimatedLeads: Math.floor(credits / MINIMUM_LEAD_CREDITS),
+    expiresAt: null,
+    expiryLabel: "Never expires",
+  };
+}
+
+function getCreditPackage(packageCode) {
+  const code = String(packageCode || "").trim().toLowerCase();
+  const definition = CREDIT_PACKAGE_DEFINITIONS.find((item) => item.code === code);
+  if (!definition) {
+    throw Object.assign(new Error("Select a valid credit package"), {
+      status: 400,
+      code: "CREDIT_PACKAGE_INVALID",
+    });
+  }
+  return presentCreditPackage(definition);
+}
+
+function listCreditPackages() {
+  return CREDIT_PACKAGE_DEFINITIONS.map(presentCreditPackage);
+}
+
 function presentPlanCycle(plan, cycleName, cycle) {
   const baseCredits = baseCreditsForPrice(cycle.listedPricePaise);
   const bonusCredits = Math.round((baseCredits * cycle.bonusPercent) / 100);
@@ -174,11 +247,15 @@ function directPaymentQuote(baseAmountPaise) {
 
 module.exports = {
   GST_RATE_PERCENT,
+  MINIMUM_LEAD_CREDITS,
+  CREDIT_PACKAGE_DEFINITIONS,
   PLAN_DEFINITIONS,
   baseCreditsForPrice,
   calculateAddedGst,
   calculateIncludedGst,
   directPaymentQuote,
+  getCreditPackage,
   getPlan,
+  listCreditPackages,
   listPlans,
 };
