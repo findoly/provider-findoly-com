@@ -49,7 +49,7 @@
       <a class="portal-header-action workspace-icon-button d-none d-sm-inline-flex" href="/leads?status=unlocked&amp;outcome=pending" aria-label="Pending outcomes" title="Pending outcomes">
         <svg class="icon"><use href="#i-bell"></use></svg>
       </a>
-      <a class="portal-header-credit workspace-credit-chip" href="/plans" aria-label="Open credits and plans">
+      <a class="portal-header-credit workspace-credit-chip" href="/wallet" aria-label="Open wallet and credit activity">
         <svg class="icon"><use href="#i-wallet"></use></svg>
         <span class="d-none d-sm-inline">Available</span>
         <strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong>
@@ -71,7 +71,7 @@
           </div>
           <div class="portal-profile-menu-links">
             <a class="dropdown-item" href="/profile"><svg class="icon"><use href="#i-user"></use></svg><span>Business profile</span></a>
-            <a class="dropdown-item" href="/plans"><svg class="icon"><use href="#i-plan"></use></svg><span>Plans &amp; credits</span></a>
+            <a class="dropdown-item" href="/plans"><svg class="icon"><use href="#i-credit"></use></svg><span>Buy credits</span></a>
           </div>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item text-danger" type="button" @click="logout()"><svg class="icon"><use href="#i-logout"></use></svg><span>Sign out</span></button>
