@@ -9,7 +9,12 @@ const { cursorPaginate, getPagination } = require("../../utils/pagination");
 const { providerIdentity, providerQuery, presentProvider } = require("../../utils/provider");
 const { withTransaction } = require("../../utils/transaction");
 const { creditsFromPaise, paiseFromCredits } = require("../../utils/credits");
-const { getPlan, listPlans } = require("../../config/plans");
+const {
+  getCreditPackage,
+  getPlan,
+  listCreditPackages,
+  listPlans,
+} = require("../../config/plans");
 const creditService = require("../billing/credit-service");
 const leadPaymentService = require("./lead-payment-service");
 
@@ -68,6 +73,9 @@ function presentTransaction(transaction = {}) {
 }
 
 function paymentDescription(order = {}) {
+  if (order.purpose === "credit_purchase") {
+    return `${Number(order.totalCredits || order.creditAmount || 0).toLocaleString("en-IN")} credits`;
+  }
   if (order.purpose === "plan_purchase") {
     return `${order.planName || "Plan"} ${order.billingCycle || ""}`.trim();
   }
@@ -90,6 +98,8 @@ function presentPaymentOrder(order = {}) {
     totalAmountPaise,
     gstRatePercent: Number(order.gstRatePercent || 18),
     gstIncluded: order.gstIncluded === true,
+    packageCode: order.purpose === "credit_purchase" ? order.planCode || "" : "",
+    packageName: order.purpose === "credit_purchase" ? order.planName || "" : "",
     planCode: order.planCode || "",
     planName: order.planName || "",
     billingCycle: order.billingCycle || "",
@@ -184,6 +194,22 @@ async function expireSubscriptionRecords(providerId) {
   );
 }
 
+function razorpayState() {
+  return {
+    enabled: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+  };
+}
+
+async function packages(provider) {
+  const providerId = providerIdentity(provider);
+  const syncedProvider = await creditService.syncCredits(providerId);
+  return {
+    provider: presentProvider(syncedProvider),
+    creditPackages: listCreditPackages(),
+    razorpay: razorpayState(),
+  };
+}
+
 async function get(provider, filters = {}) {
   const providerId = providerIdentity(provider);
   const { cursor, limit } = getPagination(filters);
@@ -218,13 +244,14 @@ async function get(provider, filters = {}) {
 
   return {
     provider: presentProvider(syncedProvider),
+    creditPackages: listCreditPackages(),
+    // Retained for compatibility with any older provider client still reading
+    // the historical plan payload during rollout.
     plans: listPlans(),
     currentSubscription: currentSubscription ? presentSubscription(currentSubscription) : null,
     upcomingSubscription: upcomingSubscription ? presentSubscription(upcomingSubscription) : null,
     subscriptions: subscriptions.map(presentSubscription),
-    razorpay: {
-      enabled: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
-    },
+    razorpay: razorpayState(),
     paymentOrders: recentOrders.map(presentPaymentOrder),
     data: transactionPage.data.map(presentTransaction),
     pagination: transactionPage.pagination,
@@ -261,6 +288,83 @@ function checkoutProvider(provider) {
     email: provider.email || "",
     mobile: provider.mobile || "",
   };
+}
+
+async function createCreditOrder(provider, input = {}) {
+  const providerId = providerIdentity(provider);
+  const creditPackage = getCreditPackage(input.packageCode);
+  const paymentOrderId = uuid();
+  const receipt = `credit_${paymentOrderId}`;
+  const order = await createRazorpayOrder({
+    provider,
+    paymentOrderId,
+    receipt,
+    amountPaise: creditPackage.totalAmountPaise,
+    notes: {
+      purpose: "credit_purchase",
+      packageCode: creditPackage.code,
+    },
+  });
+
+  await PaymentOrder.create({
+    paymentOrderId,
+    providerId,
+    purpose: "credit_purchase",
+    razorpayOrderId: order.id,
+    amountPaise: creditPackage.totalAmountPaise,
+    listedPricePaise: creditPackage.listedPricePaise,
+    subtotalPaise: creditPackage.subtotalPaise,
+    gstAmountPaise: creditPackage.gstAmountPaise,
+    totalAmountPaise: creditPackage.totalAmountPaise,
+    gstRatePercent: creditPackage.gstRatePercent,
+    gstIncluded: true,
+    // Existing schema fields are reused internally for compatibility. The
+    // provider-facing product is a credit package, not a subscription plan.
+    planCode: creditPackage.code,
+    planName: creditPackage.name,
+    billingCycle: "",
+    baseCredits: creditPackage.credits,
+    bonusCredits: 0,
+    totalCredits: creditPackage.credits,
+    creditAmount: creditPackage.credits,
+    currency: "INR",
+    status: "created",
+    fulfillmentStatus: "pending",
+    receipt,
+  });
+
+  return {
+    keyId: process.env.RAZORPAY_KEY_ID,
+    paymentOrderId,
+    razorpayOrderId: order.id,
+    amountPaise: creditPackage.totalAmountPaise,
+    currency: "INR",
+    creditPackage,
+    provider: checkoutProvider(provider),
+  };
+}
+
+async function cancelCreditOrder(provider, input = {}) {
+  const providerId = providerIdentity(provider);
+  const paymentOrderId = String(input.paymentOrderId || "").trim();
+  if (!paymentOrderId) return { cancelled: false };
+  const result = await PaymentOrder.updateOne(
+    {
+      paymentOrderId,
+      providerId,
+      purpose: "credit_purchase",
+      fulfilled: { $ne: true },
+      status: { $in: ["created", "failed"] },
+    },
+    {
+      $set: {
+        status: "cancelled",
+        fulfillmentStatus: "cancelled",
+        updatedAt: new Date(),
+      },
+    },
+  );
+  return { cancelled: result.modifiedCount > 0 };
 }
 
 async function createPlanOrder(provider, input = {}) {
@@ -369,6 +473,114 @@ async function markVerified(paymentOrder, payment) {
   );
 }
 
+async function fulfillCreditOrder(paymentOrder, paymentId) {
+  return withTransaction(async (session) => {
+    const order = await PaymentOrder.findOne({
+      paymentOrderId: paymentOrder.paymentOrderId,
+    }).session(session);
+    if (!order) {
+      throw Object.assign(new Error("Credit payment order not found"), {
+        status: 404,
+        code: "PAYMENT_ORDER_NOT_FOUND",
+      });
+    }
+    if (order.fulfilled) {
+      const provider = await Provider.findOne(providerQuery(order.providerId))
+        .session(session)
+        .lean();
+      return {
+        status: "completed",
+        purpose: "credit_purchase",
+        provider: presentProvider(provider),
+        paymentOrder: presentPaymentOrder(order.toObject()),
+        duplicate: true,
+      };
+    }
+
+    const creditPackage = getCreditPackage(order.planCode);
+    const now = new Date();
+    const creditResult = await creditService.addCredits(
+      order.providerId,
+      {
+        source: "credit_purchase",
+        referenceId: order.paymentOrderId,
+        paymentOrderId: order.paymentOrderId,
+        planCode: creditPackage.code,
+        billingCycle: "",
+        amountMinorCredits: paiseFromCredits(creditPackage.credits),
+        expiresAt: null,
+        metadata: {
+          packageCode: creditPackage.code,
+          packageName: creditPackage.name,
+          minimumLeadCredits: creditPackage.minimumLeadCredits,
+          estimatedLeads: creditPackage.estimatedLeads,
+          nonExpiring: true,
+        },
+      },
+      session,
+    );
+
+    const walletTransactionId = uuid();
+    await WalletTransaction.create([
+      {
+        walletTransactionId,
+        providerId: order.providerId,
+        type: "credit",
+        amountPaise: paiseFromCredits(creditPackage.credits),
+        currency: "INR",
+        balanceBeforePaise: creditResult.balanceBeforePaise,
+        balanceAfterPaise: creditResult.balanceAfterPaise,
+        status: "posted",
+        source: "credit_purchase",
+        referenceId: order.paymentOrderId,
+        idempotencyKey: `credit-purchase:${order.paymentOrderId}`,
+        description: `${creditPackage.credits} credits purchased`,
+        expiresAt: null,
+        metadata: {
+          packageCode: creditPackage.code,
+          packageName: creditPackage.name,
+          nonExpiring: true,
+        },
+      },
+    ], { session });
+
+    await PaymentOrder.updateOne(
+      { paymentOrderId: order.paymentOrderId, fulfilled: false },
+      {
+        $set: {
+          status: "paid",
+          razorpayPaymentId: paymentId,
+          signatureVerified: true,
+          fulfilled: true,
+          fulfillmentStatus: "completed",
+          fulfillmentReferenceId: creditResult.allocation.creditAllocationId,
+          walletCredited: true,
+          walletTransactionId,
+          paidAt: order.paidAt || now,
+          fulfilledAt: now,
+          creditedAt: now,
+          updatedAt: now,
+        },
+      },
+      { session },
+    );
+
+    return {
+      status: "completed",
+      purpose: "credit_purchase",
+      provider: presentProvider(creditResult.provider),
+      creditPackage,
+      paymentOrder: presentPaymentOrder({
+        ...order.toObject(),
+        status: "paid",
+        fulfilled: true,
+        fulfillmentStatus: "completed",
+        fulfilledAt: now,
+      }),
+    };
+  });
+}
+
 async function fulfillPlanOrder(paymentOrder, paymentId) {
   return withTransaction(async (session) => {
     const order = await PaymentOrder.findOne({
@@ -441,11 +653,14 @@ async function fulfillPlanOrder(paymentOrder, paymentId) {
         planCode: plan.code,
         billingCycle: plan.billingCycle,
         amountMinorCredits: paiseFromCredits(plan.totalCredits),
-        expiresAt,
+        // Legacy plan orders are still fulfilled for compatibility, but the
+        // purchased credits are now non-expiring under the new credit model.
+        expiresAt: null,
         metadata: {
           baseCredits: plan.baseCredits,
           bonusCredits: plan.bonusCredits,
           bonusPercent: plan.bonusPercent,
+          nonExpiring: true,
         },
       },
       session,
@@ -466,13 +681,14 @@ async function fulfillPlanOrder(paymentOrder, paymentId) {
         referenceId: order.paymentOrderId,
         idempotencyKey: `plan-credit:${order.paymentOrderId}`,
         description: `${plan.name} ${plan.billingCycle} plan · ${plan.totalCredits} credits`,
-        expiresAt,
+        expiresAt: null,
         metadata: {
           providerSubscriptionId,
           planCode: plan.code,
           billingCycle: plan.billingCycle,
           baseCredits: plan.baseCredits,
           bonusCredits: plan.bonusCredits,
+          nonExpiring: true,
         },
       },
     ], { session });
@@ -529,6 +745,9 @@ async function fulfillPaymentOrder(paymentOrder, paymentId) {
       paymentOrder: presentPaymentOrder(paymentOrder),
       duplicate: true,
     };
+  }
+  if (paymentOrder.purpose === "credit_purchase") {
+    return fulfillCreditOrder(paymentOrder, paymentId);
   }
   if (paymentOrder.purpose === "plan_purchase") {
     return fulfillPlanOrder(paymentOrder, paymentId);
@@ -704,11 +923,14 @@ async function webhook(rawBody, signature) {
 }
 
 module.exports = {
+  cancelCreditOrder,
   cancelLeadOrder: leadPaymentService.cancelLeadOrder,
   cancelPlanOrder,
+  createCreditOrder,
   createLeadOrder: leadPaymentService.createLeadOrder,
   createPlanOrder,
   get,
+  packages,
   presentPaymentOrder,
   syncProviderPlanState,
   verify,
