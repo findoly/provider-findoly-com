@@ -50,7 +50,7 @@
         <svg class="icon"><use href="#i-bell"></use></svg>
       </a>
       <a class="portal-header-credit workspace-credit-chip" href="/wallet" aria-label="Open Lead Credit activity">
-        <svg class="icon"><use href="#i-credit"></use></svg>
+        <svg class="icon"><use href="#i-unlock"></use></svg>
         <span class="d-none d-sm-inline">Lead Credits</span>
         <strong x-text="credits(provider.availableCredits ?? provider.walletCredits)">0 Credits</strong>
       </a>
@@ -71,7 +71,7 @@
           </div>
           <div class="portal-profile-menu-links">
             <a class="dropdown-item" href="/profile"><svg class="icon"><use href="#i-user"></use></svg><span>Business profile</span></a>
-            <a class="dropdown-item" href="/plans"><svg class="icon"><use href="#i-credit"></use></svg><span>Get Lead Credits</span></a>
+            <a class="dropdown-item" href="/plans"><svg class="icon"><use href="#i-unlock"></use></svg><span>Get Lead Credits</span></a>
           </div>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item text-danger" type="button" @click="logout()"><svg class="icon"><use href="#i-logout"></use></svg><span>Sign out</span></button>
@@ -85,7 +85,7 @@
   <a href="/dashboard" :class="{ active: pathIs('/dashboard') }"><svg class="icon"><use href="#i-home"></use></svg><span>Home</span></a>
   <a href="/leads?status=offered" :class="{ active: pathIs('/leads') && queryStatus !== 'unlocked' }"><svg class="icon"><use href="#i-search"></use></svg><span>Find</span></a>
   <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryStatus === 'unlocked' }"><svg class="icon"><use href="#i-briefcase"></use></svg><span>My leads</span></a>
-  <a href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }"><svg class="icon"><use href="#i-credit"></use></svg><span>Credits</span></a>
+  <a href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }"><svg class="icon"><use href="#i-unlock"></use></svg><span>Credits</span></a>
   <a href="/profile" :class="{ active: pathIs('/profile') }"><svg class="icon"><use href="#i-user"></use></svg><span>Profile</span></a>
 </nav>
 
