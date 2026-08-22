@@ -96,8 +96,9 @@ test("existing purchased credit allocations are converted to non-expiring balanc
   assert.match(migration, /expiresAt: null/);
 });
 
-test("credit routes are separate while legacy plan routes remain available for in-flight orders", () => {
+test("credit routes are separate and new legacy subscription orders are blocked", () => {
   const routes = source("routes/wallet.js");
+  const controller = source("controllers/walletController.js");
   const frontend = source("controllers/frontendController.js");
   const sidebar = source("views/partials/sidebar.ejs");
 
@@ -105,6 +106,9 @@ test("credit routes are separate while legacy plan routes remain available for i
   assert.match(routes, /"\/credits\/cancel"/);
   assert.match(routes, /"\/credits\/verify"/);
   assert.match(routes, /"\/plan\/order"/);
+  assert.match(controller, /PLAN_PURCHASE_DISABLED/);
+  assert.match(controller, /Subscription purchases are no longer available/);
+  assert.doesNotMatch(controller, /data: await walletService\.createPlanOrder/);
   assert.match(frontend, /"wallet\/plans"/);
   assert.match(frontend, /"wallet\/index"/);
   assert.match(sidebar, />Buy credits</);
