@@ -173,6 +173,10 @@ payment.captured
 order.paid
 ```
 
+### Razorpay webhook secret rotation
+
+`RAZORPAY_WEBHOOK_SECRET` must exactly match the secret configured for this webhook in the Razorpay Dashboard. Keep the actual secret only in Razorpay and the production secret store (AWS Secrets Manager); never commit the value to GitHub. After rotating the webhook secret, update both systems, restart or redeploy the Provider service so it loads the new value, and verify delivery with a newly generated webhook event. Older Razorpay retries may still be signed with the previous webhook secret.
+
 ## Production configuration
 
 ```bash
