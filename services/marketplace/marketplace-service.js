@@ -20,6 +20,7 @@ const { normalizeSearchText, prefixRegex } = require("../../utils/normalization"
 const { assertDateRange, parseIsoDateFilter } = require("../../utils/date-filter");
 
 const MARKETPLACE_COUNT_MAX_TIME_MS = Math.min(60000, Math.max(1000, Number(process.env.PROVIDER_QUERY_MAX_TIME_MS || 10000)));
+const PINCODE_PATTERN = /^[1-9]\d{5}$/;
 
 const MARKETPLACE_SELECT = Object.freeze({
   _id: 1,
@@ -43,6 +44,8 @@ const MARKETPLACE_SELECT = Object.freeze({
   additionalDetails: 1,
   locationLatitude: 1,
   locationLongitude: 1,
+  locationPincode: 1,
+  locationSource: 1,
   marketplaceStatus: 1,
   marketplaceAvailable: 1,
   marketplacePublishedAt: 1,
@@ -64,14 +67,35 @@ function publicId(value, label = "Lead reference") {
   return id;
 }
 
+function validCoordinate(value, min, max) {
+  if (value === null || value === undefined || String(value).trim() === "") return false;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= min && number <= max;
+}
+
 function providerHasCoordinates(provider = {}) {
-  return [provider.serviceLatitude, provider.serviceLongitude]
-    .every((value) => value !== null && value !== undefined && Number.isFinite(Number(value)));
+  if (String(provider.serviceLocationSource || "").trim().toLowerCase() === "manual_pincode") {
+    return false;
+  }
+  return validCoordinate(provider.serviceLatitude, -90, 90)
+    && validCoordinate(provider.serviceLongitude, -180, 180);
 }
 
 function leadHasCoordinates(lead = {}) {
-  return [lead.locationLatitude, lead.locationLongitude]
-    .every((value) => value !== null && value !== undefined && Number.isFinite(Number(value)));
+  if (String(lead.locationSource || "").trim().toLowerCase() === "manual_pincode") {
+    return false;
+  }
+  const pincode = String(lead.pincode || "").trim();
+  const locationPincode = String(lead.locationPincode || "").trim();
+  if (
+    PINCODE_PATTERN.test(pincode)
+    && PINCODE_PATTERN.test(locationPincode)
+    && pincode !== locationPincode
+  ) {
+    return false;
+  }
+  return validCoordinate(lead.locationLatitude, -90, 90)
+    && validCoordinate(lead.locationLongitude, -180, 180);
 }
 
 function visibilityFor(provider = {}, lead = {}) {
