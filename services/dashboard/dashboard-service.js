@@ -26,11 +26,21 @@ async function activitySnapshot(provider) {
   const providerId = providerIdentity(provider);
   const categorySlugs = providerCategories(provider);
 
-  const [available, unlocked, followUp, confirmed, marketplacePage, unlockedPage, pendingOutcomeResult] = await Promise.all([
+  const [
+    available,
+    unlocked,
+    followUp,
+    confirmed,
+    pendingOutcomeCount,
+    marketplacePage,
+    unlockedPage,
+    pendingOutcomeResult,
+  ] = await Promise.all([
     categorySlugs.length ? marketplaceService.countMarketplace(provider, { cap: COUNT_CAP }) : { value: 0, capped: false },
     boundedCount(ProviderLeadUnlock, { providerId }),
     boundedCount(ProviderLeadUnlock, { providerId, providerLeadStatus: "follow_up" }),
     boundedCount(ProviderLeadUnlock, { providerId, providerSaleOutcome: "confirmed" }),
+    boundedCount(ProviderLeadUnlock, { providerId, providerSaleOutcome: "" }),
     categorySlugs.length ? marketplaceService.listMarketplace(provider, { limit: 4, sort: "newest" }) : { data: [] },
     leadService.listUnlocked(provider, { limit: 4, sort: "newest" }),
     leadService.pendingOutcomes(provider, { limit: 10, sort: "oldest" }),
@@ -58,7 +68,8 @@ async function activitySnapshot(provider) {
     confirmedCapped: confirmed.capped,
     recent,
     pendingOutcomes: pendingOutcomeResult.data || [],
-    pendingOutcomeCount: Number(pendingOutcomeResult.pagination?.returned || 0),
+    pendingOutcomeCount: pendingOutcomeCount.value,
+    pendingOutcomeCountCapped: pendingOutcomeCount.capped,
     pendingOutcomeHasMore: Boolean(pendingOutcomeResult.pagination?.hasNext),
   };
 }
