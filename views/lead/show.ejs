@@ -96,7 +96,7 @@
       <div class="portal-marketplace-trust workspace-signal-strip mb-4">
         <div><span>Priority</span><strong :class="'is-' + (lead.priority || 'normal')" x-text="humanize(lead.priority || 'normal') + ' priority'"></strong></div>
         <div><span>Approx. distance</span><strong x-text="distanceLabel(lead.providerDistanceKm)"></strong></div>
-        <div><span>Unlock availability</span><strong>🔓 <span x-text="lead.unlockedCount || 0"></span> of <span x-text="lead.maxProviderUnlocks || 3"></span> used</strong><small><span x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 3) - (lead.unlockedCount || 0))"></span> remaining</small></div>
+        <div><span>Unlock availability</span><strong>🔓 <span x-text="lead.unlockedCount || 0"></span> of <span x-text="lead.maxProviderUnlocks || 5"></span> used</strong><small><span x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></span> remaining</small></div>
         <div><span>Current result</span><strong :class="lead.currentlyConfirmed ? 'is-confirmed' : ''" x-text="lead.currentlyConfirmed ? 'Confirmed by ' + lead.providerConfirmedCount : 'Not confirmed yet'"></strong></div>
       </div>
 
