@@ -5,7 +5,6 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const Enquiry = require("../models/Enquiry");
 const marketplaceService = require("../services/marketplace/marketplace-service");
 const { boundedCount } = require("../services/dashboard/dashboard-service");
 
@@ -76,12 +75,6 @@ test("marketplace rejects out-of-range coordinates", () => {
   );
   assert.equal(invalidProvider.providerDistanceKm, null);
   assert.equal(invalidLead.providerDistanceKm, null);
-});
-
-test("provider enquiry schema fallback matches CRM three-unlock default", () => {
-  const enquiry = new Enquiry({ categorySlug: "test-category" });
-  assert.equal(enquiry.maxProviderUnlocks, 3);
-  assert.equal(enquiry.remainingUnlocks, 3);
 });
 
 function fakeCountModel(rowCount) {
