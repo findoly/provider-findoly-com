@@ -54,17 +54,20 @@
 
   <div class="portal-pending-banner workspace-alert-card is-warning" x-show="data.pendingOutcomeCount > 0" x-cloak>
     <span class="workspace-alert-icon"><svg class="icon"><use href="#i-clock"></use></svg></span>
-    <div><strong><span x-text="data.pendingOutcomeCount"></span> lead outcome<span x-show="data.pendingOutcomeCount !== 1">s</span> need an update</strong><span>Accurate Confirmed or Not Confirmed updates help keep the marketplace trusted.</span></div>
+    <div><strong><span x-text="pendingCountLabel()"></span> lead outcome<span x-show="data.pendingOutcomeCount !== 1">s</span> need an update</strong><span>Accurate Confirmed or Not Confirmed updates help keep the marketplace trusted.</span></div>
     <button class="btn btn-warning btn-sm" type="button" @click="reminderOpen = true">Review now</button>
   </div>
 
   <div class="portal-reminder-backdrop" x-show="reminderOpen" x-cloak @keydown.escape.window="reminderOpen = false">
     <section class="portal-reminder-dialog" role="dialog" aria-modal="true" aria-labelledby="pending-outcome-title" @click.outside="dismissReminder()">
       <div class="portal-reminder-header">
-        <div><div class="portal-reminder-kicker">Outcome update required</div><h3 id="pending-outcome-title">Update overdue leads</h3></div>
+        <div><div class="portal-reminder-kicker">Outcome update required</div><h3 id="pending-outcome-title">Update pending lead outcomes</h3></div>
         <button type="button" aria-label="Remind me later" @click="dismissReminder()">×</button>
       </div>
       <div class="portal-policy-warning">Submit accurate Confirmed or Not Confirmed outcomes. Misleading information may result in account action after Findoly team review.</div>
+      <div class="portal-reminder-summary" x-show="data.pendingOutcomeCount > 0">
+        Showing the oldest <strong x-text="(data.pendingOutcomes || []).length"></strong> of <strong x-text="pendingCountLabel()"></strong> pending leads.
+      </div>
       <div class="portal-reminder-list">
         <template x-for="lead in data.pendingOutcomes || []" :key="lead.recordId">
           <article class="portal-reminder-item">
@@ -73,14 +76,14 @@
           </article>
         </template>
       </div>
-      <div class="portal-reminder-footer"><button class="btn btn-light" type="button" @click="dismissReminder()">Remind me later</button><a class="btn btn-primary" href="/leads?status=unlocked">View my leads</a></div>
+      <div class="portal-reminder-footer"><button class="btn btn-light" type="button" @click="dismissReminder()">Remind me later</button><a class="btn btn-primary" href="/leads?status=unlocked&amp;outcome=pending">Review all pending leads</a></div>
     </section>
   </div>
 
   <section class="provider-dashboard-summary workspace-metric-grid provider-dashboard-metrics" aria-label="Business summary">
     <a href="/leads?status=offered" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-lead"></use></svg></span><span class="workspace-metric-label">Available leads</span><strong x-text="`${data.offered || 0}${data.offeredCapped ? '+' : ''}`">0</strong><small>Ready to review</small></a>
     <a href="/leads?status=unlocked" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-briefcase"></use></svg></span><span class="workspace-metric-label">My leads</span><strong x-text="data.unlocked || 0">0</strong><small>Customer contacts</small></a>
-    <button type="button" class="provider-dashboard-stat workspace-metric-card text-start" @click="data.pendingOutcomeCount > 0 ? reminderOpen = true : null"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-clock"></use></svg></span><span class="workspace-metric-label">Action required</span><strong x-text="data.pendingOutcomeCount || 0">0</strong><small>Pending outcomes</small></button>
+    <button type="button" class="provider-dashboard-stat workspace-metric-card text-start" @click="data.pendingOutcomeCount > 0 ? reminderOpen = true : null"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-clock"></use></svg></span><span class="workspace-metric-label">Action required</span><strong x-text="pendingCountLabel()">0</strong><small>Pending outcomes</small></button>
     <a href="/leads?status=unlocked&amp;activityStatus=follow_up" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-trend"></use></svg></span><span class="workspace-metric-label">Follow up</span><strong x-text="data.followUp || 0">0</strong><small>Continue conversations</small></a>
     <a href="/leads?status=unlocked&amp;outcome=confirmed" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-check"></use></svg></span><span class="workspace-metric-label">Confirmed</span><strong x-text="data.confirmed || 0">0</strong><small>Converted leads</small></a>
   </section>
@@ -95,7 +98,7 @@
         <a href="/leads?status=unlocked&amp;outcome=pending" :class="Number(data.pendingOutcomeCount || 0) ? 'is-urgent' : ''">
           <span class="provider-priority-icon"><svg class="icon"><use href="#i-clock"></use></svg></span>
           <span><strong>Complete pending outcomes</strong><small>Mark unlocked leads Confirmed or Not Confirmed.</small></span>
-          <b x-text="data.pendingOutcomeCount || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
+          <b x-text="pendingCountLabel()">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
         </a>
         <a href="/leads?status=unlocked&amp;activityStatus=follow_up">
           <span class="provider-priority-icon"><svg class="icon"><use href="#i-trend"></use></svg></span>
@@ -136,10 +139,55 @@
   </div>
 </div>
 
+<style nonce="<%= cspNonce %>">
+  .portal-reminder-summary {
+    margin: .65rem 1.2rem 0;
+    color: var(--workspace-muted, var(--portal-muted));
+    font-size: .75rem;
+    line-height: 1.4;
+  }
+  @media (max-width: 767.98px) {
+    .portal-reminder-backdrop {
+      align-items: flex-end;
+      padding: .5rem;
+    }
+    .portal-reminder-dialog {
+      display: grid;
+      grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+      width: 100%;
+      max-height: min(86dvh, 46rem);
+      overflow: hidden;
+      border-radius: 1rem 1rem .6rem .6rem;
+    }
+    .portal-reminder-dialog > .portal-policy-warning {
+      margin: .7rem .85rem 0;
+    }
+    .portal-reminder-summary {
+      margin: .5rem .85rem 0;
+    }
+    .portal-reminder-list {
+      min-height: 0;
+      padding: .4rem .85rem;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .portal-reminder-item {
+      padding: .62rem 0;
+    }
+    .portal-reminder-footer {
+      padding: .7rem .85rem max(.8rem, env(safe-area-inset-bottom));
+      background: var(--portal-surface, #fff);
+    }
+  }
+</style>
+
 <script nonce="<%= cspNonce %>">
   function dashboardPage() {
     return {
       data: {}, loading: true, error: '', reminderOpen: false,
+      pendingCountLabel() {
+        return `${Number(this.data.pendingOutcomeCount || 0)}${this.data.pendingOutcomeCountCapped ? '+' : ''}`;
+      },
       statusClass(lead) {
         if (lead.providerSaleOutcome === 'confirmed') return 'is-success';
         if (lead.providerSaleOutcome === 'not_confirmed') return 'is-neutral';
