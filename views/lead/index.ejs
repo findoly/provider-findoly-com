@@ -226,8 +226,8 @@
             <template x-if="!lead.contactUnlocked">
               <div class="provider-lead-insight is-interest provider-unlock-availability">
                 <span><svg class="icon"><use href="#i-unlock"></use></svg>Unlock availability</span>
-                <strong>🔓 <b x-text="lead.unlockedCount || 0"></b> of <b x-text="lead.maxProviderUnlocks || 5"></b> unlocks used</strong>
-                <small><b x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></b> unlocks remaining</small>
+                <strong>🔓 <b x-text="lead.unlockedCount || 0"></b> of <b x-text="lead.maxProviderUnlocks || 3"></b> unlocks used</strong>
+                <small><b x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 3) - (lead.unlockedCount || 0))"></b> unlocks remaining</small>
               </div>
             </template>
             <template x-if="!lead.contactUnlocked">
@@ -304,6 +304,75 @@
   <div class="portal-card portal-pagination provider-minimal-pagination workspace-pagination" x-show="cursorHistory.length || pagination.hasNext" x-cloak><span><span x-text="pagination.returned || 0"></span> shown</span><div><button class="btn btn-light btn-sm" :disabled="!cursorHistory.length || loading" @click="goPrevious()">Previous</button><button class="btn btn-light btn-sm" :disabled="!pagination.hasNext || loading" @click="goNext()">Next</button></div></div>
 </div>
 
+<style nonce="<%= cspNonce %>">
+  @media (max-width: 767.98px) {
+    .provider-decision-card.is-marketplace .provider-decision-main {
+      padding: .72rem .78rem .6rem !important;
+    }
+    .provider-decision-card.is-marketplace .provider-conversion-title {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: .32rem 0 .12rem !important;
+      font-size: 1rem !important;
+      line-height: 1.3 !important;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .provider-decision-card.is-marketplace .provider-conversion-summary {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: .08rem 0 .35rem !important;
+      font-size: .75rem !important;
+      line-height: 1.4 !important;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 1;
+    }
+    .provider-decision-card.is-marketplace .provider-service-type-tags,
+    .provider-decision-card.is-marketplace .provider-lead-insight.is-preferred,
+    .provider-decision-card.is-marketplace .provider-action-kicker,
+    .provider-decision-card.is-marketplace .provider-action-benefits,
+    .provider-decision-card.is-marketplace .provider-action-balance {
+      display: none !important;
+    }
+    .provider-decision-card.is-marketplace .provider-decision-location {
+      padding: .24rem 0 !important;
+      font-size: .7rem;
+    }
+    .provider-decision-card.is-marketplace .provider-lead-insight-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: .4rem !important;
+      margin-top: .38rem !important;
+    }
+    .provider-decision-card.is-marketplace .provider-lead-insight {
+      min-height: 0 !important;
+      padding: .42rem .48rem !important;
+    }
+    .provider-decision-card.is-marketplace .provider-lead-insight.is-confirmed,
+    .provider-decision-card.is-marketplace .provider-lead-insight.is-open-result {
+      grid-column: 1 / -1;
+    }
+    .provider-decision-card.is-marketplace .provider-decision-action-inner {
+      gap: .42rem !important;
+      padding: .58rem .75rem .7rem !important;
+    }
+    .provider-decision-card.is-marketplace .provider-action-cost {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: .75rem;
+    }
+    .provider-decision-card.is-marketplace .provider-action-cost strong {
+      font-size: 1rem !important;
+    }
+    .provider-decision-card.is-marketplace .provider-action-cost small {
+      font-size: .62rem !important;
+    }
+    .provider-decision-card.is-marketplace .provider-unlock-cta {
+      min-height: 2.75rem !important;
+    }
+  }
+</style>
+
 <script nonce="<%= cspNonce %>">
   function leadList() {
     const query = new URLSearchParams(location.search);
@@ -370,9 +439,9 @@
         const raw = lead.providerDistanceKm;
         if (raw === null || raw === undefined || String(raw).trim() === '') return 'Distance unavailable';
         const value = Number(raw);
-        if (!Number.isFinite(value)) return 'Distance unavailable';
-        const displayKm = Math.max(1, value);
-        return `${displayKm.toFixed(displayKm < 10 && displayKm !== 1 ? 1 : 0)} km away`;
+        if (!Number.isFinite(value) || value < 0) return 'Distance unavailable';
+        if (value < 1) return '<1 km away';
+        return `${value.toFixed(value < 10 ? 1 : 0)} km away`;
       },
       preferredLabel(lead) {
         const date = lead.preferredDate ? formatDateOnly(lead.preferredDate) : '';
