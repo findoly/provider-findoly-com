@@ -226,8 +226,8 @@
             <template x-if="!lead.contactUnlocked">
               <div class="provider-lead-insight is-interest provider-unlock-availability">
                 <span><svg class="icon"><use href="#i-unlock"></use></svg>Unlock availability</span>
-                <strong>🔓 <b x-text="lead.unlockedCount || 0"></b> of <b x-text="lead.maxProviderUnlocks || 3"></b> unlocks used</strong>
-                <small><b x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 3) - (lead.unlockedCount || 0))"></b> unlocks remaining</small>
+                <strong>🔓 <b x-text="lead.unlockedCount || 0"></b> of <b x-text="lead.maxProviderUnlocks || 5"></b> unlocks used</strong>
+                <small><b x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></b> unlocks remaining</small>
               </div>
             </template>
             <template x-if="!lead.contactUnlocked">
