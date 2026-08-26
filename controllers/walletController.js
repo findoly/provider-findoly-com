@@ -1,4 +1,7 @@
 const walletService = require("../services/wallet/wallet-service");
+const {
+  logRazorpayWebhookDiagnostic,
+} = require("../services/wallet/razorpay-webhook-diagnostics");
 
 async function get(req, res, next) {
   try {
@@ -93,6 +96,10 @@ async function verify(req, res, next) {
 
 async function webhook(req, res, next) {
   try {
+    logRazorpayWebhookDiagnostic({
+      requestId: req.requestId,
+      signature: req.headers["x-razorpay-signature"],
+    });
     return res.json({
       success: true,
       data: await walletService.webhook(
