@@ -30,6 +30,7 @@ const MARKETPLACE_SELECT = Object.freeze({
   serviceType: 1,
   serviceTypes: 1,
   requirementTitle: 1,
+  providerRequirementTitle: 1,
   requirementTitleKey: 1,
   priority: 1,
   city: 1,
