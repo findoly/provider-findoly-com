@@ -462,9 +462,13 @@
       leadSummary(lead) {
         const details = lead.additionalDetails || {};
         const keys = ['requirement', 'description', 'summary', 'details', 'serviceRequirement', 'message', 'notes', 'note'];
-        let value = '';
-        for (const key of keys) {
-          if (typeof details[key] === 'string' && details[key].trim()) { value = details[key].trim(); break; }
+        let value = typeof lead.providerRequirementDetails === 'string'
+          ? lead.providerRequirementDetails.trim()
+          : '';
+        if (!value) {
+          for (const key of keys) {
+            if (typeof details[key] === 'string' && details[key].trim()) { value = details[key].trim(); break; }
+          }
         }
         if (!value && typeof lead.serviceType === 'string' && lead.serviceType.trim() && lead.serviceType !== lead.leadTitle) {
           value = lead.serviceType.trim();
