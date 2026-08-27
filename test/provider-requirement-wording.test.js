@@ -2,6 +2,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { presentLead } = require("../utils/lead");
 
 function enquiry() {
@@ -48,4 +50,18 @@ test("provider detail exposes the approved long requirement after unlock", () =>
     lead.providerRequirementDetails,
     enquiry().providerRequirementDetails,
   );
+});
+
+
+test("marketplace projection includes only the approved short requirement wording", () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, "../services/marketplace/marketplace-service.js"),
+    "utf8",
+  );
+  const projection = source.slice(
+    source.indexOf("const MARKETPLACE_SELECT"),
+    source.indexOf("function publicId"),
+  );
+  assert.match(projection, /providerRequirementTitle:\s*1/);
+  assert.doesNotMatch(projection, /providerRequirementDetails:\s*1/);
 });
