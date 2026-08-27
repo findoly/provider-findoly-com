@@ -49,6 +49,8 @@ const enquirySchema = new mongoose.Schema(
     },
     requirementTitle: { type: String, default: "", trim: true },
     requirementTitleKey: { type: String, default: "", trim: true, maxlength: 200, index: true },
+    providerRequirementTitle: { type: String, default: "", trim: true, maxlength: 300 },
+    providerRequirementDetails: { type: String, default: "", trim: true, maxlength: 2000 },
     priority: { type: String, default: "normal", index: true, enum: ["low", "normal", "high", "urgent"] },
     status: { type: String, default: "new", index: true },
     preferredDate: { type: String, default: "" },

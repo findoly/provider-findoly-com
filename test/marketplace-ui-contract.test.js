@@ -111,6 +111,9 @@ test("marketplace and dashboard views keep the approved mobile contracts", () =>
   assert.match(leadListView, /if \(value < 1\) return '<1 km away';/);
   assert.match(leadShowView, /if \(distance < 1\) return '<1 km away';/);
   assert.match(leadListView, /provider-decision-card\.is-marketplace \.provider-action-benefits/);
+  assert.match(leadListView, /lead\.providerRequirementDetails\.trim\(\)/);
+  assert.match(leadShowView, /x-show="lead\.providerRequirementDetails"/);
+  assert.doesNotMatch(leadShowView, /x-show="isUnlocked && lead\.providerRequirementDetails"/);
   assert.match(dashboardView, /\/leads\?status=unlocked&amp;outcome=pending/);
   assert.match(dashboardView, /Showing the oldest/);
 });
