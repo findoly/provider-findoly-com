@@ -97,8 +97,7 @@ function fullCustomerAddress(enquiry = {}) {
   return joinAddress([
     enquiry.addressLine,
     enquiry.locationLocality,
-    enquiry.city,
-    enquiry.locationDistrict,
+    enquiry.city || enquiry.locationDistrict,
     enquiry.state || enquiry.locationState,
     enquiry.pincode || enquiry.locationPincode,
     enquiry.locationCountry || "India",
