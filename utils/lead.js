@@ -43,15 +43,33 @@ function addressKey(value) {
   return normalizeAddressPart(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function addressPartDuplicate(existingValue, candidateValue) {
+  const existing = addressKey(existingValue);
+  const candidate = addressKey(candidateValue);
+  if (!existing || !candidate) return false;
+  if (existing === candidate) return true;
+
+  const existingNumeric = /^\d+$/.test(existing);
+  const candidateNumeric = /^\d+$/.test(candidate);
+  if (candidateNumeric && existing.split(" ").includes(candidate)) return true;
+  if (existingNumeric && candidate.split(" ").includes(existing)) return true;
+
+  if (existing.startsWith(candidate + " ")) {
+    const remainder = existing.slice(candidate.length + 1).trim();
+    if (/^\d+$/.test(remainder)) return true;
+  }
+  if (candidate.startsWith(existing + " ")) {
+    const remainder = candidate.slice(existing.length + 1).trim();
+    if (/^\d+$/.test(remainder)) return true;
+  }
+  return false;
+}
+
 function pushAddressPart(parts, value) {
   const candidates = String(value || "").split(",").map(normalizeAddressPart).filter(Boolean);
   for (const candidate of candidates) {
-    const key = addressKey(candidate);
-    if (!key) continue;
-    const duplicate = parts.some((part) => {
-      const existing = addressKey(part);
-      return existing === key || existing.includes(key) || key.includes(existing);
-    });
+    if (!addressKey(candidate)) continue;
+    const duplicate = parts.some((part) => addressPartDuplicate(part, candidate));
     if (!duplicate) parts.push(candidate);
   }
 }
