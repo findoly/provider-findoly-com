@@ -77,6 +77,19 @@
               <strong x-text="lead.preferredSlot || 'Flexible'"></strong>
             </div>
           </div>
+          <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 gap-md-3 border-top mt-3 pt-3" x-show="lead.serviceAreaAddress" x-cloak>
+            <div class="flex-grow-1 min-w-0">
+              <div class="text-muted fs-sm">Service area</div>
+              <strong x-text="lead.serviceAreaAddress || '—'"></strong>
+            </div>
+            <a
+              class="btn btn-light btn-sm flex-shrink-0"
+              x-show="lead.serviceAreaMapUrl"
+              :href="lead.serviceAreaMapUrl || '#'"
+              target="_blank"
+              rel="noopener noreferrer"
+            >Open area in Google Maps</a>
+          </div>
         </div>
       </div>
 
@@ -223,7 +236,17 @@
             <div><span>Customer</span><strong x-text="contact.name || '—'"></strong></div>
             <div><span>Mobile</span><a class="fw-semibold" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><span x-text="contact.mobile || '—'"></span></a></div>
             <div><span>Email</span><a :href="contact.email ? 'mailto:' + contact.email : '#'"><span x-text="contact.email || '—'"></span></a></div>
-            <div><span>Address</span><strong x-text="contact.address || '—'"></strong></div>
+            <div>
+              <span>Address</span>
+              <strong x-text="contact.address || '—'"></strong>
+              <a
+                class="d-inline-block mt-2"
+                x-show="lead.customerMapUrl"
+                :href="lead.customerMapUrl || '#'"
+                target="_blank"
+                rel="noopener noreferrer"
+              >Open customer location in Google Maps</a>
+            </div>
           </div>
         </div>
       </div>
