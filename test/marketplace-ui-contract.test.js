@@ -114,6 +114,12 @@ test("marketplace and dashboard views keep the approved mobile contracts", () =>
   assert.match(leadListView, /lead\.providerRequirementDetails\.trim\(\)/);
   assert.match(leadShowView, /x-show="lead\.providerRequirementDetails"/);
   assert.doesNotMatch(leadShowView, /x-show="isUnlocked && lead\.providerRequirementDetails"/);
+  assert.match(leadShowView, /Service area/);
+  assert.match(leadShowView, /lead\.serviceAreaAddress/);
+  assert.match(leadShowView, /lead\.serviceAreaMapUrl/);
+  assert.match(leadShowView, /Open area in Google Maps/);
+  assert.match(leadShowView, /lead\.customerMapUrl/);
+  assert.match(leadShowView, /Open customer location in Google Maps/);
   assert.match(dashboardView, /\/leads\?status=unlocked&amp;outcome=pending/);
   assert.match(dashboardView, /Showing the oldest/);
 });
