@@ -85,7 +85,7 @@ test("provider detail keeps the approved description after unlock and reveals cu
   assert.equal(lead.customerEmail, "private@example.com");
   assert.equal(
     lead.customerAddress,
-    "Private customer address, Malad West, Mumbai, Mumbai Suburban, Maharashtra, 400064, India",
+    "Private customer address, Malad West, Mumbai, Maharashtra, 400064, India",
   );
   assert.match(lead.customerMapUrl, /query=19\.186%2C72\.849/);
   assert.equal(lead.customerLocationLatitude, 19.186);
@@ -120,6 +120,21 @@ test("unlocked map falls back to composed address when coordinates are not trust
   assert.equal(lead.customerLocationLatitude, null);
   assert.equal(lead.customerLocationLongitude, null);
   assert.match(lead.customerMapUrl, /Private%20customer%20address/);
+});
+
+test("unlocked full address uses district when city is unavailable", () => {
+  const lead = presentLead({
+    ...enquiry(),
+    addressLine: "",
+    city: "",
+    locationLocality: "",
+  }, {
+    providerLeadUnlockId: "UNLOCK-4",
+  }, {});
+  assert.equal(
+    lead.customerAddress,
+    "Mumbai Suburban, Maharashtra, 400064, India",
+  );
 });
 
 test("legacy marketplace lead title still falls back to requirementTitle", () => {
