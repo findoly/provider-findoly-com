@@ -106,14 +106,35 @@ test("dashboard bounded pending count distinguishes total from preview size", as
 test("marketplace and dashboard views keep the approved mobile contracts", () => {
   const leadListView = fs.readFileSync(path.join(__dirname, "..", "views", "lead", "index.ejs"), "utf8");
   const leadShowView = fs.readFileSync(path.join(__dirname, "..", "views", "lead", "show.ejs"), "utf8");
+  const appCss = fs.readFileSync(path.join(__dirname, "..", "public", "css", "app.css"), "utf8");
   const dashboardView = fs.readFileSync(path.join(__dirname, "..", "views", "dashboard", "index.ejs"), "utf8");
 
   assert.match(leadListView, /if \(value < 1\) return '<1 km away';/);
   assert.match(leadShowView, /if \(distance < 1\) return '<1 km away';/);
   assert.match(leadListView, /provider-decision-card\.is-marketplace \.provider-action-benefits/);
   assert.match(leadListView, /lead\.providerRequirementDetails\.trim\(\)/);
+  assert.match(leadShowView, /lead\.providerRequirementTitle \|\| lead\.leadTitle/);
+  assert.match(leadShowView, /workspace-mobile-requirement-summary d-xl-none/);
+  assert.match(leadShowView, /What the customer needs/);
   assert.match(leadShowView, /x-show="lead\.providerRequirementDetails"/);
   assert.doesNotMatch(leadShowView, /x-show="isUnlocked && lead\.providerRequirementDetails"/);
+  assert.ok(
+    leadShowView.indexOf("workspace-mobile-requirement-summary") < leadShowView.indexOf("portal-facts"),
+    "Mobile AI requirement description must appear before facts",
+  );
+  assert.match(leadShowView, /workspace-mobile-customer-access d-xl-none/);
+  assert.ok(
+    leadShowView.indexOf("workspace-mobile-customer-access") < leadShowView.indexOf("workspace-signal-strip"),
+    "Unlocked customer actions must appear before secondary marketplace signals on mobile",
+  );
+  assert.match(appCss, /\.workspace-detail-hero \.portal-facts \{[\s\S]*grid-template-columns:\s*repeat\(2/);
+  assert.match(appCss, /\.workspace-detail-hero \.portal-price-box \{[\s\S]*width:\s*100%/);
+  assert.match(leadShowView, /Service area/);
+  assert.match(leadShowView, /lead\.serviceAreaAddress/);
+  assert.match(leadShowView, /lead\.serviceAreaMapUrl/);
+  assert.match(leadShowView, /Open area in Google Maps/);
+  assert.match(leadShowView, /lead\.customerMapUrl/);
+  assert.match(leadShowView, /Open customer location in Google Maps/);
   assert.match(dashboardView, /\/leads\?status=unlocked&amp;outcome=pending/);
   assert.match(dashboardView, /Showing the oldest/);
 });

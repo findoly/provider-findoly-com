@@ -5875,6 +5875,100 @@ body {
 .provider-detail-quick-copy small { color: var(--workspace-muted); font-size: .73rem; }
 .provider-detail-quick-buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
 .provider-detail-quick-buttons .btn { min-height: 2.25rem; padding: .43rem .68rem; font-size: .76rem; }
+
+.workspace-mobile-requirement-summary {
+  margin-top: .8rem;
+  padding: .75rem .8rem;
+  border: 1px solid var(--workspace-border);
+  border-radius: .72rem;
+  background: var(--workspace-soft);
+}
+.workspace-mobile-requirement-summary > span {
+  display: block;
+  margin-bottom: .28rem;
+  color: var(--workspace-muted);
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.workspace-mobile-requirement-summary p {
+  margin: 0;
+  color: var(--workspace-text);
+  font-size: .84rem;
+  line-height: 1.48;
+}
+.workspace-lead-location {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  margin-top: .8rem;
+  padding: .72rem .78rem;
+  border: 1px solid var(--workspace-border);
+  border-radius: .72rem;
+  background: var(--workspace-soft);
+}
+.workspace-lead-location strong {
+  display: block;
+  margin-top: .12rem;
+  color: var(--workspace-text);
+  font-size: .82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.workspace-mobile-customer-access {
+  border-color: #cfe5dc;
+  background: var(--workspace-success-soft);
+}
+.workspace-mobile-customer-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+}
+.workspace-mobile-customer-heading > div {
+  display: grid;
+  gap: .08rem;
+}
+.workspace-mobile-customer-heading strong {
+  color: var(--workspace-text);
+  font-size: .92rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.workspace-mobile-customer-heading small {
+  color: var(--workspace-muted);
+  font-size: .76rem;
+}
+.workspace-mobile-customer-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .5rem;
+  margin-top: .75rem;
+}
+.workspace-mobile-customer-actions .btn {
+  min-height: 2.45rem;
+  padding: .5rem .45rem;
+  font-size: .74rem;
+  font-weight: 700;
+}
+.workspace-mobile-customer-email {
+  display: grid;
+  gap: .08rem;
+  margin-top: .65rem;
+  padding-top: .65rem;
+  border-top: 1px solid rgba(20,122,98,.15);
+}
+.workspace-mobile-customer-email span {
+  color: var(--workspace-muted);
+  font-size: .68rem;
+}
+.workspace-mobile-customer-email a {
+  overflow-wrap: anywhere;
+  font-size: .78rem;
+  font-weight: 650;
+}
+
 .workspace-outcome-panel { scroll-margin-top: calc(var(--portal-navbar-height) + 1rem); }
 .portal-outcome-radio-grid label { transition: border-color .18s ease, background .18s ease, transform .18s ease; }
 .portal-outcome-radio-grid label:hover { transform: translateY(-1px); }
@@ -5919,6 +6013,81 @@ textarea:focus-visible {
 @media (max-width: 575.98px) {
   body { font-size: 15px; }
   .workspace-content.content { padding: .8rem .75rem 5.6rem; }
+
+  .workspace-lead-detail-page .provider-detail-breadcrumb { margin-bottom: .55rem; }
+  .workspace-lead-detail-grid { --bs-gutter-y: .75rem; }
+  .workspace-detail-hero { margin-bottom: .75rem !important; }
+  .workspace-detail-hero .card-header { padding: .9rem; }
+  .workspace-detail-hero .portal-lead-header { gap: .65rem; }
+  .workspace-detail-hero h3 { font-size: 1.2rem; line-height: 1.24; }
+  .workspace-detail-hero .provider-service-type-tags { margin-top: .35rem !important; }
+  .workspace-lead-meta { margin-top: .5rem !important; font-size: .74rem; line-height: 1.35; }
+
+  .workspace-detail-hero .portal-price-box {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .5rem .65rem;
+    text-align: left;
+  }
+  .workspace-detail-hero .portal-price-box span { margin: 0; font-size: .68rem; }
+  .workspace-detail-hero .portal-price-box strong { margin: 0; font-size: .9rem; }
+  .workspace-detail-hero .portal-price-box small { display: none; }
+  .workspace-detail-hero .portal-price-values { margin-left: auto; }
+
+  .workspace-detail-hero .card-body { padding: .75rem; }
+  .workspace-detail-hero .portal-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: .45rem;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  .workspace-detail-hero .portal-facts > div {
+    width: auto;
+    max-width: none;
+    padding: .58rem .62rem;
+    border: 1px solid var(--workspace-border) !important;
+    border-radius: .62rem !important;
+    background: var(--workspace-soft);
+  }
+  .workspace-detail-hero .portal-facts span { margin-bottom: .14rem; font-size: .66rem; }
+  .workspace-detail-hero .portal-facts strong {
+    max-width: 100%;
+    text-align: left;
+    font-size: .82rem;
+    line-height: 1.25;
+  }
+
+  .workspace-mobile-requirement-summary { margin-top: .65rem; padding: .68rem .72rem; }
+  .workspace-mobile-requirement-summary p { font-size: .82rem; line-height: 1.43; }
+  .workspace-lead-location {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .55rem;
+    margin-top: .55rem;
+    padding: .65rem .7rem;
+  }
+  .workspace-lead-location .btn { width: 100%; min-height: 2.3rem; }
+  .workspace-mobile-customer-access { margin-bottom: .75rem !important; }
+  .workspace-mobile-customer-access .card-body { padding: .82rem; }
+  .workspace-mobile-customer-actions { gap: .4rem; }
+  .workspace-mobile-customer-actions .btn { font-size: .7rem; }
+
+  .workspace-signal-strip.portal-marketplace-trust {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: .45rem;
+    margin-bottom: .75rem !important;
+    padding: .55rem;
+  }
+  .workspace-signal-strip > div { padding: .55rem .6rem; }
+  .workspace-outcome-panel,
+  .workspace-detail-section,
+  .workspace-contact-panel { margin-bottom: .75rem !important; }
   .provider-dashboard-command-copy { padding: 1rem; }
   .provider-dashboard-command-actions { display: grid; grid-template-columns: 1fr; }
   .provider-dashboard-command-actions .btn { width: 100%; }

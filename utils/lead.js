@@ -35,6 +35,103 @@ function serviceTypes(value) {
     .slice(0, 5);
 }
 
+function normalizeAddressPart(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function addressKey(value) {
+  return normalizeAddressPart(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function addressPartDuplicate(existingValue, candidateValue) {
+  const existing = addressKey(existingValue);
+  const candidate = addressKey(candidateValue);
+  if (!existing || !candidate) return false;
+  if (existing === candidate) return true;
+
+  const existingNumeric = /^\d+$/.test(existing);
+  const candidateNumeric = /^\d+$/.test(candidate);
+  if (candidateNumeric && existing.split(" ").includes(candidate)) return true;
+  if (existingNumeric && candidate.split(" ").includes(existing)) return true;
+
+  if (existing.startsWith(candidate + " ")) {
+    const remainder = existing.slice(candidate.length + 1).trim();
+    if (/^\d+$/.test(remainder)) return true;
+  }
+  if (candidate.startsWith(existing + " ")) {
+    const remainder = candidate.slice(existing.length + 1).trim();
+    if (/^\d+$/.test(remainder)) return true;
+  }
+  return false;
+}
+
+function pushAddressPart(parts, value) {
+  const candidates = String(value || "").split(",").map(normalizeAddressPart).filter(Boolean);
+  for (const candidate of candidates) {
+    if (!addressKey(candidate)) continue;
+    const duplicate = parts.some((part) => addressPartDuplicate(part, candidate));
+    if (!duplicate) parts.push(candidate);
+  }
+}
+
+function joinAddress(values = []) {
+  const parts = [];
+  for (const value of values) pushAddressPart(parts, value);
+  return parts.join(", ");
+}
+
+function serviceAreaAddress(enquiry = {}, unlock = null) {
+  return joinAddress([
+    enquiry.city || unlock?.city || enquiry.locationDistrict || enquiry.locationLocality,
+    enquiry.state || unlock?.state || enquiry.locationState,
+    enquiry.pincode || unlock?.pincode || enquiry.locationPincode,
+  ]) || normalizeAddressPart(
+    enquiry.locationLocality
+      || enquiry.locationDistrict
+      || enquiry.locationState
+      || enquiry.locationPincode,
+  );
+}
+
+function fullCustomerAddress(enquiry = {}) {
+  return joinAddress([
+    enquiry.addressLine,
+    enquiry.locationLocality,
+    enquiry.city || enquiry.locationDistrict,
+    enquiry.state || enquiry.locationState,
+    enquiry.pincode || enquiry.locationPincode,
+    enquiry.locationCountry || "India",
+  ]);
+}
+
+function validCoordinate(value, min, max) {
+  if (value === null || value === undefined || String(value).trim() === "") return false;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= min && number <= max;
+}
+
+function trustedCustomerCoordinates(enquiry = {}) {
+  if (String(enquiry.locationSource || "").trim().toLowerCase() === "manual_pincode") return null;
+  const pincode = String(enquiry.pincode || "").trim();
+  const locationPincode = String(enquiry.locationPincode || "").trim();
+  if (pincode && locationPincode && pincode !== locationPincode) return null;
+  if (!validCoordinate(enquiry.locationLatitude, -90, 90)
+    || !validCoordinate(enquiry.locationLongitude, -180, 180)) {
+    return null;
+  }
+  return {
+    latitude: Number(enquiry.locationLatitude),
+    longitude: Number(enquiry.locationLongitude),
+  };
+}
+
+function googleMapsSearchUrl(query) {
+  const value = normalizeAddressPart(query);
+  return value
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`
+    : "";
+}
+
 function presentLead(enquiry = {}, unlock = null, visibility = {}) {
   const unlocked = Boolean(unlock?.providerLeadUnlockId);
   const unlockedCount = safeCount(enquiry.unlockedCount);
@@ -42,6 +139,7 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
   const maxProviderUnlocks = Math.max(1, safeCount(enquiry.maxProviderUnlocks) || 5);
   const remainingUnlocks = safeCount(enquiry.remainingUnlocks);
   const baseCredits = Math.max(0, Number(enquiry.leadCostCredits ?? leadCostCredits(enquiry)));
+  const approximateAddress = serviceAreaAddress(enquiry, unlock);
   const result = {
     enquiryId: enquiry.enquiryId || "",
     providerLeadUnlockId: unlock?.providerLeadUnlockId || "",
@@ -57,6 +155,8 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
     city: enquiry.city || unlock?.city || "",
     state: enquiry.state || unlock?.state || "",
     pincode: enquiry.pincode || unlock?.pincode || "",
+    serviceAreaAddress: approximateAddress,
+    serviceAreaMapUrl: googleMapsSearchUrl(approximateAddress),
     preferredDate: enquiry.preferredDate || "",
     preferredSlot: enquiry.preferredSlot || "",
     leadPricePaise: Number(enquiry.leadPricePaise ?? unlock?.leadPricePaise ?? 0),
@@ -93,11 +193,19 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
   };
 
   if (unlocked) {
+    const customerAddress = fullCustomerAddress(enquiry) || approximateAddress;
+    const coordinates = trustedCustomerCoordinates(enquiry);
+    const customerMapQuery = coordinates
+      ? `${coordinates.latitude},${coordinates.longitude}`
+      : customerAddress;
     Object.assign(result, {
       customerName: enquiry.name || "",
       customerMobile: enquiry.mobile || "",
       customerEmail: enquiry.email || "",
-      customerAddress: enquiry.addressLine || "",
+      customerAddress,
+      customerMapUrl: googleMapsSearchUrl(customerMapQuery),
+      customerLocationLatitude: coordinates?.latitude ?? null,
+      customerLocationLongitude: coordinates?.longitude ?? null,
       providerSaleOutcome: unlock.providerSaleOutcome || "",
       providerSaleOutcomeNote: unlock.providerSaleOutcomeNote || "",
       providerSaleOutcomeUpdatedAt: unlock.providerSaleOutcomeUpdatedAt || null,
@@ -114,4 +222,12 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
   return result;
 }
 
-module.exports = { presentLead, sanitizeDetails, safeCount };
+module.exports = {
+  presentLead,
+  sanitizeDetails,
+  safeCount,
+  serviceAreaAddress,
+  fullCustomerAddress,
+  trustedCustomerCoordinates,
+  googleMapsSearchUrl,
+};
