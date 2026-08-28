@@ -24,6 +24,14 @@ function enquiry() {
     mobile: "9999999999",
     email: "private@example.com",
     addressLine: "Private customer address",
+    locationLatitude: 19.186,
+    locationLongitude: 72.849,
+    locationPincode: "400064",
+    locationLocality: "Malad West",
+    locationDistrict: "Mumbai Suburban",
+    locationState: "Maharashtra",
+    locationCountry: "India",
+    locationSource: "google_geocoding",
     leadPricePaise: 50000,
     remainingUnlocks: 3,
     maxProviderUnlocks: 3,
@@ -49,13 +57,18 @@ test("provider marketplace exposes the approved description before unlock", () =
   );
 });
 
-test("pre-unlock provider presentation keeps raw requirement and customer contact private", () => {
+test("pre-unlock provider presentation shows approximate service area but keeps exact customer location private", () => {
   const lead = presentLead(enquiry(), null, {});
+  assert.equal(lead.serviceAreaAddress, "Mumbai, Maharashtra, 400064");
+  assert.match(lead.serviceAreaMapUrl, /^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=/);
   assert.equal(Object.hasOwn(lead, "customerRequirementRaw"), false);
   assert.equal(Object.hasOwn(lead, "customerName"), false);
   assert.equal(Object.hasOwn(lead, "customerMobile"), false);
   assert.equal(Object.hasOwn(lead, "customerEmail"), false);
   assert.equal(Object.hasOwn(lead, "customerAddress"), false);
+  assert.equal(Object.hasOwn(lead, "customerMapUrl"), false);
+  assert.equal(Object.hasOwn(lead, "customerLocationLatitude"), false);
+  assert.equal(Object.hasOwn(lead, "customerLocationLongitude"), false);
 });
 
 test("provider detail keeps the approved description after unlock and reveals customer contact", () => {
@@ -70,8 +83,43 @@ test("provider detail keeps the approved description after unlock and reveals cu
   assert.equal(lead.customerName, "Private Customer");
   assert.equal(lead.customerMobile, "9999999999");
   assert.equal(lead.customerEmail, "private@example.com");
-  assert.equal(lead.customerAddress, "Private customer address");
+  assert.equal(
+    lead.customerAddress,
+    "Private customer address, Malad West, Mumbai, Mumbai Suburban, Maharashtra, 400064, India",
+  );
+  assert.match(lead.customerMapUrl, /query=19\.186%2C72\.849/);
+  assert.equal(lead.customerLocationLatitude, 19.186);
+  assert.equal(lead.customerLocationLongitude, 72.849);
   assert.equal(Object.hasOwn(lead, "customerRequirementRaw"), false);
+});
+
+test("unlocked address falls back through location fields and avoids duplicates", () => {
+  const lead = presentLead({
+    ...enquiry(),
+    addressLine: "Malad West, Mumbai, Maharashtra 400064",
+    locationLocality: "Malad West",
+    locationDistrict: "",
+  }, {
+    providerLeadUnlockId: "UNLOCK-2",
+  }, {});
+  assert.equal(
+    lead.customerAddress,
+    "Malad West, Mumbai, Maharashtra 400064, India",
+  );
+});
+
+test("unlocked map falls back to composed address when coordinates are not trusted", () => {
+  const lead = presentLead({
+    ...enquiry(),
+    locationSource: "manual_pincode",
+    locationLatitude: 19.186,
+    locationLongitude: 72.849,
+  }, {
+    providerLeadUnlockId: "UNLOCK-3",
+  }, {});
+  assert.equal(lead.customerLocationLatitude, null);
+  assert.equal(lead.customerLocationLongitude, null);
+  assert.match(lead.customerMapUrl, /Private%20customer%20address/);
 });
 
 test("legacy marketplace lead title still falls back to requirementTitle", () => {
