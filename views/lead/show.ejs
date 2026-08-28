@@ -39,14 +39,18 @@
         <div class="card-header border-bottom portal-lead-header">
           <div class="flex-grow-1 min-w-0">
             <div class="d-flex flex-wrap align-items-center gap-2">
-              <h3 class="mb-0" x-text="displaySentenceCase(lead.leadTitle || lead.serviceType, 'Service requirement')">Service requirement</h3>
+              <h3 class="mb-0" x-text="displaySentenceCase(lead.providerRequirementTitle || lead.leadTitle || lead.serviceType, 'Service requirement')">Service requirement</h3>
               <div class="provider-service-type-tags mt-2" x-show="lead.serviceTypes && lead.serviceTypes.length" x-cloak><template x-for="item in lead.serviceTypes" :key="item.serviceTypeId || item.slug || item.name"><span x-text="item.name"></span></template></div>
               <span class="badge" :class="statusClass" x-text="displayStatus"></span>
             </div>
-            <div class="text-muted mt-2">
+            <div class="text-muted mt-2 workspace-lead-meta">
               <span x-text="lead.category || humanize(lead.categorySlug)"></span>
               <span> · published </span>
               <span x-text="formatDate(lead.marketplacePublishedAt || lead.createdAt)"></span>
+            </div>
+            <div class="workspace-mobile-requirement-summary d-xl-none" x-show="lead.providerRequirementDetails" x-cloak>
+              <span>What the customer needs</span>
+              <p x-text="lead.providerRequirementDetails"></p>
             </div>
           </div>
           <div class="portal-price-box">
@@ -60,40 +64,63 @@
 
         <div class="card-body">
           <div class="row g-0 portal-facts">
-            <div class="col-sm-6 col-lg-3">
+            <div class="col-6 col-lg-3">
               <span>City</span>
               <strong x-text="displayTitleCase(lead.city, '—')"></strong>
             </div>
-            <div class="col-sm-6 col-lg-3">
+            <div class="col-6 col-lg-3">
               <span>State</span>
               <strong x-text="displayTitleCase(lead.state, '—')"></strong>
             </div>
-            <div class="col-sm-6 col-lg-3">
+            <div class="col-6 col-lg-3">
               <span>Preferred date</span>
               <strong x-text="formatDateOnly(lead.preferredDate)"></strong>
             </div>
-            <div class="col-sm-6 col-lg-3">
+            <div class="col-6 col-lg-3">
               <span>Preferred slot</span>
               <strong x-text="lead.preferredSlot || 'Flexible'"></strong>
             </div>
           </div>
-          <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 gap-md-3 border-top mt-3 pt-3" x-show="lead.serviceAreaAddress" x-cloak>
+          <div class="workspace-lead-location" x-show="isUnlocked ? (contact.address || lead.serviceAreaAddress) : lead.serviceAreaAddress" x-cloak>
             <div class="flex-grow-1 min-w-0">
-              <div class="text-muted fs-sm">Service area</div>
-              <strong x-text="lead.serviceAreaAddress || '—'"></strong>
+              <div class="text-muted fs-sm" x-text="isUnlocked ? 'Customer location' : 'Service area'"></div>
+              <strong x-text="isUnlocked ? (contact.address || lead.serviceAreaAddress || '—') : (lead.serviceAreaAddress || '—')"></strong>
             </div>
             <a
               class="btn btn-light btn-sm flex-shrink-0"
-              x-show="lead.serviceAreaMapUrl"
-              :href="lead.serviceAreaMapUrl || '#'"
+              x-show="isUnlocked ? lead.customerMapUrl : lead.serviceAreaMapUrl"
+              :href="isUnlocked ? (lead.customerMapUrl || '#') : (lead.serviceAreaMapUrl || '#')"
               target="_blank"
               rel="noopener noreferrer"
-            >Open area in Google Maps</a>
+              x-text="isUnlocked ? 'Open customer location' : 'Open area in Google Maps'"
+            ></a>
           </div>
         </div>
       </div>
 
-      <div class="provider-detail-quick-actions" x-show="isUnlocked" x-cloak>
+      <div class="card portal-card workspace-mobile-customer-access d-xl-none mb-3" x-show="isUnlocked" x-cloak>
+        <div class="card-body">
+          <div class="workspace-mobile-customer-heading">
+            <div class="min-w-0">
+              <span class="workspace-eyebrow">Customer unlocked</span>
+              <strong x-text="displayTitleCase(contact.name, 'Customer contact')"></strong>
+              <small x-text="contact.mobile || 'Mobile number unavailable'"></small>
+            </div>
+            <span class="badge bg-success text-white">Unlocked</span>
+          </div>
+          <div class="workspace-mobile-customer-actions">
+            <a class="btn btn-light provider-action-button provider-action-call" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon"><use href="#i-phone"></use></svg>Call</a>
+            <a class="btn btn-light provider-action-button provider-action-whatsapp" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'https://wa.me/91' + String(contact.mobile).replace(/\D/g, '').slice(-10) : '#'" target="_blank" rel="noopener">WhatsApp</a>
+            <a class="btn btn-light provider-action-button" :class="lead.customerMapUrl ? '' : 'disabled'" :href="lead.customerMapUrl || '#'" target="_blank" rel="noopener noreferrer">Maps</a>
+          </div>
+          <div class="workspace-mobile-customer-email" x-show="contact.email">
+            <span>Email</span>
+            <a :href="contact.email ? 'mailto:' + contact.email : '#'" x-text="contact.email"></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="provider-detail-quick-actions d-none d-xl-flex" x-show="isUnlocked" x-cloak>
         <div class="provider-detail-quick-copy">
           <span class="workspace-eyebrow">Customer access</span>
           <strong x-text="displayTitleCase(contact.name, 'Customer contact unlocked')"></strong>
@@ -192,7 +219,7 @@
         </div>
       </div>
 
-      <div class="card portal-card mb-4 workspace-detail-section" x-show="lead.providerRequirementDetails" x-cloak>
+      <div class="card portal-card mb-4 workspace-detail-section d-none d-xl-block" x-show="lead.providerRequirementDetails" x-cloak>
         <div class="card-header border-bottom">
           <div>
             <span class="workspace-eyebrow">Customer requirement</span>
@@ -223,7 +250,7 @@
         </div>
       </div>
 
-      <div class="card portal-card mb-4 workspace-contact-panel" x-show="isUnlocked" x-cloak>
+      <div class="card portal-card mb-4 workspace-contact-panel d-none d-xl-block" x-show="isUnlocked" x-cloak>
         <div class="card-header border-bottom d-flex align-items-center">
           <div>
             <h5 class="mb-1">Customer contact</h5>
