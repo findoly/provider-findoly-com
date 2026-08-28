@@ -35,6 +35,107 @@ function serviceTypes(value) {
     .slice(0, 5);
 }
 
+function normalizeAddressPart(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function addressKey(value) {
+  return normalizeAddressPart(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function pushAddressPart(parts, value) {
+  const candidates = String(value || "").split(",").map(normalizeAddressPart).filter(Boolean);
+  for (const candidate of candidates) {
+    const key = addressKey(candidate);
+    if (!key) continue;
+    const duplicate = parts.some((part) => {
+      const existing = addressKey(part);
+      return existing === key || existing.includes(key) || key.includes(existing);
+    });
+    if (!duplicate) parts.push(candidate);
+  }
+}
+
+function joinAddress(values = []) {
+  const parts = [];
+  for (const value of values) pushAddressPart(parts, value);
+  return parts.join(", ");
+}
+
+function serviceAreaAddress(enquiry = {}, unlock = null) {
+  const primary = joinAddress([
+    enquiry.city || unlock?.city,
+    enquiry.state || unlock?.state,
+    enquiry.pincode || unlock?.pincode,
+  ]);
+  if (primary) return primary;
+
+  const district = joinAddress([
+    enquiry.locationDistrict,
+    enquiry.locationState,
+    enquiry.locationPincode,
+  ]);
+  if (district) return district;
+
+  const locality = joinAddress([
+    enquiry.locationLocality,
+    enquiry.locationState,
+    enquiry.locationPincode,
+  ]);
+  if (locality) return locality;
+
+  return normalizeAddressPart(
+    enquiry.pincode
+      || enquiry.locationPincode
+      || unlock?.pincode
+      || enquiry.city
+      || enquiry.locationDistrict
+      || enquiry.locationLocality
+      || enquiry.state
+      || enquiry.locationState,
+  );
+}
+
+function fullCustomerAddress(enquiry = {}) {
+  return joinAddress([
+    enquiry.addressLine,
+    enquiry.locationLocality,
+    enquiry.city,
+    enquiry.locationDistrict,
+    enquiry.state || enquiry.locationState,
+    enquiry.pincode || enquiry.locationPincode,
+    enquiry.locationCountry || "India",
+  ]);
+}
+
+function validCoordinate(value, min, max) {
+  if (value === null || value === undefined || String(value).trim() === "") return false;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= min && number <= max;
+}
+
+function trustedCustomerCoordinates(enquiry = {}) {
+  if (String(enquiry.locationSource || "").trim().toLowerCase() === "manual_pincode") return null;
+  const pincode = String(enquiry.pincode || "").trim();
+  const locationPincode = String(enquiry.locationPincode || "").trim();
+  if (pincode && locationPincode && pincode !== locationPincode) return null;
+  if (!validCoordinate(enquiry.locationLatitude, -90, 90)
+    || !validCoordinate(enquiry.locationLongitude, -180, 180)) {
+    return null;
+  }
+  return {
+    latitude: Number(enquiry.locationLatitude),
+    longitude: Number(enquiry.locationLongitude),
+  };
+}
+
+function googleMapsSearchUrl(query) {
+  const value = normalizeAddressPart(query);
+  return value
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`
+    : "";
+}
+
 function presentLead(enquiry = {}, unlock = null, visibility = {}) {
   const unlocked = Boolean(unlock?.providerLeadUnlockId);
   const unlockedCount = safeCount(enquiry.unlockedCount);
@@ -42,6 +143,7 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
   const maxProviderUnlocks = Math.max(1, safeCount(enquiry.maxProviderUnlocks) || 5);
   const remainingUnlocks = safeCount(enquiry.remainingUnlocks);
   const baseCredits = Math.max(0, Number(enquiry.leadCostCredits ?? leadCostCredits(enquiry)));
+  const approximateAddress = serviceAreaAddress(enquiry, unlock);
   const result = {
     enquiryId: enquiry.enquiryId || "",
     providerLeadUnlockId: unlock?.providerLeadUnlockId || "",
@@ -57,6 +159,8 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
     city: enquiry.city || unlock?.city || "",
     state: enquiry.state || unlock?.state || "",
     pincode: enquiry.pincode || unlock?.pincode || "",
+    serviceAreaAddress: approximateAddress,
+    serviceAreaMapUrl: googleMapsSearchUrl(approximateAddress),
     preferredDate: enquiry.preferredDate || "",
     preferredSlot: enquiry.preferredSlot || "",
     leadPricePaise: Number(enquiry.leadPricePaise ?? unlock?.leadPricePaise ?? 0),
@@ -93,11 +197,19 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
   };
 
   if (unlocked) {
+    const customerAddress = fullCustomerAddress(enquiry) || approximateAddress;
+    const coordinates = trustedCustomerCoordinates(enquiry);
+    const customerMapQuery = coordinates
+      ? `${coordinates.latitude},${coordinates.longitude}`
+      : customerAddress;
     Object.assign(result, {
       customerName: enquiry.name || "",
       customerMobile: enquiry.mobile || "",
       customerEmail: enquiry.email || "",
-      customerAddress: enquiry.addressLine || "",
+      customerAddress,
+      customerMapUrl: googleMapsSearchUrl(customerMapQuery),
+      customerLocationLatitude: coordinates?.latitude ?? null,
+      customerLocationLongitude: coordinates?.longitude ?? null,
       providerSaleOutcome: unlock.providerSaleOutcome || "",
       providerSaleOutcomeNote: unlock.providerSaleOutcomeNote || "",
       providerSaleOutcomeUpdatedAt: unlock.providerSaleOutcomeUpdatedAt || null,
@@ -114,4 +226,12 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
   return result;
 }
 
-module.exports = { presentLead, sanitizeDetails, safeCount };
+module.exports = {
+  presentLead,
+  sanitizeDetails,
+  safeCount,
+  serviceAreaAddress,
+  fullCustomerAddress,
+  trustedCustomerCoordinates,
+  googleMapsSearchUrl,
+};
