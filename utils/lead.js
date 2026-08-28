@@ -63,36 +63,15 @@ function joinAddress(values = []) {
 }
 
 function serviceAreaAddress(enquiry = {}, unlock = null) {
-  const primary = joinAddress([
-    enquiry.city || unlock?.city,
-    enquiry.state || unlock?.state,
-    enquiry.pincode || unlock?.pincode,
-  ]);
-  if (primary) return primary;
-
-  const district = joinAddress([
-    enquiry.locationDistrict,
-    enquiry.locationState,
-    enquiry.locationPincode,
-  ]);
-  if (district) return district;
-
-  const locality = joinAddress([
-    enquiry.locationLocality,
-    enquiry.locationState,
-    enquiry.locationPincode,
-  ]);
-  if (locality) return locality;
-
-  return normalizeAddressPart(
-    enquiry.pincode
-      || enquiry.locationPincode
-      || unlock?.pincode
-      || enquiry.city
+  return joinAddress([
+    enquiry.city || unlock?.city || enquiry.locationDistrict || enquiry.locationLocality,
+    enquiry.state || unlock?.state || enquiry.locationState,
+    enquiry.pincode || unlock?.pincode || enquiry.locationPincode,
+  ]) || normalizeAddressPart(
+    enquiry.locationLocality
       || enquiry.locationDistrict
-      || enquiry.locationLocality
-      || enquiry.state
-      || enquiry.locationState,
+      || enquiry.locationState
+      || enquiry.locationPincode,
   );
 }
 
