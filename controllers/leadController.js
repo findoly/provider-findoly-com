@@ -1,5 +1,10 @@
 const service = require("../services/lead/lead-service");
 const billingService = require("../services/wallet/wallet-service");
+const { apiAccessToken } = require("../middleware/direct-lead-access");
+
+function directAccessOptions(req) {
+  return { accessToken: apiAccessToken(req) };
+}
 
 async function list(req, res, next) {
   try {
@@ -17,6 +22,7 @@ async function get(req, res, next) {
       data: await service.get(
         req.provider,
         req.params.leadId,
+        directAccessOptions(req),
       ),
     });
   } catch (error) {
@@ -31,6 +37,7 @@ async function unlock(req, res, next) {
       data: await service.unlock(
         req.provider,
         req.params.leadId,
+        directAccessOptions(req),
       ),
     });
   } catch (error) {
@@ -45,6 +52,7 @@ async function createDirectOrder(req, res, next) {
       data: await billingService.createLeadOrder(
         req.provider,
         req.params.leadId,
+        directAccessOptions(req),
       ),
     });
   } catch (error) {
@@ -81,7 +89,6 @@ async function verifyDirectPayment(req, res, next) {
     return next(error);
   }
 }
-
 
 async function pendingOutcomes(req, res, next) {
   try {

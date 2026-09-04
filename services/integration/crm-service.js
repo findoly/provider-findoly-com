@@ -38,6 +38,22 @@ function validateAcknowledgement(body, eventName, payload = {}) {
     return acknowledgement;
   }
 
+  if (eventName === "provider_plan_purchased") {
+    const expectedProviderId = String(payload.providerId || "").trim();
+    const expectedPaymentOrderId = String(payload.paymentOrderId || "").trim();
+    const expectedSubscriptionId = String(payload.providerSubscriptionId || "").trim();
+    if (!expectedProviderId || String(acknowledgement.providerId || "").trim() !== expectedProviderId) {
+      throw communicationFailure(`CRM acknowledgement provider ID did not match the ${eventName} request`);
+    }
+    if (!expectedPaymentOrderId || String(acknowledgement.paymentOrderId || "").trim() !== expectedPaymentOrderId) {
+      throw communicationFailure(`CRM acknowledgement payment order ID did not match the ${eventName} request`);
+    }
+    if (!expectedSubscriptionId || String(acknowledgement.providerSubscriptionId || "").trim() !== expectedSubscriptionId) {
+      throw communicationFailure(`CRM acknowledgement subscription ID did not match the ${eventName} request`);
+    }
+    return acknowledgement;
+  }
+
   const expectedUnlockId = String(payload.providerLeadUnlockId || "").trim();
   const acknowledgedUnlockId = String(acknowledgement.providerLeadUnlockId || "").trim();
   if (!expectedUnlockId || acknowledgedUnlockId !== expectedUnlockId) {
