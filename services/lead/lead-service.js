@@ -15,6 +15,7 @@ const { validateLeadFeedback } = require("../../utils/lead-status");
 const creditService = require("../billing/credit-service");
 const crmSyncService = require("../integration/crm-sync-service");
 const marketplaceService = require("../marketplace/marketplace-service");
+const directAccessService = require("./provider-direct-access-service");
 
 function whatsappActionDiagnostics(options = {}) {
   return String(options.source || "") === "whatsapp_action";
@@ -175,7 +176,7 @@ async function findUnlock(providerId, identifier, session = null) {
   return query;
 }
 
-async function get(provider, identifier) {
+async function get(provider, identifier, options = {}) {
   const providerId = providerIdentity(provider);
   const unlock = await findUnlock(providerId, identifier);
   if (unlock) {
@@ -183,7 +184,12 @@ async function get(provider, identifier) {
     if (!enquiry) throw Object.assign(new Error("Lead not found"), { status: 404 });
     return presentLead(enquiry, unlock.toObject(), marketplaceService.visibilityFor(provider, enquiry));
   }
-  const enquiry = await marketplaceService.loadMarketplaceEnquiry(provider, identifier);
+
+  const enquiryId = cleanId(identifier, "Lead reference");
+  const directAccess = directAccessService.verify(provider, enquiryId, options.accessToken);
+  const enquiry = directAccess
+    ? await directAccessService.load(provider, enquiryId)
+    : await marketplaceService.loadMarketplaceEnquiry(provider, enquiryId);
   return presentLead(enquiry.toObject(), null, marketplaceService.visibilityFor(provider, enquiry));
 }
 
@@ -216,7 +222,6 @@ function unlockSnapshot(enquiry, provider, input = {}) {
   };
 }
 
-
 async function syncUnlockCommunication(unlock) {
   return crmSyncService.syncById(unlock.providerLeadUnlockId, { force: true });
 }
@@ -234,6 +239,7 @@ async function unlock(provider, identifier, options = {}) {
     return presentLead(enquiry || {}, existing, marketplaceService.visibilityFor(provider, enquiry || {}));
   }
 
+  const directAccess = directAccessService.verify(provider, enquiryId, options.accessToken);
   const activeDirectPayment = await PaymentOrder.findOne({
     providerId,
     enquiryId,
@@ -277,7 +283,9 @@ async function unlock(provider, identifier, options = {}) {
         );
       }
 
-      const marketplaceLead = await marketplaceService.loadMarketplaceEnquiry(provider, enquiryId, { session, includeContact: true });
+      const marketplaceLead = directAccess
+        ? await directAccessService.load(provider, enquiryId, { session })
+        : await marketplaceService.loadMarketplaceEnquiry(provider, enquiryId, { session, includeContact: true });
       const costCredits = Math.max(0, leadCostCredits(marketplaceLead));
       const costMinorCredits = paiseFromCredits(costCredits);
       logWhatsappAction(options, "provider_whatsapp_credit_decision", {
@@ -285,20 +293,52 @@ async function unlock(provider, identifier, options = {}) {
         enquiryId: marketplaceLead.enquiryId,
         requiredCredits: costCredits,
       });
-      const claimed = await Enquiry.findOneAndUpdate(
+
+      const now = new Date();
+      let claimed = await Enquiry.findOneAndUpdate(
         {
           enquiryId: marketplaceLead.enquiryId,
           marketplaceAvailable: true,
           marketplaceStatus: "published",
-          marketplaceExpiresAt: { $gt: new Date() },
+          marketplaceExpiresAt: { $gt: now },
           remainingUnlocks: { $gt: 0 },
         },
         {
           $inc: { remainingUnlocks: -1, unlockedCount: 1 },
-          $set: { updatedAt: new Date() },
+          $set: { updatedAt: now },
         },
         { new: true, session },
       );
+
+      if (!claimed && directAccess) {
+        claimed = await Enquiry.findOneAndUpdate(
+          {
+            enquiryId: marketplaceLead.enquiryId,
+            status: "approved",
+            isActive: { $ne: false },
+            marketplacePublishedAt: { $lte: now },
+            marketplaceExpiresAt: { $gt: now },
+            remainingUnlocks: 0,
+            $or: [
+              {
+                marketplaceStatus: "closed",
+                marketplaceAvailable: false,
+                marketplaceClosureReason: "unlock_limit",
+              },
+              {
+                marketplaceStatus: "published",
+                marketplaceClosureReason: { $in: ["", "unlock_limit"] },
+              },
+            ],
+          },
+          {
+            $inc: { unlockedCount: 1 },
+            $set: { remainingUnlocks: 0, updatedAt: now },
+          },
+          { new: true, session },
+        );
+      }
+
       if (!claimed) {
         throw Object.assign(new Error("This lead is no longer available"), { status: 409, code: "LEAD_UNLOCK_CONFLICT" });
       }
@@ -437,7 +477,6 @@ async function updateFeedback(provider, identifier, input = {}) {
   await crmSyncService
     .syncById(result.unlock.providerLeadUnlockId, { force: true })
     .catch(() => ({ processed: false }));
-
 
   const updatedUnlock = await ProviderLeadUnlock.findOne({ providerLeadUnlockId: result.unlock.providerLeadUnlockId }).lean();
   return presentLead(result.enquiry, updatedUnlock || result.unlock, marketplaceService.visibilityFor(provider, result.enquiry));
