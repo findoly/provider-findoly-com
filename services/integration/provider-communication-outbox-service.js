@@ -5,6 +5,7 @@ const uuid = require("../../utils/uuid");
 const crmService = require("./crm-service");
 
 const EVENT_NAME = "provider_join_request_submitted";
+const PLAN_EVENT_NAME = "provider_plan_purchased";
 const DEFAULT_BATCH_SIZE = 20;
 const MAX_BATCH_SIZE = 100;
 const LOCK_LEASE_MS = 2 * 60 * 1000;
@@ -39,6 +40,29 @@ function eventPayload(request = {}, eventId = eventIdFor(request.providerJoinReq
   };
 }
 
+function planEventIdFor(paymentOrderId) {
+  return `provider-plan-purchased:${String(paymentOrderId || "").trim()}`;
+}
+
+function planEventPayload(purchase = {}, eventId = planEventIdFor(purchase.paymentOrderId)) {
+  return {
+    integrationEventId: eventId,
+    idempotencySuffix: eventId,
+    providerId: String(purchase.providerId || "").trim(),
+    paymentOrderId: String(purchase.paymentOrderId || "").trim(),
+    providerSubscriptionId: String(purchase.providerSubscriptionId || "").trim(),
+    planCode: String(purchase.planCode || "").trim(),
+    planName: String(purchase.planName || "").trim(),
+    billingCycle: String(purchase.billingCycle || "").trim(),
+    totalCredits: Number(purchase.totalCredits || 0),
+    totalAmountPaise: Number(purchase.totalAmountPaise || 0),
+    planStatus: String(purchase.planStatus || purchase.status || "").trim(),
+    startsAt: purchase.startsAt || null,
+    expiresAt: purchase.expiresAt || null,
+    eventAt: purchase.purchasedAt || purchase.createdAt || new Date(),
+  };
+}
+
 async function enqueue(request = {}, options = {}) {
   const providerJoinRequestId = String(request.providerJoinRequestId || "").trim();
   if (!providerJoinRequestId) throw new Error("Provider joining request ID is required for the internal alert event");
@@ -59,6 +83,45 @@ async function enqueue(request = {}, options = {}) {
   ], { session: options.session });
   console.info({ event: "provider_join_request_event_queued", integrationEventId: eventId, providerJoinRequestId });
   return rows[0];
+}
+
+async function enqueuePlanPurchase(purchase = {}, options = {}) {
+  const providerId = String(purchase.providerId || "").trim();
+  const paymentOrderId = String(purchase.paymentOrderId || "").trim();
+  const providerSubscriptionId = String(purchase.providerSubscriptionId || "").trim();
+  if (!providerId || !paymentOrderId || !providerSubscriptionId) {
+    throw new Error("Provider, payment order and subscription IDs are required for the plan purchase email event");
+  }
+  const eventId = planEventIdFor(paymentOrderId);
+  const now = options.now || new Date();
+  const syntheticRequestId = `plan:${paymentOrderId}`;
+  const row = await ProviderCommunicationEventOutbox.findOneAndUpdate(
+    { eventId },
+    {
+      $setOnInsert: {
+        eventId,
+        idempotencyKey: eventId,
+        eventName: PLAN_EVENT_NAME,
+        providerJoinRequestId: syntheticRequestId,
+        providerId,
+        paymentOrderId,
+        providerSubscriptionId,
+        payload: planEventPayload(purchase, eventId),
+        status: "pending",
+        attemptCount: 0,
+        lastError: "",
+        nextAttemptAt: now,
+      },
+    },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+      ...(options.session ? { session: options.session } : {}),
+    },
+  );
+  console.info({ event: "provider_plan_purchase_event_queued", integrationEventId: eventId, providerId, paymentOrderId });
+  return row;
 }
 
 function claimFilter({ eventId = "", force = false, now = new Date(), statuses = ["pending", "failed"] } = {}) {
@@ -129,9 +192,12 @@ async function processClaimed(event) {
   if (!event) return { processed: false, synced: false, reason: "not_due" };
   const startedAt = Date.now();
   console.info({
-    event: "provider_join_request_event_dispatch_started",
+    event: "provider_communication_event_dispatch_started",
+    eventName: event.eventName,
     integrationEventId: event.eventId,
     providerJoinRequestId: event.providerJoinRequestId,
+    providerId: event.providerId || "",
+    paymentOrderId: event.paymentOrderId || "",
     attemptCount: event.attemptCount,
   });
   try {
@@ -142,16 +208,18 @@ async function processClaimed(event) {
       });
     }
     if (result.deliveryFailed) {
-      throw Object.assign(new Error(result.deliveryWarning || "CRM internal email delivery failed"), {
-        code: "CRM_INTERNAL_EMAIL_DELIVERY_FAILED",
+      throw Object.assign(new Error(result.deliveryWarning || "CRM communication delivery failed"), {
+        code: "CRM_COMMUNICATION_DELIVERY_FAILED",
       });
     }
     const update = await complete(event);
     if (!update.modifiedCount) return { processed: false, synced: false, reason: "lease_lost", eventId: event.eventId };
     console.info({
-      event: "provider_join_request_event_dispatch_completed",
+      event: "provider_communication_event_dispatch_completed",
+      eventName: event.eventName,
       integrationEventId: event.eventId,
-      providerJoinRequestId: event.providerJoinRequestId,
+      providerId: event.providerId || "",
+      paymentOrderId: event.paymentOrderId || "",
       attemptCount: event.attemptCount,
       durationMs: Number((Date.now() - startedAt).toFixed(2)),
     });
@@ -159,9 +227,11 @@ async function processClaimed(event) {
   } catch (error) {
     const update = await fail(event, error);
     console.error({
-      event: "provider_join_request_event_dispatch_failed",
+      event: "provider_communication_event_dispatch_failed",
+      eventName: event.eventName,
       integrationEventId: event.eventId,
-      providerJoinRequestId: event.providerJoinRequestId,
+      providerId: event.providerId || "",
+      paymentOrderId: event.paymentOrderId || "",
       attemptCount: event.attemptCount,
       retryable: error?.retryable !== false,
       code: String(error?.code || "CRM_COMMUNICATION_FAILED"),
@@ -191,4 +261,18 @@ async function retryDue(options = {}) {
   return summary;
 }
 
-module.exports = { EVENT_NAME, eventIdFor, eventPayload, retryDelayMs, enqueue, claimOne, processClaimed, dispatchById, retryDue };
+module.exports = {
+  EVENT_NAME,
+  PLAN_EVENT_NAME,
+  eventIdFor,
+  eventPayload,
+  planEventIdFor,
+  planEventPayload,
+  retryDelayMs,
+  enqueue,
+  enqueuePlanPurchase,
+  claimOne,
+  processClaimed,
+  dispatchById,
+  retryDue,
+};

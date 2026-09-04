@@ -9,11 +9,16 @@ const providerCommunicationEventOutboxSchema = new mongoose.Schema(
     eventName: {
       type: String,
       required: true,
-      enum: ["provider_join_request_submitted"],
+      enum: ["provider_join_request_submitted", "provider_plan_purchased"],
       index: true,
       immutable: true,
     },
-    providerJoinRequestId: { type: String, required: true, index: true, immutable: true, maxlength: 120 },
+    // Kept required for compatibility with the existing unique database index.
+    // Plan events use a unique synthetic value derived from paymentOrderId.
+    providerJoinRequestId: { type: String, required: true, index: true, immutable: true, maxlength: 160 },
+    providerId: { type: String, default: "", index: true, immutable: true, maxlength: 120 },
+    paymentOrderId: { type: String, default: "", index: true, immutable: true, maxlength: 120 },
+    providerSubscriptionId: { type: String, default: "", index: true, immutable: true, maxlength: 120 },
     payload: { type: mongoose.Schema.Types.Mixed, required: true, immutable: true },
     status: {
       type: String,
@@ -38,6 +43,8 @@ const providerCommunicationEventOutboxSchema = new mongoose.Schema(
 
 providerCommunicationEventOutboxSchema.index({ status: 1, nextAttemptAt: 1, lockedAt: 1, _id: 1 });
 providerCommunicationEventOutboxSchema.index({ providerJoinRequestId: 1, eventName: 1 }, { unique: true });
+providerCommunicationEventOutboxSchema.index({ paymentOrderId: 1, eventName: 1 });
+providerCommunicationEventOutboxSchema.index({ providerId: 1, eventName: 1, createdAt: -1 });
 providerCommunicationEventOutboxSchema.index({ purgeAfterAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model(
