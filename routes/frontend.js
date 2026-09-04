@@ -23,6 +23,11 @@ router.get("/", (req, res) =>
 );
 router.get("/dashboard", pageAuth, frontendController.dashboard);
 router.get("/leads", pageAuth, frontendController.leads);
+router.get("/lead/:leadId", (req, res) => {
+  const queryIndex = req.originalUrl.indexOf("?");
+  const query = queryIndex >= 0 ? req.originalUrl.slice(queryIndex) : "";
+  return res.redirect(302, `/leads/${encodeURIComponent(req.params.leadId)}${query}`);
+});
 router.get("/leads/:leadId", pageAuth, frontendController.lead);
 router.get("/plans", pageAuth, frontendController.plans);
 router.get("/wallet", pageAuth, frontendController.wallet);
