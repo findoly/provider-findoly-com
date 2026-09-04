@@ -1,8 +1,9 @@
 const service = require("../services/lead/lead-service");
 const billingService = require("../services/wallet/wallet-service");
+const { apiAccessToken } = require("../middleware/direct-lead-access");
 
 function directAccessOptions(req) {
-  return { accessToken: String(req.query?.access || "").trim() };
+  return { accessToken: apiAccessToken(req) };
 }
 
 async function list(req, res, next) {
