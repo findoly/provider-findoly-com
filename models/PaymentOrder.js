@@ -39,6 +39,7 @@ const paymentOrderSchema = new mongoose.Schema(
     effectiveLeadCostCredits: { type: Number, default: 0, min: 0 },
     unlockDiscountPercent: { type: Number, default: 0, min: 0, max: 100 },
     unlockCountAtPurchase: { type: Number, default: 0, min: 0 },
+    employeeDirectAccessOverride: { type: Boolean, default: false },
 
     currency: { type: String, default: "INR" },
     status: { type: String, default: "created", index: true },
