@@ -17,12 +17,12 @@ function runOnce() {
   running = true;
   inFlight = outboxService.retryDue()
     .then((summary) => {
-      if (summary.processed) console.info({ event: "provider_join_request_event_retry_batch_completed", ...summary });
+      if (summary.processed) console.info({ event: "provider_communication_event_retry_batch_completed", ...summary });
       return summary;
     })
     .catch((error) => {
       console.error({
-        event: "provider_join_request_event_retry_batch_failed",
+        event: "provider_communication_event_retry_batch_failed",
         code: String(error?.code || "PROVIDER_COMMUNICATION_RETRY_FAILED"),
         message: String(error?.message || error).slice(0, 1000),
       });
