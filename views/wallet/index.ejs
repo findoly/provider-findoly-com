@@ -26,7 +26,7 @@
             <h1 id="lead-usage-title">Lead usage</h1>
             <p>Your available Lead Credits, lead usage and purchase history in one place.</p>
           </div>
-          <a class="btn btn-primary" href="/plans">Get Lead Credits</a>
+          <a class="btn btn-primary" href="/plans">View plan status</a>
         </section>
 
         <section class="card portal-card portal-credit-balance-card provider-credit-overview mb-4" aria-label="Available Lead Credits">
@@ -44,7 +44,7 @@
             </div>
             <div class="provider-credit-overview-actions">
               <a class="btn btn-light btn-sm" href="/leads?status=offered">Use Lead Credits</a>
-              <a class="btn btn-outline-light btn-sm" href="/plans">Get more Lead Credits</a>
+              <a class="btn btn-outline-light btn-sm" href="/plans">Plan &amp; billing</a>
             </div>
           </div>
         </section>
@@ -131,9 +131,9 @@
         <section class="card portal-card provider-payment-policy-card mt-4" aria-labelledby="payment-policy-title">
           <div class="card-body">
             <div>
-              <span class="provider-section-kicker">Purchase information</span>
-              <h5 id="payment-policy-title" class="mb-1">Digital Lead Credit delivery</h5>
-              <p class="text-muted mb-0">Lead Credits are added after verified payment and remain available until used. No physical delivery applies. Successfully delivered digital Lead Credits are non-refundable.</p>
+              <span class="provider-section-kicker">Billing status</span>
+              <h5 id="payment-policy-title" class="mb-1">Purchases temporarily on hold</h5>
+              <p class="text-muted mb-0">New subscription and Lead Credit purchases are temporarily unavailable. Existing Lead Credits remain available until used, and current plan access continues during the billing hold.</p>
             </div>
             <%- include('../partials/policy-links', { policyLinksClass: 'provider-payment-policy-links' }) %>
             <a href="mailto:<%= supportEmail %>" class="provider-payment-support"><%= supportEmail %></a>
