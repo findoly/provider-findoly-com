@@ -216,22 +216,29 @@ test("billing hold defaults on, is reversible, and blocks new credit orders befo
   );
   assert.equal(billingHold.state({}).status, "on_hold");
 
-  let createCalls = 0;
-  const controller = compile("controllers/walletController.js", {
-    "../services/wallet/wallet-service": {
-      async createCreditOrder() {
-        createCalls += 1;
-        throw new Error("must not be called");
+  const previousBillingHold = process.env.PROVIDER_BILLING_HOLD;
+  process.env.PROVIDER_BILLING_HOLD = "true";
+  try {
+    let createCalls = 0;
+    const controller = compile("controllers/walletController.js", {
+      "../services/wallet/wallet-service": {
+        async createCreditOrder() {
+          createCalls += 1;
+          throw new Error("must not be called");
+        },
       },
-    },
-  });
+    });
 
-  let forwarded = null;
-  await controller.createCreditOrder({}, {}, (error) => { forwarded = error; });
-  assert.equal(createCalls, 0);
-  assert.equal(forwarded?.status, 409);
-  assert.equal(forwarded?.code, "BILLING_HOLD");
-  assert.match(forwarded?.message || "", /Existing credits remain usable/);
+    let forwarded = null;
+    await controller.createCreditOrder({}, {}, (error) => { forwarded = error; });
+    assert.equal(createCalls, 0);
+    assert.equal(forwarded?.status, 409);
+    assert.equal(forwarded?.code, "BILLING_HOLD");
+    assert.match(forwarded?.message || "", /Existing credits remain usable/);
+  } finally {
+    if (previousBillingHold === undefined) delete process.env.PROVIDER_BILLING_HOLD;
+    else process.env.PROVIDER_BILLING_HOLD = previousBillingHold;
+  }
 });
 
 test("held subscriptions preserve current plan state while direct lead payment remains available", () => {
