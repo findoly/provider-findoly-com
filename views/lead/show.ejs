@@ -253,7 +253,7 @@
                   <button class="btn btn-primary w-100" type="button" @click="unlock()" :disabled="unlocking || payingDirect || loading">
                     <span x-text="unlocking ? 'Unlocking…' : 'Unlock with credits'"></span>
                   </button>
-                  <a href="/plans" class="btn btn-light w-100 mt-2">View plans &amp; credits</a>
+                  <a href="/plans" class="btn btn-light w-100 mt-2">View plan &amp; billing status</a>
                   <p class="text-muted fs-sm mt-3 mb-0">The exact credit cost is deducted only after the unlock completes.</p>
                 </div>
               </template>
@@ -274,7 +274,7 @@
                     <span class="spinner-border spinner-border-sm me-2" x-show="payingDirect" x-cloak></span>
                     <span x-text="payingDirect ? 'Opening secure checkout…' : `Pay ${money(directTotalPaise)} & unlock`"></span>
                   </button>
-                  <a href="/plans" class="btn btn-light w-100 mt-2">Choose a credit plan</a>
+                  <a href="/plans" class="btn btn-light w-100 mt-2">Credit purchases on hold</a>
                   <p class="text-muted fs-sm mt-3 mb-0">Direct payment unlocks only this lead. It does not add credits to your account.</p>
                 </div>
               </template>
