@@ -9,6 +9,7 @@ const {
   listCreditPackages,
   MINIMUM_LEAD_CREDITS,
 } = require("../config/plans");
+const billingHold = require("../config/billing-hold");
 
 function source(relativePath) {
   return fs.readFileSync(path.join(__dirname, "..", relativePath), "utf8");
@@ -78,32 +79,23 @@ test("legacy in-flight credit package codes retain their original fulfillment to
   assert.equal(getCreditPackage("business").bonusCredits, 0);
 });
 
-test("Lead Pack pricing page is focused, lead-oriented and has horizontal mobile comparison", () => {
+test("plan page shows billing hold status and exposes no new checkout path", () => {
   const pricing = source("views/wallet/plans.ejs");
-  const pricingCss = source("public/css/lead-plans.css");
   const head = source("views/partials/head.ejs");
 
-  assert.match(pricing, /Get more leads/);
-  assert.match(pricing, /Choose a Lead Pack/);
-  assert.match(pricing, /Available Lead Credits/);
-  assert.match(pricing, /Most Popular/);
-  assert.match(pricing, /Best Value/);
-  assert.match(pricing, /bonus/);
-  assert.match(pricing, /Lead Credits never expire/i);
-  assert.match(pricing, /Up to \$\{Number\(creditPackage\.estimatedLeads/);
-  assert.match(pricing, /Swipe to compare/);
-  assert.match(pricing, /\/api\/wallet\/credits\/order/);
-  assert.match(pricing, /\/api\/wallet\/credits\/verify/);
-  assert.match(pricing, /purpose: 'credit_purchase'/);
+  assert.match(pricing, /Subscription on hold/);
+  assert.match(pricing, /Current subscription/);
+  assert.match(pricing, />On Hold</);
+  assert.match(pricing, /existing plan access continues/i);
+  assert.match(pricing, /matching leads\/bookings/i);
+  assert.match(pricing, /Existing credits remain usable/i);
+  assert.match(pricing, /New subscription payments, renewals and Lead Credit purchases are temporarily unavailable/);
+  assert.match(pricing, /\/api\/wallet\?limit=1/);
   assert.match(head, /\/css\/lead-plans\.css/);
-  assert.doesNotMatch(pricing, /Wallet &amp; activity/);
-  assert.doesNotMatch(pricing, /Monthly|Yearly|\/ month|\/ year|billingCycle|Renewal scheduled|Choose your plan/);
-  assert.doesNotMatch(pricing, /GST/);
-
-  assert.match(pricingCss, /overflow-x:\s*auto/);
-  assert.match(pricingCss, /scroll-snap-type:\s*x mandatory/);
-  assert.match(pricingCss, /scroll-snap-align:\s*start/);
-  assert.match(pricingCss, /flex:\s*0 0 min\(84vw, 21rem\)/);
+  assert.doesNotMatch(pricing, /checkout\.razorpay\.com/);
+  assert.doesNotMatch(pricing, /\/api\/wallet\/credits\/order/);
+  assert.doesNotMatch(pricing, /\/api\/wallet\/credits\/verify/);
+  assert.doesNotMatch(pricing, /purchase\(creditPackage\)/);
 });
 
 test("Lead usage page removes wallet framing while keeping activity separate from pricing", () => {
@@ -113,7 +105,8 @@ test("Lead usage page removes wallet framing while keeping activity separate fro
   assert.match(activity, /Available Lead Credits/);
   assert.match(activity, /Lead usage history/);
   assert.match(activity, /Purchase history/);
-  assert.match(activity, /href="\/plans">Get Lead Credits/);
+  assert.match(activity, /href="\/plans">View plan status/);
+  assert.match(activity, /Purchases temporarily on hold/);
   assert.match(activity, /transactionDescription\(transaction\)/);
   assert.match(activity, /paymentDescription\(order\)/);
   assert.match(activity, /transaction\.source === 'plan_purchase'/);
@@ -122,19 +115,19 @@ test("Lead usage page removes wallet framing while keeping activity separate fro
   assert.doesNotMatch(activity, /portal-billing-toggle|Choose your plan|Monthly|Yearly|purchase\(plan\)|Razorpay/);
 });
 
-test("provider navigation uses Lead Credits and Lead usage instead of wallet wording", () => {
+test("provider navigation exposes plan and billing status without purchase wording", () => {
   const frontend = source("controllers/frontendController.js");
   const sidebar = source("views/partials/sidebar.ejs");
   const navbar = source("views/partials/navbar.ejs");
 
-  assert.match(frontend, /"Get Lead Credits"/);
+  assert.match(frontend, /"Plan & billing"/);
   assert.match(frontend, /"Lead usage"/);
-  assert.match(sidebar, />Get Lead Credits</);
+  assert.match(sidebar, />Plan &amp; billing</);
   assert.match(sidebar, />Lead usage</);
-  assert.doesNotMatch(sidebar, />Wallet &amp; activity</);
+  assert.doesNotMatch(sidebar, />Get Lead Credits</);
   assert.match(navbar, /Open Lead Credit activity/);
-  assert.match(navbar, />Get Lead Credits</);
-  assert.doesNotMatch(navbar, /Open wallet and credit activity/);
+  assert.match(navbar, />Plan &amp; billing</);
+  assert.doesNotMatch(navbar, />Get Lead Credits</);
 });
 
 test("new credit checkout does not create subscriptions and legacy plan fulfillment remains available", () => {
@@ -187,11 +180,12 @@ test("credit routes are separate and new legacy subscription orders are blocked"
   assert.match(routes, /"\/credits\/verify"/);
   assert.match(routes, /"\/plan\/order"/);
   assert.match(controllerSource, /PLAN_PURCHASE_DISABLED/);
-  assert.match(controllerSource, /Subscription purchases are no longer available/);
+  assert.match(controllerSource, /Subscription purchases are temporarily on hold/);
+  assert.match(controllerSource, /Lead Credit purchases are temporarily on hold/);
   assert.doesNotMatch(controllerSource, /data: await walletService\.createPlanOrder/);
   assert.match(frontend, /"wallet\/plans"/);
   assert.match(frontend, /"wallet\/index"/);
-  assert.match(sidebar, />Get Lead Credits</);
+  assert.match(sidebar, />Plan &amp; billing</);
   assert.match(sidebar, />Lead usage</);
 });
 
@@ -210,5 +204,48 @@ test("legacy plan order creation is rejected at runtime without calling the old 
   assert.equal(createCalls, 0);
   assert.equal(forwarded?.status, 409);
   assert.equal(forwarded?.code, "PLAN_PURCHASE_DISABLED");
-  assert.match(forwarded?.message || "", /Choose a credit package/);
+  assert.match(forwarded?.message || "", /temporarily on hold/);
+});
+
+test("billing hold defaults on, is reversible, and blocks new credit orders before service execution", async () => {
+  assert.equal(billingHold.enabled({}), true);
+  assert.equal(billingHold.enabled({ PROVIDER_BILLING_HOLD: "false" }), false);
+  assert.equal(
+    billingHold.startedAt({}).toISOString(),
+    billingHold.DEFAULT_BILLING_HOLD_STARTED_AT,
+  );
+  assert.equal(billingHold.state({}).status, "on_hold");
+
+  let createCalls = 0;
+  const controller = compile("controllers/walletController.js", {
+    "../services/wallet/wallet-service": {
+      async createCreditOrder() {
+        createCalls += 1;
+        throw new Error("must not be called");
+      },
+    },
+  });
+
+  let forwarded = null;
+  await controller.createCreditOrder({}, {}, (error) => { forwarded = error; });
+  assert.equal(createCalls, 0);
+  assert.equal(forwarded?.status, 409);
+  assert.equal(forwarded?.code, "BILLING_HOLD");
+  assert.match(forwarded?.message || "", /Existing credits remain usable/);
+});
+
+test("held subscriptions preserve current plan state while direct lead payment remains available", () => {
+  const walletService = source("services/wallet/wallet-service.js");
+  const creditService = source("services/billing/credit-service.js");
+  const leadView = source("views/lead/show.ejs");
+
+  assert.match(walletService, /heldSubscriptionQuery/);
+  assert.match(walletService, /billingHold\.startedAt\(\)/);
+  assert.match(walletService, /status: \{ \$nin: \["cancelled", "failed"\] \}/);
+  assert.match(walletService, /status: "on_hold"/);
+  assert.match(walletService, /enabled: configured && !billingHold\.enabled\(\)/);
+  assert.match(walletService, /billingHold\.assertPurchasesOpen\(\)/);
+  assert.match(creditService, /!billingHold\.enabled\(\)/);
+  assert.match(leadView, /Pay \$\{money\(directTotalPaise\)\} & unlock/);
+  assert.match(leadView, /Credit purchases on hold/);
 });
