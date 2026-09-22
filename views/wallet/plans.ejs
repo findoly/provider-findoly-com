@@ -13,112 +13,112 @@
   <%- include('../partials/sidebar') %>
   <div class="content-wrapper">
     <div class="content-inner">
-      <div class="content provider-plans-content" x-data="creditPackagesPage()" x-init="load()">
+      <div class="content provider-plans-content" x-data="billingHoldPage()" x-init="load()">
         <div x-show="shellError" x-cloak class="alert alert-danger portal-flash" x-text="shellError"></div>
         <div x-show="error" x-cloak class="alert alert-danger portal-flash" role="alert">
           <span x-text="error"></span>
           <small class="d-block mt-1" x-show="errorRequestId" x-text="`Reference: ${errorRequestId}`"></small>
         </div>
-        <div x-show="success" x-cloak class="alert alert-success portal-flash" x-text="success"></div>
 
-        <section class="provider-plans-intro mb-4" aria-labelledby="lead-packs-title">
+        <section class="provider-plans-intro mb-4" aria-labelledby="billing-hold-title">
           <div>
-            <span class="provider-section-kicker">Lead Packs</span>
-            <h1 id="lead-packs-title">Get more leads</h1>
-            <p>Choose a Lead Pack and use your Lead Credits whenever an eligible customer enquiry matches your business.</p>
+            <span class="provider-section-kicker">Plan &amp; Billing</span>
+            <h1 id="billing-hold-title">Subscription on hold</h1>
+            <p>Subscription payments and new Lead Credit purchases are temporarily paused. Your existing plan access continues during this hold.</p>
           </div>
-          <div class="d-flex align-items-center gap-3">
-            <div class="text-end d-none d-sm-block">
-              <div class="text-muted fs-sm">Available Lead Credits</div>
-              <strong x-text="leadCredits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Lead Credits</strong>
-            </div>
-            <a class="btn btn-light" href="/wallet">Lead usage</a>
-          </div>
+          <a class="btn btn-light" href="/wallet">Lead usage</a>
         </section>
 
-        <div x-show="data.razorpay && !data.razorpay.enabled" x-cloak class="alert alert-warning mb-4">
-          Lead Pack checkout is temporarily unavailable because secure payment is not configured.
+        <div class="alert alert-warning mb-4" role="status">
+          <strong>Billing is temporarily on hold.</strong>
+          You will continue to receive eligible matching leads/bookings from your existing plan, and any Lead Credits already in your account remain available to use.
         </div>
 
-        <div class="lead-pack-mobile-hint" aria-hidden="true">
-          <strong>4 Lead Packs</strong>
-          <span>Swipe to compare →</span>
-        </div>
+        <div class="row g-4 align-items-stretch mb-4">
+          <div class="col-xl-7">
+            <section class="card portal-card h-100" aria-labelledby="current-plan-title">
+              <div class="card-header border-bottom d-flex align-items-center gap-3">
+                <div>
+                  <span class="provider-section-kicker">Current subscription</span>
+                  <h5 id="current-plan-title" class="mb-0">Plan status</h5>
+                </div>
+                <span class="badge bg-warning-subtle text-warning ms-auto">On Hold</span>
+              </div>
+              <div class="card-body">
+                <template x-if="loading">
+                  <div class="text-muted">Loading current plan…</div>
+                </template>
 
-        <div class="lead-pack-track mb-2" :class="loading ? 'portal-loading' : ''">
-          <template x-for="creditPackage in creditPackages" :key="creditPackage.code">
-            <div class="lead-pack-item">
-              <div
-                class="card portal-card portal-plan-card lead-pack-card"
-                :class="{ 'is-recommended': creditPackage.recommended, 'is-best-value': creditPackage.bestValue }"
-              >
-                <div class="card-body d-flex flex-column">
-                  <div class="lead-pack-header">
-                    <div
-                      class="lead-pack-badge"
-                      :class="creditPackage.bestValue ? 'is-value' : ''"
-                      x-show="creditPackage.recommended || creditPackage.bestValue"
-                      x-text="creditPackage.recommended ? 'Most Popular' : 'Best Value'"
-                    ></div>
-                    <h4 class="mb-1" x-text="creditPackage.name"></h4>
-                    <p class="text-muted mb-0 fs-sm" x-text="creditPackage.tagline"></p>
+                <template x-if="!loading && currentSubscription">
+                  <div>
+                    <h3 class="mb-1" x-text="currentSubscription.planName || currentSubscription.planCode || 'Current plan'"></h3>
+                    <p class="text-muted mb-4" x-text="currentSubscription.billingCycle ? humanize(currentSubscription.billingCycle) : 'Existing subscription'"></p>
+
+                    <div class="row g-3">
+                      <div class="col-sm-6">
+                        <div class="border rounded p-3 h-100">
+                          <div class="text-muted fs-sm">Plan started</div>
+                          <strong x-text="dateOnly(currentSubscription.startsAt)"></strong>
+                        </div>
+                      </div>
+                      <div class="col-sm-6">
+                        <div class="border rounded p-3 h-100">
+                          <div class="text-muted fs-sm">Original validity date</div>
+                          <strong x-text="dateOnly(currentSubscription.expiresAt)"></strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="alert alert-info mt-4 mb-0">
+                      The original expiry date is retained for history. While billing is on hold, Findoly keeps your existing plan access available so lead/booking delivery is not stopped because of this billing pause.
+                    </div>
                   </div>
+                </template>
 
-                  <div class="lead-pack-price">
-                    <strong x-text="packPrice(creditPackage.finalPricePaise)"></strong>
-                    <span>one-time purchase</span>
+                <template x-if="!loading && !currentSubscription">
+                  <div>
+                    <h5 class="mb-2">No current subscription record found</h5>
+                    <p class="text-muted mb-0">New subscription and Lead Credit purchases are still paused. Your provider account and any existing Lead Credits remain available under the normal eligibility rules.</p>
                   </div>
+                </template>
+              </div>
+            </section>
+          </div>
 
-                  <div class="lead-pack-credit-box">
-                    <span>You get</span>
-                    <strong x-text="leadCredits(creditPackage.credits)"></strong>
-                    <div
-                      class="lead-pack-bonus"
-                      x-show="Number(creditPackage.bonusPercent || 0) > 0"
-                      x-text="`${Number(creditPackage.bonusCredits || 0).toLocaleString('en-IN')} extra · ${creditPackage.bonusPercent}% bonus`"
-                    ></div>
+          <div class="col-xl-5">
+            <section class="card portal-card portal-credit-balance-card provider-credit-overview h-100" aria-label="Available Lead Credits">
+              <div class="card-body">
+                <div class="provider-credit-overview-heading">
+                  <span class="provider-credit-overview-icon"><svg class="icon"><use href="#i-unlock"></use></svg></span>
+                  <div>
+                    <span>Available Lead Credits</span>
+                    <small>Existing credits remain usable</small>
                   </div>
-
-                  <div class="lead-pack-estimate">
-                    <span>Estimated lead access*</span>
-                    <strong x-text="`Up to ${Number(creditPackage.estimatedLeads || 0).toLocaleString('en-IN')} unlocks`"></strong>
-                  </div>
-
-                  <ul class="lead-pack-features">
-                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Lead Credits never expire</span></li>
-                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Use on any eligible lead</span></li>
-                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Added automatically after payment</span></li>
-                  </ul>
-
-                  <button
-                    class="btn w-100 mt-auto"
-                    :class="creditPackage.recommended ? 'btn-primary' : 'btn-outline-primary'"
-                    type="button"
-                    @click="purchase(creditPackage)"
-                    :disabled="submitting || loading || !data.razorpay?.enabled"
-                  >
-                    <span class="spinner-border spinner-border-sm me-2" x-show="submittingPackage === creditPackage.code" x-cloak></span>
-                    <span x-text="submittingPackage === creditPackage.code ? 'Opening secure checkout…' : `Get ${creditPackage.name} Pack`"></span>
-                  </button>
+                </div>
+                <strong class="provider-credit-overview-value" x-text="leadCredits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Lead Credits</strong>
+                <div class="provider-credit-overview-meta">
+                  <span>New Lead Credit purchases are temporarily disabled.</span>
+                </div>
+                <div class="provider-credit-overview-actions">
+                  <a class="btn btn-light btn-sm" href="/leads?status=offered">Use Lead Credits</a>
+                  <a class="btn btn-outline-light btn-sm" href="/wallet">View activity</a>
                 </div>
               </div>
-            </div>
-          </template>
+            </section>
+          </div>
         </div>
 
-        <p class="text-muted fs-sm mb-2">*Estimated using leads starting from 50 Lead Credits. Actual Lead Credits required vary by lead.</p>
-
-        <div class="lead-pack-reassurance mb-4" aria-label="Lead Pack purchase reassurance">
-          <span><svg class="icon"><use href="#i-lock"></use></svg>Secure Razorpay checkout</span>
-          <span><svg class="icon"><use href="#i-check"></use></svg>Lead Credits added automatically</span>
-          <span><svg class="icon"><use href="#i-clock"></use></svg>Lead Credits never expire</span>
-        </div>
-
-        <div class="d-flex flex-wrap align-items-center gap-3 text-muted fs-sm">
-          <a href="/wallet">View Lead Credit activity</a>
-          <span>·</span>
-          <a href="/help-support">How Findoly Lead Credits work</a>
-        </div>
+        <section class="card portal-card" aria-labelledby="billing-hold-details">
+          <div class="card-body">
+            <span class="provider-section-kicker">During this hold</span>
+            <h5 id="billing-hold-details" class="mb-3">What continues and what is paused</h5>
+            <ul class="lead-pack-features mb-0">
+              <li><svg class="icon"><use href="#i-check"></use></svg><span>Your existing provider account, plan access and matching lead/booking delivery continue.</span></li>
+              <li><svg class="icon"><use href="#i-check"></use></svg><span>Lead Credits already available in your account can still be used to unlock eligible leads.</span></li>
+              <li><svg class="icon"><use href="#i-clock"></use></svg><span>New subscription payments, renewals and Lead Credit purchases are temporarily unavailable.</span></li>
+            </ul>
+          </div>
+        </section>
       </div>
 
       <%- include('../partials/footer') %>
@@ -126,31 +126,32 @@
   </div>
 </div>
 <div class="portal-sidebar-overlay" data-portal-menu-overlay aria-hidden="true"></div>
-<script nonce="<%= cspNonce %>" src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <%- include('../partials/scripts') %>
 <script nonce="<%= cspNonce %>">
-  function creditPackagesPage() {
+  function billingHoldPage() {
     return {
       data: {},
-      creditPackages: [],
       loading: true,
-      submitting: false,
-      submittingPackage: '',
       error: '',
       errorRequestId: '',
-      success: '',
+
+      get currentSubscription() {
+        return this.data.currentSubscription || null;
+      },
 
       leadCredits(value) {
         return `${Number(value || 0).toLocaleString('en-IN')} Lead Credits`;
       },
 
-      packPrice(paise) {
-        return new Intl.NumberFormat('en-IN', {
-          style: 'currency',
-          currency: 'INR',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        }).format(Number(paise || 0) / 100);
+      dateOnly(value) {
+        if (!value) return '—';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '—';
+        return new Intl.DateTimeFormat('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        }).format(date);
       },
 
       async load() {
@@ -158,103 +159,12 @@
         this.error = '';
         this.errorRequestId = '';
         try {
-          this.data = (await apiFetch('/api/wallet/packages')).data;
-          this.creditPackages = this.data.creditPackages || [];
+          this.data = (await apiFetch('/api/wallet?limit=1')).data || {};
         } catch (error) {
           this.error = error.message;
           this.errorRequestId = error.requestId || '';
         } finally {
           this.loading = false;
-        }
-      },
-
-      async purchase(creditPackage) {
-        if (this.submitting || !this.data.razorpay?.enabled) return;
-        this.submitting = true;
-        this.submittingPackage = creditPackage.code;
-        this.error = '';
-        this.errorRequestId = '';
-        this.success = '';
-
-        try {
-          if (typeof Razorpay !== 'function') throw new Error('Razorpay Checkout could not be loaded. Check your connection and try again.');
-          const order = (await apiFetch('/api/wallet/credits/order', {
-            method: 'POST',
-            body: JSON.stringify({ packageCode: creditPackage.code })
-          })).data;
-
-          const cancelPendingOrder = async () => {
-            await apiFetch('/api/wallet/credits/cancel', {
-              method: 'POST',
-              body: JSON.stringify({ paymentOrderId: order.paymentOrderId })
-            }).catch(() => {});
-          };
-
-          const checkout = new Razorpay({
-            key: order.keyId,
-            amount: order.amountPaise,
-            currency: order.currency,
-            name: 'Findoly',
-            description: `${this.leadCredits(order.creditPackage.credits)} · never expire`,
-            order_id: order.razorpayOrderId,
-            retry: { enabled: true },
-            remember_customer: false,
-            prefill: {
-              name: order.provider?.name || '',
-              email: order.provider?.email || '',
-              contact: order.provider?.mobile || ''
-            },
-            notes: {
-              paymentOrderId: order.paymentOrderId,
-              purpose: 'credit_purchase',
-              packageCode: order.creditPackage.code
-            },
-            theme: { color: '#2563eb' },
-            handler: async (payment) => {
-              try {
-                const verification = (await apiFetch('/api/wallet/credits/verify', {
-                  method: 'POST',
-                  body: JSON.stringify(payment)
-                })).data;
-                if (verification.status === 'pending') {
-                  this.success = verification.message || 'Payment is authorised and will complete after capture.';
-                } else {
-                  this.success = `${this.leadCredits(order.creditPackage.credits)} added successfully. They never expire.`;
-                  this.$dispatch('credits-updated');
-                }
-                await this.load();
-              } catch (error) {
-                this.error = error.message;
-                this.errorRequestId = error.requestId || '';
-              } finally {
-                this.submitting = false;
-                this.submittingPackage = '';
-              }
-            },
-            modal: {
-              confirm_close: true,
-              ondismiss: async () => {
-                await cancelPendingOrder();
-                this.submitting = false;
-                this.submittingPackage = '';
-                await this.load();
-              }
-            }
-          });
-
-          checkout.on('payment.failed', async (response) => {
-            this.error = response.error?.description || 'Razorpay payment failed';
-            await cancelPendingOrder();
-            this.submitting = false;
-            this.submittingPackage = '';
-            await this.load();
-          });
-          checkout.open();
-        } catch (error) {
-          this.error = error.message;
-          this.errorRequestId = error.requestId || '';
-          this.submitting = false;
-          this.submittingPackage = '';
         }
       }
     };

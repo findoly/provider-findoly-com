@@ -17,6 +17,7 @@ const {
 } = require("../../config/plans");
 const creditService = require("../billing/credit-service");
 const leadPaymentService = require("./lead-payment-service");
+const billingHold = require("../../config/billing-hold");
 
 function getGateway() {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -121,13 +122,14 @@ function presentPaymentOrder(order = {}) {
   };
 }
 
-function presentSubscription(subscription = {}) {
+function presentSubscription(subscription = {}, options = {}) {
   return {
     providerSubscriptionId: subscription.providerSubscriptionId || subscription.id || "",
     planCode: subscription.planCode || "",
     planName: subscription.planName || "",
     billingCycle: subscription.billingCycle || "",
-    status: subscription.status || "",
+    status: options.status || subscription.status || "",
+    originalStatus: subscription.status || "",
     startsAt: subscription.startsAt || null,
     expiresAt: subscription.expiresAt || null,
     purchasedAt: subscription.purchasedAt || subscription.createdAt || null,
@@ -139,26 +141,48 @@ function presentSubscription(subscription = {}) {
   };
 }
 
-async function syncProviderPlanState(providerId, now = new Date(), session = null) {
-  let activeQuery = ProviderSubscription.findOne({
+function heldSubscriptionQuery(providerId) {
+  const holdStartedAt = billingHold.startedAt();
+  return {
     providerId,
-    status: "active",
-    startsAt: { $lte: now },
-    expiresAt: { $gt: now },
-  }).sort({ startsAt: -1, _id: -1 });
+    status: { $nin: ["cancelled", "failed"] },
+    startsAt: { $lte: holdStartedAt },
+    expiresAt: { $gt: holdStartedAt },
+  };
+}
+
+async function findHeldSubscription(providerId, session = null) {
+  if (!billingHold.enabled()) return null;
+  let query = ProviderSubscription.findOne(heldSubscriptionQuery(providerId))
+    .sort({ startsAt: -1, _id: -1 });
+  if (session) query = query.session(session);
+  return query.lean();
+}
+
+async function syncProviderPlanState(providerId, now = new Date(), session = null) {
+  const held = await findHeldSubscription(providerId, session);
+  let active = held;
+  if (!active) {
+    let activeQuery = ProviderSubscription.findOne({
+      providerId,
+      status: "active",
+      startsAt: { $lte: now },
+      expiresAt: { $gt: now },
+    }).sort({ startsAt: -1, _id: -1 });
+    if (session) activeQuery = activeQuery.session(session);
+    active = await activeQuery.lean();
+  }
+
   let upcomingQuery = ProviderSubscription.findOne({
     providerId,
     status: "scheduled",
     startsAt: { $gt: now },
     expiresAt: { $gt: now },
   }).sort({ startsAt: 1, _id: 1 });
-  if (session) {
-    activeQuery = activeQuery.session(session);
-    upcomingQuery = upcomingQuery.session(session);
-  }
+  if (session) upcomingQuery = upcomingQuery.session(session);
   // MongoDB transactions do not support parallel operations on one session.
-  const active = await activeQuery.lean();
   const upcoming = await upcomingQuery.lean();
+
   return Provider.findOneAndUpdate(
     providerQuery(providerId),
     {
@@ -184,8 +208,17 @@ async function syncProviderPlanState(providerId, now = new Date(), session = nul
 
 async function expireSubscriptionRecords(providerId) {
   const now = new Date();
+  const held = await findHeldSubscription(providerId);
+  const expiryQuery = {
+    providerId,
+    status: { $in: ["active", "scheduled"] },
+    expiresAt: { $lte: now },
+  };
+  if (held?.providerSubscriptionId) {
+    expiryQuery.providerSubscriptionId = { $ne: held.providerSubscriptionId };
+  }
   await ProviderSubscription.updateMany(
-    { providerId, status: { $in: ["active", "scheduled"] }, expiresAt: { $lte: now } },
+    expiryQuery,
     { $set: { status: "expired", updatedAt: now } },
   );
   await ProviderSubscription.updateMany(
@@ -195,8 +228,10 @@ async function expireSubscriptionRecords(providerId) {
 }
 
 function razorpayState() {
+  const configured = Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
   return {
-    enabled: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+    configured,
+    enabled: configured && !billingHold.enabled(),
   };
 }
 
@@ -206,6 +241,7 @@ async function packages(provider) {
   return {
     provider: presentProvider(syncedProvider),
     creditPackages: listCreditPackages(),
+    billingHold: billingHold.state(),
     razorpay: razorpayState(),
   };
 }
@@ -216,6 +252,7 @@ async function get(provider, filters = {}) {
   await expireSubscriptionRecords(providerId);
   await creditService.syncCredits(providerId);
   const syncedProvider = await syncProviderPlanState(providerId);
+  const heldSubscription = await findHeldSubscription(providerId);
 
   const [transactionPage, recentOrders, subscriptions] = await Promise.all([
     cursorPaginate(WalletTransaction, {
@@ -235,7 +272,7 @@ async function get(provider, filters = {}) {
   ]);
 
   const now = new Date();
-  const currentSubscription = subscriptions.find(
+  const currentSubscription = heldSubscription || subscriptions.find(
     (item) => new Date(item.startsAt) <= now && new Date(item.expiresAt) > now,
   );
   const upcomingSubscription = subscriptions.find(
@@ -248,9 +285,20 @@ async function get(provider, filters = {}) {
     // Retained for compatibility with any older provider client still reading
     // the historical plan payload during rollout.
     plans: listPlans(),
-    currentSubscription: currentSubscription ? presentSubscription(currentSubscription) : null,
+    currentSubscription: currentSubscription
+      ? presentSubscription(currentSubscription, {
+          status: heldSubscription?.providerSubscriptionId === currentSubscription.providerSubscriptionId
+            ? "on_hold"
+            : undefined,
+        })
+      : null,
     upcomingSubscription: upcomingSubscription ? presentSubscription(upcomingSubscription) : null,
-    subscriptions: subscriptions.map(presentSubscription),
+    subscriptions: subscriptions.map((subscription) => presentSubscription(subscription, {
+      status: heldSubscription?.providerSubscriptionId === subscription.providerSubscriptionId
+        ? "on_hold"
+        : undefined,
+    })),
+    billingHold: billingHold.state(),
     razorpay: razorpayState(),
     paymentOrders: recentOrders.map(presentPaymentOrder),
     data: transactionPage.data.map(presentTransaction),
@@ -291,6 +339,7 @@ function checkoutProvider(provider) {
 }
 
 async function createCreditOrder(provider, input = {}) {
+  billingHold.assertPurchasesOpen();
   const providerId = providerIdentity(provider);
   const creditPackage = getCreditPackage(input.packageCode);
   const paymentOrderId = uuid();
@@ -368,6 +417,7 @@ async function cancelCreditOrder(provider, input = {}) {
 }
 
 async function createPlanOrder(provider, input = {}) {
+  billingHold.assertPurchasesOpen();
   const providerId = providerIdentity(provider);
   const plan = getPlan(input.planCode, input.billingCycle);
   const paymentOrderId = uuid();
@@ -932,6 +982,7 @@ module.exports = {
   get,
   packages,
   presentPaymentOrder,
+  findHeldSubscription,
   syncProviderPlanState,
   verify,
   verifyLead,
