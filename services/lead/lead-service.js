@@ -325,6 +325,27 @@ async function unlock(provider, identifier, options = {}) {
             isActive: { $ne: false },
             marketplacePublishedAt: { $lte: now },
             marketplaceExpiresAt: { $gt: now },
+            marketplaceStatus: "closed",
+            marketplaceAvailable: false,
+            marketplaceClosureReason: "provider_pending",
+            remainingUnlocks: { $gt: 0 },
+          },
+          {
+            $inc: { remainingUnlocks: -1, unlockedCount: 1 },
+            $set: { updatedAt: now },
+          },
+          { new: true, session },
+        );
+      }
+
+      if (!claimed && directAccess) {
+        claimed = await Enquiry.findOneAndUpdate(
+          {
+            enquiryId: marketplaceLead.enquiryId,
+            status: "approved",
+            isActive: { $ne: false },
+            marketplacePublishedAt: { $lte: now },
+            marketplaceExpiresAt: { $gt: now },
             remainingUnlocks: 0,
             $or: [
               {
