@@ -28,8 +28,8 @@ const frontendController = {
   lead: render("lead/show", "Lead details"),
   plans: render(
     "wallet/plans",
-    "Plan & billing",
-    "Subscription billing and new Lead Credit purchases are temporarily on hold",
+    "Get Lead Credits",
+    "Choose a Lead Pack and unlock more matching opportunities",
   ),
   wallet: render(
     "wallet/index",
