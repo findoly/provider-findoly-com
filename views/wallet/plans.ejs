@@ -24,8 +24,8 @@
         <section class="provider-plans-intro mb-4" aria-labelledby="lead-packs-title">
           <div>
             <span class="provider-section-kicker">Lead Credit Packs</span>
-            <h1 id="lead-packs-title">Credits for matched customer requirements</h1>
-            <p>Use Lead Credits to unlock eligible customer requirements matched to your business. Credits are deducted on unlock, and Not Confirmed bookings follow the existing Findoly credit-refund process.</p>
+            <h1 id="lead-packs-title">Lead Credits for customer bookings</h1>
+            <p>Use Lead Credits to unlock matched customer requirements. Credits are deducted when you unlock. If a booking is Not Confirmed, the existing Findoly credit-refund review process applies.</p>
           </div>
           <div class="d-flex align-items-center gap-3">
             <div class="text-end d-none d-sm-block">
@@ -61,7 +61,7 @@
                       x-text="creditPackage.recommended ? 'Most Popular' : 'Best Value'"
                     ></div>
                     <h4 class="mb-1" x-text="creditPackage.name"></h4>
-                    <p class="text-muted mb-0 fs-sm" x-text="creditPackage.tagline"></p>
+                    <p class="text-muted mb-0 fs-sm">For matched customer booking opportunities</p>
                   </div>
 
                   <div class="lead-pack-price">
@@ -76,13 +76,13 @@
 
                   <div class="lead-pack-estimate">
                     <span>How credits work</span>
-                    <strong>Deducted when you unlock a requirement</strong>
+                    <strong>Deducted on unlock · reviewed if Not Confirmed</strong>
                   </div>
 
                   <ul class="lead-pack-features">
-                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Access matched customer requirements</span></li>
-                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Not Confirmed bookings follow the Findoly credit-refund process</span></li>
-                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Purchased Lead Credits never expire</span></li>
+                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Unlock matched customer requirements</span></li>
+                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Confirmed booking keeps the unlock charge</span></li>
+                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Not Confirmed bookings go through Findoly credit-refund review</span></li>
                   </ul>
 
                   <button
@@ -103,7 +103,7 @@
 
         <div class="lead-pack-reassurance mb-4" aria-label="Lead Credit Pack purchase reassurance">
           <span><svg class="icon"><use href="#i-lock"></use></svg>Secure Razorpay checkout</span>
-          <span><svg class="icon"><use href="#i-check"></use></svg>Use credits on matched requirements</span>
+          <span><svg class="icon"><use href="#i-check"></use></svg>Credits support customer booking opportunities</span>
           <span><svg class="icon"><use href="#i-clock"></use></svg>Lead Credits never expire</span>
         </div>
 
