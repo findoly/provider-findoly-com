@@ -4,7 +4,6 @@ const WalletTransaction = require("../../models/WalletTransaction");
 const uuid = require("../../utils/uuid");
 const { providerQuery } = require("../../utils/provider");
 const { withTransaction } = require("../../utils/transaction");
-const billingHold = require("../../config/billing-hold");
 const { creditsFromPaise } = require("../../utils/credits");
 
 function sessionQuery(query, session) {
@@ -148,11 +147,7 @@ async function expireAllocations(provider, session, now = new Date()) {
     updatedAt: now,
   };
 
-  if (
-    !billingHold.enabled()
-    && provider.currentPlanExpiresAt
-    && new Date(provider.currentPlanExpiresAt) <= now
-  ) {
+  if (provider.currentPlanExpiresAt && new Date(provider.currentPlanExpiresAt) <= now) {
     Object.assign(update, {
       currentPlanCode: "",
       currentPlanName: "",
