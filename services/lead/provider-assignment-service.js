@@ -40,6 +40,22 @@ async function assertNextProviderEligible(enquiryId, providerId = "", session = 
   return true;
 }
 
+async function closeForActiveProvider(enquiryId, session = null, now = new Date()) {
+  let query = Enquiry.findOne({ enquiryId: String(enquiryId || "").trim() });
+  if (session) query = query.session(session);
+  const lead = await query;
+  if (!lead) return { closed: false, reason: "lead_missing" };
+
+  lead.marketplaceAvailable = false;
+  lead.marketplaceStatus = "closed";
+  lead.marketplaceClosureReason = Number(lead.remainingUnlocks || 0) <= 0
+    ? "unlock_limit"
+    : "provider_pending";
+  lead.updatedAt = now;
+  await lead.save({ session });
+  return { closed: true, lead: lead.toObject() };
+}
+
 async function reopenIfAllNotConfirmed(enquiryId, session = null, now = new Date()) {
   const blocker = await findBlockingUnlock(enquiryId, "", session);
   if (blocker) {
@@ -85,5 +101,6 @@ module.exports = {
   blockingQuery,
   findBlockingUnlock,
   assertNextProviderEligible,
+  closeForActiveProvider,
   reopenIfAllNotConfirmed,
 };
