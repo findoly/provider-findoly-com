@@ -4,6 +4,7 @@ const Enquiry = require("../../models/Enquiry");
 const { providerIdentity } = require("../../utils/provider");
 const marketplaceService = require("../marketplace/marketplace-service");
 const directAccessToken = require("./provider-direct-access-token");
+const assignmentService = require("./provider-assignment-service");
 
 function unavailableError() {
   return Object.assign(new Error("This employee-shared lead is no longer available"), {
@@ -61,6 +62,11 @@ async function load(provider, enquiryId, options = {}) {
   }
 
   marketplaceService.assertCategoryMatch(provider, lead);
+  await assignmentService.assertNextProviderEligible(
+    id,
+    providerIdentity(provider),
+    options.session || null,
+  );
   if (!lifecycleAllowsDirectAccess(provider, lead, options.now || new Date())) {
     throw unavailableError();
   }
