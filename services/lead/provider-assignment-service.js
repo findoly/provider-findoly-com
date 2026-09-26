@@ -67,11 +67,41 @@ async function closeForActiveProvider(enquiryId, session = null, now = new Date(
   return { closed: true, lead: lead.toObject() };
 }
 
-async function reopenIfAllNotConfirmed(enquiryId, session = null, now = new Date()) {
+async function markReadyForReassignment(enquiryId, session = null, now = new Date()) {
   const blocker = await findBlockingUnlock(enquiryId, "", session);
   if (blocker) {
-    return { reopened: false, blocked: true, blocker };
+    return { eligible: false, blocked: true, blocker };
   }
+
+  let query = Enquiry.findOne({ enquiryId: String(enquiryId || "").trim() });
+  if (session) query = query.session(session);
+  const lead = await query;
+  if (!lead) return { eligible: false, blocked: false, reason: "lead_missing" };
+
+  const activeLifecycle =
+    lead.status === "approved"
+    && lead.isActive !== false
+    && lead.marketplacePublishedAt
+    && new Date(lead.marketplacePublishedAt) <= now
+    && lead.marketplaceExpiresAt
+    && new Date(lead.marketplaceExpiresAt) > now;
+  if (!activeLifecycle) {
+    return { eligible: false, blocked: false, reason: "lead_not_eligible" };
+  }
+
+  lead.marketplaceAvailable = false;
+  lead.marketplaceStatus = "closed";
+  lead.marketplaceClosureReason = Number(lead.remainingUnlocks || 0) <= 0
+    ? "unlock_limit"
+    : "provider_pending";
+  lead.updatedAt = now;
+  await lead.save({ session });
+  return { eligible: true, blocked: false, lead: lead.toObject() };
+}
+
+async function reopenAfterReservationRelease(enquiryId, session = null, now = new Date()) {
+  const blocker = await findBlockingUnlock(enquiryId, "", session);
+  if (blocker) return { reopened: false, blocked: true, blocker };
 
   let query = Enquiry.findOne({ enquiryId: String(enquiryId || "").trim() });
   if (session) query = query.session(session);
@@ -85,20 +115,9 @@ async function reopenIfAllNotConfirmed(enquiryId, session = null, now = new Date
     && new Date(lead.marketplacePublishedAt) <= now
     && lead.marketplaceExpiresAt
     && new Date(lead.marketplaceExpiresAt) > now
-    && Number(lead.reservedUnlockCount || 0) === 0;
-
-  if (!eligible) {
-    return { reopened: false, blocked: false, reason: "lead_not_eligible" };
-  }
-
-  if (Number(lead.remainingUnlocks || 0) <= 0) {
-    lead.marketplaceAvailable = false;
-    lead.marketplaceStatus = "closed";
-    lead.marketplaceClosureReason = "unlock_limit";
-    lead.updatedAt = now;
-    await lead.save({ session });
-    return { reopened: false, blocked: false, reason: "unlock_limit" };
-  }
+    && Number(lead.reservedUnlockCount || 0) === 0
+    && Number(lead.remainingUnlocks || 0) > 0;
+  if (!eligible) return { reopened: false, blocked: false, reason: "lead_not_eligible" };
 
   lead.marketplaceAvailable = true;
   lead.marketplaceStatus = "published";
@@ -113,5 +132,6 @@ module.exports = {
   findBlockingUnlock,
   assertNextProviderEligible,
   closeForActiveProvider,
-  reopenIfAllNotConfirmed,
+  markReadyForReassignment,
+  reopenAfterReservationRelease,
 };
