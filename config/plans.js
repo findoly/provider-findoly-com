@@ -22,8 +22,8 @@ const CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
     bestValue: false,
     finalPricePaise: 299900,
     baseCredits: 3000,
-    bonusPercent: 10,
-    credits: 3300,
+    bonusPercent: 0,
+    credits: 3000,
   }),
   Object.freeze({
     code: "scale",
@@ -33,8 +33,8 @@ const CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
     bestValue: false,
     finalPricePaise: 499900,
     baseCredits: 5000,
-    bonusPercent: 20,
-    credits: 6000,
+    bonusPercent: 0,
+    credits: 5000,
   }),
   Object.freeze({
     code: "pro",
@@ -44,8 +44,8 @@ const CREDIT_PACKAGE_DEFINITIONS = Object.freeze([
     bestValue: true,
     finalPricePaise: 999900,
     baseCredits: 10000,
-    bonusPercent: 30,
-    credits: 13000,
+    bonusPercent: 0,
+    credits: 10000,
   }),
 ]);
 
