@@ -521,8 +521,7 @@ async function updateFeedback(provider, identifier, input = {}) {
       await assignmentService.closeForActiveProvider(unlock.enquiryId, session, now);
     }
 
-    const finalEnquiry = await Enquiry.findOne({ enquiryId: unlock.enquiryId }).session(session).lean();
-    return { unlock: unlock.toObject(), enquiry: finalEnquiry || enquiry.toObject() };
+    return { unlock: unlock.toObject(), enquiry: enquiry.toObject() };
   });
 
   await crmSyncService
