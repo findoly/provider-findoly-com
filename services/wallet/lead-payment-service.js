@@ -15,6 +15,7 @@ const crmSyncService = require("../integration/crm-sync-service");
 const marketplaceService = require("../marketplace/marketplace-service");
 const leadService = require("../lead/lead-service");
 const directAccessService = require("../lead/provider-direct-access-service");
+const assignmentService = require("../lead/provider-assignment-service");
 
 const RESERVATION_MINUTES = Math.min(60, Math.max(5, Number(process.env.LEAD_PAYMENT_RESERVATION_MINUTES || 20)));
 const RELEASE_BATCH_SIZE = Math.min(100, Math.max(5, Number(process.env.LEAD_PAYMENT_RELEASE_BATCH_SIZE || 25)));
@@ -95,43 +96,14 @@ async function releaseReservation(paymentOrderId, reason = "expired") {
       { new: true, session },
     );
 
-    let reopened = false;
-    if (
-      order.employeeDirectAccessOverride !== true
-      && enquiry
-      && enquiry.status === "approved"
-      && enquiry.isActive !== false
-      && Number(enquiry.remainingUnlocks || 0) > 0
-      && enquiry.marketplaceClosureReason === "unlock_limit"
-      && enquiry.marketplaceExpiresAt
-      && new Date(enquiry.marketplaceExpiresAt) > now
-    ) {
-      const result = await Enquiry.updateOne(
-        {
-          enquiryId: enquiry.enquiryId,
-          status: "approved",
-          isActive: { $ne: false },
-          remainingUnlocks: { $gt: 0 },
-          marketplaceClosureReason: "unlock_limit",
-          marketplaceExpiresAt: { $gt: now },
-        },
-        {
-          $set: {
-            marketplaceAvailable: true,
-            marketplaceStatus: "published",
-            marketplaceClosureReason: "",
-            updatedAt: now,
-          },
-        },
-        { session },
-      );
-      reopened = Boolean(result.matchedCount);
-    }
+    const reopenResult = enquiry
+      ? await assignmentService.reopenIfAllNotConfirmed(enquiry.enquiryId, session, now)
+      : { reopened: false };
 
     return {
       released: true,
       counterAdjusted: Boolean(enquiry),
-      reopened,
+      reopened: reopenResult.reopened === true,
       order: order.toObject(),
       enquiry: enquiry?.toObject() || null,
     };
@@ -225,6 +197,7 @@ async function createLeadOrder(provider, enquiryIdInput, options = {}) {
     throw Object.assign(new Error("This lead is already unlocked"), { status: 409, code: "LEAD_ALREADY_UNLOCKED" });
   }
 
+  await assignmentService.assertNextProviderEligible(enquiryId, providerId);
   const syncedProvider = await creditService.syncCredits(providerId);
   const enquiry = directAccess
     ? await directAccessService.load(provider, enquiryId)
@@ -295,7 +268,12 @@ async function createLeadOrder(provider, enquiryIdInput, options = {}) {
         },
         {
           $inc: { remainingUnlocks: -1, reservedUnlockCount: 1 },
-          $set: { updatedAt: now },
+          $set: {
+            marketplaceAvailable: false,
+            marketplaceStatus: "closed",
+            marketplaceClosureReason: "provider_pending",
+            updatedAt: now,
+          },
         },
         { new: true, session },
       );
@@ -495,13 +473,24 @@ async function fulfillLeadOrder(paymentOrderInput, paymentId) {
         { new: true, session },
       );
     } else {
+      await assignmentService.assertNextProviderEligible(order.enquiryId, order.providerId, session);
       enquiry = await Enquiry.findOneAndUpdate(
         {
           enquiryId: order.enquiryId,
+          marketplaceAvailable: true,
+          marketplaceStatus: "published",
           marketplaceExpiresAt: { $gt: new Date() },
           remainingUnlocks: { $gt: 0 },
         },
-        { $inc: { remainingUnlocks: -1, unlockedCount: 1 }, $set: { updatedAt: new Date() } },
+        {
+          $inc: { remainingUnlocks: -1, unlockedCount: 1 },
+          $set: {
+            marketplaceAvailable: false,
+            marketplaceStatus: "closed",
+            marketplaceClosureReason: "provider_pending",
+            updatedAt: new Date(),
+          },
+        },
         { new: true, session },
       );
     }
