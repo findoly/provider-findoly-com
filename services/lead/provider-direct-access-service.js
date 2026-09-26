@@ -32,6 +32,15 @@ function lifecycleAllowsDirectAccess(provider, lead, now = new Date()) {
   if (!visibleAt || visibleAt > now) return false;
   if (marketplaceService.isVisibleNow(provider, lead, now)) return true;
 
+  if (
+    lead.marketplaceStatus === "closed"
+    && lead.marketplaceAvailable === false
+    && lead.marketplaceClosureReason === "provider_pending"
+    && Number(lead.remainingUnlocks || 0) > 0
+  ) {
+    return true;
+  }
+
   const noSlots = Number(lead.remainingUnlocks || 0) <= 0;
   if (!noSlots) return false;
   if (
