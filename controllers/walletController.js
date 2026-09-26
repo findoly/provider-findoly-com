@@ -1,5 +1,4 @@
 const walletService = require("../services/wallet/wallet-service");
-const billingHold = require("../config/billing-hold");
 const planEmailService = require("../services/integration/provider-plan-email-service");
 const {
   logRazorpayWebhookDiagnostic,
@@ -47,11 +46,6 @@ async function packages(req, res, next) {
 }
 
 async function createCreditOrder(req, res, next) {
-  if (billingHold.enabled()) {
-    return next(billingHold.purchaseDisabledError(
-      "Lead Credit purchases are temporarily on hold. Existing credits remain usable.",
-    ));
-  }
   try {
     return res.status(201).json({
       success: true,
@@ -91,7 +85,7 @@ async function verifyCredits(req, res, next) {
 // can still be closed or completed safely.
 async function createPlanOrder(req, res, next) {
   return next(Object.assign(
-    new Error("Subscription purchases are temporarily on hold. Existing plan access continues."),
+    new Error("Subscription purchases are no longer available. Choose a credit package instead."),
     { status: 409, code: "PLAN_PURCHASE_DISABLED" },
   ));
 }
