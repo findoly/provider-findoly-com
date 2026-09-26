@@ -136,3 +136,16 @@ test("a refunded earlier provider cannot reclaim a reassigned requirement", () =
   assert.match(leadService, /LEAD_ALREADY_REASSIGNED/);
   assert.match(leadService, /unlockedAt: \{ \$gt: unlock\.unlockedAt \}/);
 });
+
+test("CRM-created unlock records are already unlocked in the provider portal", () => {
+  const unlockModel = source("models/ProviderLeadUnlock.js");
+  const leadPresenter = source("utils/lead.js");
+
+  assert.match(unlockModel, /assignmentSource/);
+  assert.match(unlockModel, /"crm_manual"/);
+  assert.match(unlockModel, /assignedBy/);
+  assert.match(unlockModel, /assignedAt/);
+  assert.match(leadPresenter, /const unlocked = Boolean\(unlock\?\.providerLeadUnlockId\)/);
+  assert.match(leadPresenter, /contactUnlocked: unlocked/);
+  assert.match(leadPresenter, /customerMobile: enquiry\.mobile/);
+});
