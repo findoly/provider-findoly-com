@@ -132,12 +132,22 @@
             </label>
             <label :class="{ selected: feedbackForm.outcome === 'not_confirmed' }">
               <input type="radio" name="providerSaleOutcome" value="not_confirmed" x-model="feedbackForm.outcome">
-              <span><strong>Not Confirmed</strong><small>No completed sale at this time.</small></span>
+              <span><strong>Not Confirmed</strong><small>No completed sale at this time. Findoly may review this unlock for a credit reversal.</small></span>
             </label>
           </div>
 
           <div class="portal-policy-warning mt-3">
             Submit accurate information only. Findoly may verify this outcome with the customer and provider. Incorrect or misleading updates can result in a warning, temporary suspension, or permanent platform restriction after team review.
+          </div>
+
+          <div class="alert alert-info mt-3 mb-0" x-show="lead.creditRefundStatus === 'pending_review'" x-cloak>
+            Your Not Confirmed update is awaiting Findoly review. Credits remain charged unless the Findoly team approves a reversal.
+          </div>
+          <div class="alert alert-success mt-3 mb-0" x-show="lead.creditRefundStatus === 'refunded'" x-cloak>
+            Findoly approved the reversal. <strong x-text="credits(lead.creditRefundedCredits)"></strong> were returned to your account.
+          </div>
+          <div class="alert alert-light border mt-3 mb-0" x-show="lead.creditRefundStatus === 'kept_charged'" x-cloak>
+            Findoly reviewed this Not Confirmed outcome and kept the original unlock charge.
           </div>
 
           <div class="row g-3 mt-1">
