@@ -46,7 +46,7 @@ test("unlock charging remains unchanged while Not Confirmed creates refund revie
   assert.match(leadService, /creditService\.consumeCredits\(providerId, costMinorCredits, session\)/);
   assert.match(leadService, /source: "lead_unlock"/);
   assert.match(leadService, /feedback\.outcome === "not_confirmed"[\s\S]*creditRefundStatus = "pending_review"/);
-  assert.match(leadService, /reopenIfAllNotConfirmed/);
+  assert.match(leadService, /markReadyForReassignment/);
   assert.match(unlockModel, /creditRefundStatus/);
   assert.match(unlockModel, /"pending_review", "refunded", "kept_charged"/);
   assert.match(leadView, /awaiting Findoly review/);
@@ -73,7 +73,7 @@ test("another provider is blocked until every earlier provider is Not Confirmed"
   );
 });
 
-test("assignment close and reopen use provider_pending without overwriting terminal states", async () => {
+test("assignment stays managed after Not Confirmed without overwriting terminal states", async () => {
   const activeLead = {
     status: "approved",
     isActive: true,
@@ -92,11 +92,11 @@ test("assignment close and reopen use provider_pending without overwriting termi
   assert.equal(activeLead.marketplaceStatus, "closed");
   assert.equal(activeLead.marketplaceClosureReason, "provider_pending");
 
-  const reopened = await active.reopenIfAllNotConfirmed("lead-1");
-  assert.equal(reopened.reopened, true);
-  assert.equal(activeLead.marketplaceAvailable, true);
-  assert.equal(activeLead.marketplaceStatus, "published");
-  assert.equal(activeLead.marketplaceClosureReason, "");
+  const ready = await active.markReadyForReassignment("lead-1");
+  assert.equal(ready.eligible, true);
+  assert.equal(activeLead.marketplaceAvailable, false);
+  assert.equal(activeLead.marketplaceStatus, "closed");
+  assert.equal(activeLead.marketplaceClosureReason, "provider_pending");
 
   const expiredLead = {
     ...activeLead,
@@ -123,7 +123,10 @@ test("marketplace and direct-payment flows enforce the same sequential-provider 
   assert.match(marketplace, /assertNextProviderEligible/);
   assert.match(payment, /assertNextProviderEligible/);
   assert.match(payment, /marketplaceClosureReason: "provider_pending"/);
+  assert.match(payment, /employeeDirectAccessConsumedSlot/);
+  assert.match(payment, /markReadyForReassignment/);
   assert.match(directAccess, /assertNextProviderEligible/);
+  assert.match(directAccess, /marketplaceClosureReason === "provider_pending"/);
   assert.match(enquiryModel, /"provider_pending"/);
 });
 
