@@ -219,6 +219,11 @@ function unlockSnapshot(enquiry, provider, input = {}) {
     chargedPaise: Number(input.chargedPaise || 0),
     walletTransactionId: input.walletTransactionId || "",
     paymentOrderId: input.paymentOrderId || "",
+    billingModel: input.billingModel || "unlock_legacy",
+    billableCredits: Number(input.billableCredits || 0),
+    billingStatus: input.billingStatus || "",
+    confirmationChargedAt: input.confirmationChargedAt || null,
+    confirmationChargedBy: input.confirmationChargedBy || "",
     ...crmSyncService.pendingSyncFields("provider_lead_unlocked", input.unlockedAt || new Date()),
   };
 }
@@ -289,11 +294,10 @@ async function unlock(provider, identifier, options = {}) {
         ? await directAccessService.load(provider, enquiryId, { session })
         : await marketplaceService.loadMarketplaceEnquiry(provider, enquiryId, { session, includeContact: true });
       const costCredits = Math.max(0, leadCostCredits(marketplaceLead));
-      const costMinorCredits = paiseFromCredits(costCredits);
       logWhatsappAction(options, "provider_whatsapp_credit_decision", {
         providerId,
         enquiryId: marketplaceLead.enquiryId,
-        requiredCredits: costCredits,
+        billableCreditsOnConfirmation: costCredits,
       });
 
       const now = new Date();
@@ -371,33 +375,15 @@ async function unlock(provider, identifier, options = {}) {
         throw Object.assign(new Error("This lead is no longer available"), { status: 409, code: "LEAD_UNLOCK_CONFLICT" });
       }
 
-      const consumption = await creditService.consumeCredits(providerId, costMinorCredits, session);
-      let walletTransactionId = "";
-      if (costMinorCredits > 0) {
-        walletTransactionId = uuid();
-        await WalletTransaction.create([{
-          walletTransactionId,
-          providerId,
-          type: "debit",
-          amountPaise: costMinorCredits,
-          currency: "INR",
-          balanceBeforePaise: consumption.balanceBeforePaise,
-          balanceAfterPaise: consumption.balanceAfterPaise,
-          status: "posted",
-          source: "lead_unlock",
-          referenceId: claimed.enquiryId,
-          idempotencyKey: `lead-unlock:${providerId}:${claimed.enquiryId}`,
-          description: `Unlocked lead ${claimed.enquiryId}`,
-          metadata: { consumption: consumption.consumption },
-        }], { session });
-      }
-
       const [createdUnlock] = await ProviderLeadUnlock.create([
         unlockSnapshot(claimed.toObject(), provider, {
           unlockMethod: "credits",
-          chargedCredits: costCredits,
+          chargedCredits: 0,
           chargedPaise: 0,
-          walletTransactionId,
+          walletTransactionId: "",
+          billingModel: "confirmed_outcome_v1",
+          billableCredits: costCredits,
+          billingStatus: "pending_confirmation",
         }),
       ], { session });
       await crmSyncService.enqueue(
@@ -406,7 +392,7 @@ async function unlock(provider, identifier, options = {}) {
         { session, now: createdUnlock.unlockedAt || new Date() },
       );
       await marketplaceService.closeIfFull(claimed, session);
-      return { enquiry: claimed.toObject(), unlock: createdUnlock.toObject(), provider: consumption.provider.toObject() };
+      return { enquiry: claimed.toObject(), unlock: createdUnlock.toObject() };
     });
   } catch (error) {
     if (error?.code === 11000) {
@@ -438,8 +424,9 @@ async function unlock(provider, identifier, options = {}) {
     providerId,
     enquiryId,
     result: "committed",
-    chargedCredits: Number(transactionResult.unlock?.chargedCredits || 0),
-    walletTransactionCreated: Boolean(transactionResult.unlock?.walletTransactionId),
+    chargedCredits: 0,
+    billableCreditsOnConfirmation: Number(transactionResult.unlock?.billableCredits || 0),
+    walletTransactionCreated: false,
   });
 
   syncUnlockCommunication(transactionResult.unlock, transactionResult.enquiry, provider).catch(() => {});
@@ -485,6 +472,46 @@ async function updateFeedback(provider, identifier, input = {}) {
       }
     }
 
+    if (
+      newConfirmed
+      && !oldConfirmed
+      && unlock.billingModel === "confirmed_outcome_v1"
+      && unlock.billingStatus !== "charged"
+    ) {
+      const billableCredits = Math.max(0, Number(unlock.billableCredits || 0));
+      const billableMinorCredits = paiseFromCredits(billableCredits);
+      const consumption = await creditService.consumeCredits(providerId, billableMinorCredits, session);
+      let confirmationWalletTransactionId = "";
+      if (billableMinorCredits > 0) {
+        confirmationWalletTransactionId = uuid();
+        await WalletTransaction.create([{
+          walletTransactionId: confirmationWalletTransactionId,
+          providerId,
+          type: "debit",
+          amountPaise: billableMinorCredits,
+          currency: "INR",
+          balanceBeforePaise: consumption.balanceBeforePaise,
+          balanceAfterPaise: consumption.balanceAfterPaise,
+          status: "posted",
+          source: "confirmed_lead_charge",
+          referenceId: unlock.providerLeadUnlockId,
+          idempotencyKey: `confirmed-lead-charge:${providerId}:${unlock.providerLeadUnlockId}`,
+          description: `Confirmed lead ${unlock.enquiryId}`,
+          metadata: {
+            enquiryId: unlock.enquiryId,
+            providerLeadUnlockId: unlock.providerLeadUnlockId,
+            consumption: consumption.consumption,
+          },
+        }], { session });
+      }
+      unlock.chargedCredits = billableCredits;
+      unlock.walletTransactionId = confirmationWalletTransactionId;
+      unlock.billingStatus = "charged";
+      unlock.confirmationChargedAt = now;
+      unlock.confirmationChargedBy = providerId;
+      unlock.creditRefundStatus = "";
+    }
+
     unlock.providerSaleOutcome = feedback.outcome;
     unlock.providerSaleOutcomeNote = feedback.outcomeNote;
     unlock.providerSaleOutcomeUpdatedAt = now;
@@ -501,7 +528,6 @@ async function updateFeedback(provider, identifier, input = {}) {
 
     if (
       feedback.outcome === "not_confirmed"
-      && unlock.unlockMethod === "credits"
       && Number(unlock.chargedCredits || 0) > 0
       && !["refunded", "kept_charged"].includes(unlock.creditRefundStatus)
     ) {
