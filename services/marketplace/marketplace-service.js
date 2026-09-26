@@ -18,6 +18,7 @@ const {
 } = require("../../utils/pagination");
 const { normalizeSearchText, prefixRegex } = require("../../utils/normalization");
 const { assertDateRange, parseIsoDateFilter } = require("../../utils/date-filter");
+const assignmentService = require("../lead/provider-assignment-service");
 
 const MARKETPLACE_COUNT_MAX_TIME_MS = Math.min(60000, Math.max(1000, Number(process.env.PROVIDER_QUERY_MAX_TIME_MS || 10000)));
 const PINCODE_PATTERN = /^[1-9]\d{5}$/;
@@ -146,6 +147,7 @@ async function loadMarketplaceEnquiry(provider, enquiryId, options = {}) {
     throw Object.assign(new Error("Lead not found"), { status: 404, code: "LEAD_NOT_FOUND" });
   }
   assertCategoryMatch(provider, lead);
+  await assignmentService.assertNextProviderEligible(id, providerId, options.session || null);
 
   if (!isVisibleNow(provider, lead, options.now || new Date())) {
     const existingQuery = ProviderLeadUnlock.findOne({ providerId, enquiryId: id });
@@ -352,13 +354,19 @@ async function listMarketplace(provider, filters = {}) {
         || (lead.providerDistanceKm !== null && lead.providerDistanceKm <= maxDistanceKm));
 
     if (visible.length) {
-      const unlocked = await ProviderLeadUnlock.find({
-        providerId,
+      const unlocks = await ProviderLeadUnlock.find({
         enquiryId: { $in: visible.map((lead) => lead.enquiryId) },
-      }).select({ enquiryId: 1 }).lean();
-      const unlockedIds = new Set(unlocked.map((row) => row.enquiryId));
+      }).select({ enquiryId: 1, providerId: 1, providerSaleOutcome: 1 }).lean();
+      const unlockedIds = new Set(
+        unlocks.filter((row) => row.providerId === providerId).map((row) => row.enquiryId),
+      );
+      const blockedIds = new Set(
+        unlocks
+          .filter((row) => row.providerId !== providerId && row.providerSaleOutcome !== "not_confirmed")
+          .map((row) => row.enquiryId),
+      );
       for (const lead of visible) {
-        if (!unlockedIds.has(lead.enquiryId)) selected.push(lead);
+        if (!unlockedIds.has(lead.enquiryId) && !blockedIds.has(lead.enquiryId)) selected.push(lead);
         if (selected.length >= limit + 1) break;
       }
     }
@@ -413,13 +421,19 @@ async function countMarketplace(provider, options = {}) {
         || (lead.providerDistanceKm !== null && lead.providerDistanceKm <= maxDistanceKm));
 
     if (visible.length) {
-      const unlocked = await ProviderLeadUnlock.find({
-        providerId,
+      const unlocks = await ProviderLeadUnlock.find({
         enquiryId: { $in: visible.map((lead) => lead.enquiryId) },
-      }).select({ enquiryId: 1 }).lean();
-      const unlockedIds = new Set(unlocked.map((row) => row.enquiryId));
+      }).select({ enquiryId: 1, providerId: 1, providerSaleOutcome: 1 }).lean();
+      const unlockedIds = new Set(
+        unlocks.filter((row) => row.providerId === providerId).map((row) => row.enquiryId),
+      );
+      const blockedIds = new Set(
+        unlocks
+          .filter((row) => row.providerId !== providerId && row.providerSaleOutcome !== "not_confirmed")
+          .map((row) => row.enquiryId),
+      );
       for (const lead of visible) {
-        if (!unlockedIds.has(lead.enquiryId)) visibleCount += 1;
+        if (!unlockedIds.has(lead.enquiryId) && !blockedIds.has(lead.enquiryId)) visibleCount += 1;
         if (visibleCount > cap) return { value: cap, capped: true };
       }
     }

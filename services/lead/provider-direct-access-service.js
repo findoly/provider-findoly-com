@@ -4,6 +4,7 @@ const Enquiry = require("../../models/Enquiry");
 const { providerIdentity } = require("../../utils/provider");
 const marketplaceService = require("../marketplace/marketplace-service");
 const directAccessToken = require("./provider-direct-access-token");
+const assignmentService = require("./provider-assignment-service");
 
 function unavailableError() {
   return Object.assign(new Error("This employee-shared lead is no longer available"), {
@@ -30,6 +31,15 @@ function lifecycleAllowsDirectAccess(provider, lead, now = new Date()) {
   const visibleAt = marketplaceService.visibilityFor(provider, lead).marketplaceVisibleAt;
   if (!visibleAt || visibleAt > now) return false;
   if (marketplaceService.isVisibleNow(provider, lead, now)) return true;
+
+  if (
+    lead.marketplaceStatus === "closed"
+    && lead.marketplaceAvailable === false
+    && lead.marketplaceClosureReason === "provider_pending"
+    && Number(lead.remainingUnlocks || 0) > 0
+  ) {
+    return true;
+  }
 
   const noSlots = Number(lead.remainingUnlocks || 0) <= 0;
   if (!noSlots) return false;
@@ -61,6 +71,11 @@ async function load(provider, enquiryId, options = {}) {
   }
 
   marketplaceService.assertCategoryMatch(provider, lead);
+  await assignmentService.assertNextProviderEligible(
+    id,
+    providerIdentity(provider),
+    options.session || null,
+  );
   if (!lifecycleAllowsDirectAccess(provider, lead, options.now || new Date())) {
     throw unavailableError();
   }

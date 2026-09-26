@@ -16,6 +16,7 @@ const creditService = require("../billing/credit-service");
 const crmSyncService = require("../integration/crm-sync-service");
 const marketplaceService = require("../marketplace/marketplace-service");
 const directAccessService = require("./provider-direct-access-service");
+const assignmentService = require("./provider-assignment-service");
 
 function whatsappActionDiagnostics(options = {}) {
   return String(options.source || "") === "whatsapp_action";
@@ -283,6 +284,7 @@ async function unlock(provider, identifier, options = {}) {
         );
       }
 
+      await assignmentService.assertNextProviderEligible(enquiryId, providerId, session);
       const marketplaceLead = directAccess
         ? await directAccessService.load(provider, enquiryId, { session })
         : await marketplaceService.loadMarketplaceEnquiry(provider, enquiryId, { session, includeContact: true });
@@ -305,10 +307,36 @@ async function unlock(provider, identifier, options = {}) {
         },
         {
           $inc: { remainingUnlocks: -1, unlockedCount: 1 },
-          $set: { updatedAt: now },
+          $set: {
+            marketplaceAvailable: false,
+            marketplaceStatus: "closed",
+            marketplaceClosureReason: "provider_pending",
+            updatedAt: now,
+          },
         },
         { new: true, session },
       );
+
+      if (!claimed && directAccess) {
+        claimed = await Enquiry.findOneAndUpdate(
+          {
+            enquiryId: marketplaceLead.enquiryId,
+            status: "approved",
+            isActive: { $ne: false },
+            marketplacePublishedAt: { $lte: now },
+            marketplaceExpiresAt: { $gt: now },
+            marketplaceStatus: "closed",
+            marketplaceAvailable: false,
+            marketplaceClosureReason: "provider_pending",
+            remainingUnlocks: { $gt: 0 },
+          },
+          {
+            $inc: { remainingUnlocks: -1, unlockedCount: 1 },
+            $set: { updatedAt: now },
+          },
+          { new: true, session },
+        );
+      }
 
       if (!claimed && directAccess) {
         claimed = await Enquiry.findOneAndUpdate(
@@ -429,9 +457,33 @@ async function updateFeedback(provider, identifier, input = {}) {
     const unlock = await findUnlock(providerId, identifier, session);
     if (!unlock) throw Object.assign(new Error("Unlocked lead not found"), { status: 404 });
     const oldConfirmed = unlock.providerSaleOutcome === "confirmed";
+    const wasNotConfirmed = unlock.providerSaleOutcome === "not_confirmed";
     const newConfirmed = feedback.outcome === "confirmed";
     const delta = Number(newConfirmed) - Number(oldConfirmed);
     const now = new Date();
+
+    if (newConfirmed && unlock.creditRefundStatus === "refunded") {
+      throw Object.assign(
+        new Error("This requirement was already closed and its credits were refunded. Contact Findoly if the outcome needs correction."),
+        { status: 409, code: "REFUNDED_OUTCOME_LOCKED" },
+      );
+    }
+
+    if (newConfirmed && wasNotConfirmed) {
+      let laterUnlockQuery = ProviderLeadUnlock.findOne({
+        enquiryId: unlock.enquiryId,
+        providerId: { $ne: providerId },
+        unlockedAt: { $gt: unlock.unlockedAt },
+      }).select({ providerLeadUnlockId: 1, providerId: 1 });
+      laterUnlockQuery = laterUnlockQuery.session(session);
+      const laterUnlock = await laterUnlockQuery.lean();
+      if (laterUnlock) {
+        throw Object.assign(
+          new Error("This requirement was already reassigned to another provider, so the earlier outcome cannot be changed back to Confirmed."),
+          { status: 409, code: "LEAD_ALREADY_REASSIGNED" },
+        );
+      }
+    }
 
     unlock.providerSaleOutcome = feedback.outcome;
     unlock.providerSaleOutcomeNote = feedback.outcomeNote;
@@ -446,6 +498,18 @@ async function updateFeedback(provider, identifier, input = {}) {
     unlock.outcomeVerificationNote = "";
     unlock.outcomeVerifiedAt = null;
     unlock.outcomeVerifiedBy = "";
+
+    if (
+      feedback.outcome === "not_confirmed"
+      && unlock.unlockMethod === "credits"
+      && Number(unlock.chargedCredits || 0) > 0
+      && !["refunded", "kept_charged"].includes(unlock.creditRefundStatus)
+    ) {
+      unlock.creditRefundStatus = "pending_review";
+    } else if (feedback.outcome === "confirmed" && unlock.creditRefundStatus === "pending_review") {
+      unlock.creditRefundStatus = "";
+    }
+
     Object.assign(unlock, crmSyncService.pendingSyncFields("provider_feedback_updated", now));
     await unlock.save({ session });
     await crmSyncService.enqueue(
@@ -471,6 +535,13 @@ async function updateFeedback(provider, identifier, input = {}) {
       ? enquiry.providerSaleConvertedAt || now
       : null;
     await enquiry.save({ session });
+
+    if (feedback.outcome === "not_confirmed") {
+      await assignmentService.markReadyForReassignment(unlock.enquiryId, session, now);
+    } else {
+      await assignmentService.closeForActiveProvider(unlock.enquiryId, session, now);
+    }
+
     return { unlock: unlock.toObject(), enquiry: enquiry.toObject() };
   });
 

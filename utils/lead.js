@@ -107,6 +107,10 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
       providerLeadStatusUpdatedAt: unlock.providerLeadStatusUpdatedAt || null,
       outcomeVerificationStatus: unlock.outcomeVerificationStatus || "",
       outcomeVerificationNote: unlock.outcomeVerificationNote || "",
+      creditRefundStatus: unlock.creditRefundStatus || "",
+      creditRefundedCredits: Number(unlock.creditRefundedCredits || 0),
+      creditRefundedAt: unlock.creditRefundedAt || null,
+      creditRefundNote: unlock.creditRefundNote || "",
       crmSyncStatus: unlock.crmSyncStatus || "",
       crmSyncError: unlock.crmSyncError || "",
     });
