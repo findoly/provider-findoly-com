@@ -498,6 +498,14 @@ async function fulfillCreditOrder(paymentOrder, paymentId) {
     }
 
     const creditPackage = getCreditPackage(order.planCode);
+    // Credit purchase orders snapshot the promised total at checkout creation.
+    // Fulfill that snapshot so orders created before a package change keep the
+    // credits the provider saw when checkout began. New orders use the current
+    // package mapping because createCreditOrder stores that current total.
+    const snapshottedCredits = Number(order.totalCredits || order.creditAmount || 0);
+    const fulfilledCredits = snapshottedCredits > 0
+      ? snapshottedCredits
+      : Number(creditPackage.credits || 0);
     const now = new Date();
     const creditResult = await creditService.addCredits(
       order.providerId,
@@ -507,13 +515,13 @@ async function fulfillCreditOrder(paymentOrder, paymentId) {
         paymentOrderId: order.paymentOrderId,
         planCode: creditPackage.code,
         billingCycle: "",
-        amountMinorCredits: paiseFromCredits(creditPackage.credits),
+        amountMinorCredits: paiseFromCredits(fulfilledCredits),
         expiresAt: null,
         metadata: {
           packageCode: creditPackage.code,
           packageName: creditPackage.name,
           minimumLeadCredits: creditPackage.minimumLeadCredits,
-          estimatedLeads: creditPackage.estimatedLeads,
+          estimatedLeads: Math.floor(fulfilledCredits / Math.max(1, Number(creditPackage.minimumLeadCredits || 1))),
           nonExpiring: true,
         },
       },
@@ -526,7 +534,7 @@ async function fulfillCreditOrder(paymentOrder, paymentId) {
         walletTransactionId,
         providerId: order.providerId,
         type: "credit",
-        amountPaise: paiseFromCredits(creditPackage.credits),
+        amountPaise: paiseFromCredits(fulfilledCredits),
         currency: "INR",
         balanceBeforePaise: creditResult.balanceBeforePaise,
         balanceAfterPaise: creditResult.balanceAfterPaise,
@@ -534,7 +542,7 @@ async function fulfillCreditOrder(paymentOrder, paymentId) {
         source: "credit_purchase",
         referenceId: order.paymentOrderId,
         idempotencyKey: `credit-purchase:${order.paymentOrderId}`,
-        description: `${creditPackage.credits} credits purchased`,
+        description: `${fulfilledCredits} credits purchased`,
         expiresAt: null,
         metadata: {
           packageCode: creditPackage.code,
@@ -569,7 +577,17 @@ async function fulfillCreditOrder(paymentOrder, paymentId) {
       status: "completed",
       purpose: "credit_purchase",
       provider: presentProvider(creditResult.provider),
-      creditPackage,
+      creditPackage: {
+        ...creditPackage,
+        baseCredits: fulfilledCredits,
+        bonusPercent: 0,
+        bonusCredits: 0,
+        credits: fulfilledCredits,
+        totalCredits: fulfilledCredits,
+        estimatedLeads: Math.floor(
+          fulfilledCredits / Math.max(1, Number(creditPackage.minimumLeadCredits || 1)),
+        ),
+      },
       paymentOrder: presentPaymentOrder({
         ...order.toObject(),
         status: "paid",
