@@ -379,7 +379,7 @@
 <script nonce="<%= cspNonce %>">
   function leadList() {
     const query = new URLSearchParams(location.search);
-    const initialStatus = query.get('status') === 'marketplace' ? 'marketplace' : 'unlocked';
+    const initialStatus = ['marketplace', 'offered'].includes(query.get('status')) ? 'marketplace' : 'unlocked';
     const queryValue = (key, fallback = '') => query.get(key) ?? fallback;
     return {
       rows: [], categories: [], locationReady: true, loading: true, error: '', filtersOpen: false, viewMode: 'row',
