@@ -372,7 +372,7 @@ test("managed provider workspace is the default while legacy marketplace capabil
   assert.match(navbar, />Pending</);
   assert.doesNotMatch(navbar, />Find</);
 
-  assert.match(list, /const initialStatus = query\.get\('status'\) === 'marketplace' \? 'marketplace' : 'unlocked'/);
+  assert.match(list, /const initialStatus = \['marketplace', 'offered'\]\.includes\(query\.get\('status'\)\) \? 'marketplace' : 'unlocked'/);
   assert.match(list, /Customer requirements assigned to your account/);
   assert.match(list, /No assigned requirements found/);
   assert.match(list, /This legacy opportunity view is kept for compatibility/);
