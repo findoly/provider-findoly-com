@@ -153,12 +153,16 @@ test("saved provider outcome and activity are returned only after successful unl
     providerSaleOutcomeNote: "Booked for Monday",
     providerLeadStatus: "follow_up",
     providerLeadNote: "Final service date pending",
+    assignmentSource: "crm_manual",
+    assignedAt: new Date("2026-10-03T00:00:00.000Z"),
   };
 
   const unlocked = presentLead(enquiry, unlock);
   assert.equal(unlocked.leadCostCredits, 50);
   assert.equal(unlocked.providerSaleOutcome, "confirmed");
   assert.equal(unlocked.providerLeadStatus, "follow_up");
+  assert.equal(unlocked.assignmentSource, "crm_manual");
+  assert.equal(unlocked.assignedAt.toISOString(), "2026-10-03T00:00:00.000Z");
 
   const locked = presentLead(enquiry);
   assert.equal(locked.providerSaleOutcome, undefined);
