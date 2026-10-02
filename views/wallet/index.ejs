@@ -22,11 +22,11 @@
 
         <section class="provider-plans-intro mb-4" aria-labelledby="lead-usage-title">
           <div>
-            <span class="provider-section-kicker">Lead Credits</span>
-            <h1 id="lead-usage-title">Lead usage</h1>
-            <p>Your available Lead Credits, lead usage and purchase history in one place.</p>
+            <span class="provider-section-kicker">Account credits</span>
+            <h1 id="lead-usage-title">Credit activity</h1>
+            <p>Your available credits, assignment charges, refunds and purchase history in one place.</p>
           </div>
-          <a class="btn btn-primary" href="/plans">Get Lead Credits</a>
+          <a class="btn btn-primary" href="/plans">Add account credits</a>
         </section>
 
         <section class="card portal-card portal-credit-balance-card provider-credit-overview mb-4" aria-label="Available Lead Credits">
@@ -34,8 +34,8 @@
             <div class="provider-credit-overview-heading">
               <span class="provider-credit-overview-icon"><svg class="icon"><use href="#i-unlock"></use></svg></span>
               <div>
-                <span>Available Lead Credits</span>
-                <small>Ready to unlock matching customer leads</small>
+                <span>Available credits</span>
+                <small>Available for Findoly-assigned customer requirements</small>
               </div>
             </div>
             <strong class="provider-credit-overview-value" x-text="leadCredits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Lead Credits</strong>
@@ -43,8 +43,8 @@
               <span>Purchased Lead Credits never expire.</span>
             </div>
             <div class="provider-credit-overview-actions">
-              <a class="btn btn-light btn-sm" href="/leads?status=offered">Use Lead Credits</a>
-              <a class="btn btn-outline-light btn-sm" href="/plans">Get more Lead Credits</a>
+              <a class="btn btn-light btn-sm" href="/leads?status=unlocked">View assigned requirements</a>
+              <a class="btn btn-outline-light btn-sm" href="/plans">Add credits</a>
             </div>
           </div>
         </section>
@@ -54,8 +54,8 @@
             <div class="card portal-card">
               <div class="card-header border-bottom d-flex align-items-center">
                 <div>
-                  <h5 class="mb-1">Lead usage history</h5>
-                  <div class="text-muted fs-sm">Lead Pack purchases, lead unlocks and Lead Credit adjustments.</div>
+                  <h5 class="mb-1">Credit activity history</h5>
+                  <div class="text-muted fs-sm">Credit purchases, assignment charges, refunds and account adjustments.</div>
                 </div>
                 <span class="badge bg-light text-body border ms-auto" x-text="`${pagination.returned || 0}${pagination.hasNext ? '+' : ''} shown`"></span>
               </div>
@@ -84,8 +84,8 @@
                     <tr x-show="!loading && !transactions.length">
                       <td colspan="5" class="text-center py-5">
                         <div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div>
-                        <div class="fw-semibold mt-2">No Lead Credit activity yet</div>
-                        <div class="text-muted fs-sm mt-1">Lead Pack purchases and lead unlocks will appear here.</div>
+                        <div class="fw-semibold mt-2">No credit activity yet</div>
+                        <div class="text-muted fs-sm mt-1">Credit purchases and assignment charges will appear here.</div>
                       </td>
                     </tr>
                   </tbody>
