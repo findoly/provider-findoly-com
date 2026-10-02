@@ -44,6 +44,7 @@ test("provider dashboard is managed-first and keeps the required operational sum
   const dashboard = source("views/dashboard/index.ejs");
 
   assert.match(dashboard, /provider-dashboard-summary/);
+  assert.match(dashboard, /New requirements/);
   assert.match(dashboard, /Assigned requirements/);
   assert.match(dashboard, /Action required/);
   assert.match(dashboard, /Available credits/);
@@ -79,14 +80,14 @@ test("lead cards expose useful context before opening without changing unlock be
 
   assert.match(view, /provider-card-summary/);
   assert.match(view, /provider-lead-insight-grid/);
-  assert.match(view, /unlocks used/);
-  assert.match(view, /unlocks remaining/);
+  assert.match(view, /providers accessed/);
+  assert.match(view, /access slots remaining/);
   assert.match(view, /Current result/);
   assert.match(view, /displaySentenceCase\(lead\.leadTitle/);
   assert.match(view, /distanceLabel\(lead\)/);
   assert.match(view, /preferredLabel\(lead\)/);
   assert.match(view, /relativeAge\(lead\.marketplacePublishedAt/);
-  assert.match(view, /View &amp; unlock lead/);
+  assert.match(view, /View &amp; unlock requirement/);
   assert.match(view, /provider-quick-filters/);
   assert.match(view, /applyQuickFilter/);
   assert.match(view, /WhatsApp/);
@@ -226,7 +227,7 @@ test("lead pages keep cards below the fixed header without the oversized workspa
   assert.doesNotMatch(view, /provider-conversion-hero/);
   assert.doesNotMatch(view, /Turn customer leads into business|Find leads worth unlocking/);
   assert.match(view, /workspace-lead-command/);
-  assert.match(view, /View &amp; unlock lead/);
+  assert.match(view, /View &amp; unlock requirement/);
   assert.match(view, /Customer phone number/);
   assert.match(css, /provider-lead-page\.workspace-leads-page[\s\S]*display: block/);
   assert.match(css, /workspace-topbar\.portal-navbar[\s\S]*z-index: 1300/);
@@ -347,43 +348,59 @@ test("provider mobile UI follows the approved Findoly logo palette without recol
 });
 
 
-test("managed provider workspace is the default while legacy marketplace capability stays available", () => {
+test("provider workspace separates New requirements from Assigned requirements", () => {
   const controller = source("controllers/frontendController.js");
   const sidebar = source("views/partials/sidebar.ejs");
   const navbar = source("views/partials/navbar.ejs");
   const list = source("views/lead/index.ejs");
   const detail = source("views/lead/show.ejs");
+  const dashboard = source("views/dashboard/index.ejs");
   const dashboardService = source("services/dashboard/dashboard-service.js");
   const marketplaceService = source("services/marketplace/marketplace-service.js");
   const leadRoutes = source("routes/lead.js");
+  const presenter = source("utils/lead.js");
 
-  assert.match(controller, /"Assigned requirements"/);
+  assert.match(controller, /"Requirements"/);
+  assert.match(controller, /New requirements/);
   assert.match(controller, /"Account credits"/);
   assert.match(controller, /"Credit activity"/);
 
+  assert.match(sidebar, /New requirements/);
   assert.match(sidebar, /Assigned requirements/);
   assert.match(sidebar, /Pending outcomes/);
   assert.match(sidebar, /Follow-ups/);
   assert.match(sidebar, /Account credits/);
   assert.doesNotMatch(sidebar, /Lead marketplace|Find new leads/);
 
-  assert.match(navbar, /Assigned requirements/);
+  assert.match(navbar, /New requirements/);
+  assert.match(navbar, />New</);
   assert.match(navbar, />Assigned</);
   assert.match(navbar, />Pending</);
   assert.doesNotMatch(navbar, />Find</);
 
   assert.match(list, /const initialStatus = \['marketplace', 'offered'\]\.includes\(query\.get\('status'\)\) \? 'marketplace' : 'unlocked'/);
+  assert.match(list, /Review and unlock Findoly-shared requirements/);
   assert.match(list, /Customer requirements assigned to your account/);
+  assert.match(list, /No new requirements/);
   assert.match(list, /No assigned requirements found/);
-  assert.match(list, /This legacy opportunity view is kept for compatibility/);
+  assert.doesNotMatch(list, /legacy opportunity|Legacy matched/i);
 
+  assert.match(detail, /Back to new requirements/);
   assert.match(detail, /Back to assigned requirements/);
-  assert.match(detail, /Applied when Findoly assigned this requirement/);
+  assert.match(detail, /Deducted when Findoly assigned this requirement/);
+  assert.match(detail, /Deducted when you unlocked this requirement/);
+  assert.match(detail, /Requirement unlocked and moved to Assigned requirements/);
   assert.match(detail, /Current outcome/);
 
+  assert.match(dashboard, /View new requirements/);
+  assert.match(dashboard, /Review new requirements/);
+  assert.match(dashboard, /data\.offered/);
+  assert.match(dashboardService, /marketplaceService\.countMarketplace/);
   assert.match(dashboardService, /providerSaleOutcome: "not_confirmed"/);
   assert.match(dashboardService, /const recent = \(unlockedPage\.data \|\| \[\]\)\.slice\(0, 8\)/);
 
+  assert.match(presenter, /assignmentSource: unlock\?\.assignmentSource/);
+  assert.match(presenter, /assignedAt: unlock\?\.assignedAt/);
   assert.match(marketplaceService, /async function listMarketplace/);
   assert.match(leadRoutes, /\/:leadId\/unlock/);
 });
