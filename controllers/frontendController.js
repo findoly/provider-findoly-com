@@ -18,18 +18,18 @@ const frontendController = {
   dashboard: render(
     "dashboard/index",
     "Dashboard",
-    "Assigned requirements, customer follow-ups and account activity",
+    "New requirements, assigned work, customer follow-ups and account activity",
   ),
   leads: render(
     "lead/index",
-    "Assigned requirements",
-    "Customer requirements assigned to your provider account",
+    "Requirements",
+    "Review New requirements or manage work already assigned to your account",
   ),
   lead: render("lead/show", "Lead details"),
   plans: render(
     "wallet/plans",
     "Account credits",
-    "Maintain credits for Findoly-assigned customer requirements",
+    "Maintain credits for New requirement unlocks and direct Findoly assignments",
   ),
   wallet: render(
     "wallet/index",
