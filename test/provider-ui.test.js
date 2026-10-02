@@ -375,7 +375,8 @@ test("provider workspace separates New requirements from Assigned requirements",
   assert.match(navbar, /New requirements/);
   assert.match(navbar, />New</);
   assert.match(navbar, />Assigned</);
-  assert.match(navbar, />Pending</);
+  assert.match(navbar, />Profile</);
+  assert.match(navbar, /Pending outcomes/);
   assert.doesNotMatch(navbar, />Find</);
 
   assert.match(list, /const initialStatus = \['marketplace', 'offered'\]\.includes\(query\.get\('status'\)\) \? 'marketplace' : 'unlocked'/);
