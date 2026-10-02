@@ -48,13 +48,14 @@
         </div>
       </div>
 
-      <div class="card portal-card portal-location-card mb-4" id="marketplace-location">
+      <span id="marketplace-location" aria-hidden="true"></span>
+      <div class="card portal-card portal-location-card mb-4" id="service-location">
         <div class="card-header border-bottom d-flex align-items-start gap-3">
           <div class="portal-section-icon"><svg class="icon"><use href="#i-location"></use></svg></div>
           <div class="min-w-0">
-            <div class="portal-step-label">Marketplace location</div>
+            <div class="portal-step-label">Service location</div>
             <h5 class="mb-1">Primary service area</h5>
-            <div class="text-muted fs-sm">Your PIN code is registered and managed by the Findoly CRM team. It is used to show nearby category-matched leads.</div>
+            <div class="text-muted fs-sm">Your PIN code is registered and managed by the Findoly CRM team. Findoly uses it with your service categories to match and assign suitable customer requirements.</div>
           </div>
           <span class="badge ms-auto" :class="profile.locationReady ? 'bg-success text-white' : 'bg-warning text-dark'" x-text="profile.locationReady ? 'Verified' : 'Pending'">Pending</span>
         </div>
@@ -90,7 +91,7 @@
       </div>
 
       <div class="card portal-card">
-        <div class="card-header border-bottom"><h5 class="mb-0">Matched categories</h5></div>
+        <div class="card-header border-bottom"><h5 class="mb-0">Assigned service categories</h5></div>
         <div class="card-body">
           <div class="d-flex flex-wrap gap-2">
             <template x-for="category in profile.categorySlugs || []" :key="category">
@@ -98,7 +99,7 @@
             </template>
             <span class="text-muted" x-show="!(profile.categorySlugs || []).length">No categories assigned</span>
           </div>
-          <p class="text-muted fs-sm mt-3 mb-0">Categories and account permissions are managed by the Findoly CRM team.</p>
+          <p class="text-muted fs-sm mt-3 mb-0">Service categories and account permissions are managed by the Findoly CRM team and used for requirement assignment.</p>
         </div>
       </div>
     </div>
@@ -111,7 +112,7 @@
           <div><span>Portal access</span><strong x-text="profile.portalAccessEnabled === false ? 'Disabled' : 'Enabled'"></strong></div>
           <div><span>Onboarding</span><strong x-text="humanize(profile.onboardingStage)"></strong></div>
           <div><span>Documents</span><strong x-text="profile.documentsVerified ? 'Verified' : 'Pending'"></strong></div>
-          <div><span>Marketplace location</span><strong x-text="profile.locationReady ? profile.servicePincode : 'Required'"></strong></div>
+          <div><span>Service location</span><strong x-text="profile.locationReady ? profile.servicePincode : 'Required'"></strong></div>
           <div><span>Credits</span><strong x-text="credits(profile.availableCredits ?? profile.walletCredits)"></strong></div>
           <div><span>CRM last updated</span><strong x-text="formatDate(profile.updatedAt)"></strong></div>
         </div>
