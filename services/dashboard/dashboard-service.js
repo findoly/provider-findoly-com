@@ -1,6 +1,5 @@
 const ProviderLeadUnlock = require("../../models/ProviderLeadUnlock");
 const { providerIdentity, providerCategories, presentProvider } = require("../../utils/provider");
-const { presentLead } = require("../../utils/lead");
 const creditService = require("../billing/credit-service");
 const leadService = require("../lead/lead-service");
 const marketplaceService = require("../marketplace/marketplace-service");
@@ -31,8 +30,8 @@ async function activitySnapshot(provider) {
     unlocked,
     followUp,
     confirmed,
+    notConfirmed,
     pendingOutcomeCount,
-    marketplacePage,
     unlockedPage,
     pendingOutcomeResult,
   ] = await Promise.all([
@@ -40,22 +39,13 @@ async function activitySnapshot(provider) {
     boundedCount(ProviderLeadUnlock, { providerId }),
     boundedCount(ProviderLeadUnlock, { providerId, providerLeadStatus: "follow_up" }),
     boundedCount(ProviderLeadUnlock, { providerId, providerSaleOutcome: "confirmed" }),
+    boundedCount(ProviderLeadUnlock, { providerId, providerSaleOutcome: "not_confirmed" }),
     boundedCount(ProviderLeadUnlock, { providerId, providerSaleOutcome: "" }),
-    categorySlugs.length ? marketplaceService.listMarketplace(provider, { limit: 4, sort: "newest" }) : { data: [] },
-    leadService.listUnlocked(provider, { limit: 4, sort: "newest" }),
+    leadService.listUnlocked(provider, { limit: 8, sort: "newest" }),
     leadService.pendingOutcomes(provider, { limit: 10, sort: "oldest" }),
   ]);
 
-  const unlockedRecent = unlockedPage.data || [];
-  const marketplaceRecent = (marketplacePage.data || []).map((lead) =>
-    presentLead(lead, null, marketplaceService.visibilityFor(provider, lead)));
-  const recent = [...unlockedRecent, ...marketplaceRecent]
-    .sort((left, right) => {
-      const leftDate = new Date(left.unlockedAt || left.marketplacePublishedAt || left.createdAt || 0).getTime();
-      const rightDate = new Date(right.unlockedAt || right.marketplacePublishedAt || right.createdAt || 0).getTime();
-      return rightDate - leftDate;
-    })
-    .slice(0, 8);
+  const recent = (unlockedPage.data || []).slice(0, 8);
 
   return {
     offered: available.value,
@@ -66,6 +56,8 @@ async function activitySnapshot(provider) {
     followUpCapped: followUp.capped,
     confirmed: confirmed.value,
     confirmedCapped: confirmed.capped,
+    notConfirmed: notConfirmed.value,
+    notConfirmedCapped: notConfirmed.capped,
     recent,
     pendingOutcomes: pendingOutcomeResult.data || [],
     pendingOutcomeCount: pendingOutcomeCount.value,

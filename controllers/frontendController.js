@@ -18,23 +18,23 @@ const frontendController = {
   dashboard: render(
     "dashboard/index",
     "Dashboard",
-    "Category-matched leads and Lead Credit activity",
+    "Assigned requirements, customer follow-ups and account activity",
   ),
   leads: render(
     "lead/index",
-    "Lead marketplace",
-    "Leads approved by CRM and matched to your categories",
+    "Assigned requirements",
+    "Customer requirements assigned to your provider account",
   ),
   lead: render("lead/show", "Lead details"),
   plans: render(
     "wallet/plans",
-    "Get Lead Credits",
-    "Choose a Lead Pack and unlock more matching opportunities",
+    "Account credits",
+    "Maintain credits for Findoly-assigned customer requirements",
   ),
   wallet: render(
     "wallet/index",
-    "Lead usage",
-    "Your available Lead Credits, usage and purchase history",
+    "Credit activity",
+    "Your available credits, assignment charges, refunds and purchase history",
   ),
   profile: render(
     "profile/index",
