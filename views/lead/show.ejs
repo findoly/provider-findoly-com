@@ -99,8 +99,8 @@
         <div>
           <span x-text="isUnlocked ? (lead.assignmentSource === 'crm_manual' ? 'Assigned by Findoly' : 'Unlocked by you') : 'Provider access'"></span>
           <strong x-show="isUnlocked" x-cloak x-text="formatDate(lead.assignedAt || lead.unlockedAt)"></strong>
-          <strong x-show="!isUnlocked">🔓 <span x-text="lead.unlockedCount || 0"></span> of <span x-text="lead.maxProviderUnlocks || 5"></span> used</strong>
-          <small x-show="!isUnlocked"><span x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></span> remaining</small>
+          <strong x-show="!isUnlocked">🔓 <span x-text="lead.unlockedCount || 0"></span> of <span x-text="lead.maxProviderUnlocks || 5"></span> providers accessed</strong>
+          <small x-show="!isUnlocked"><span x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></span> access slots remaining</small>
         </div>
         <div>
           <span x-text="isUnlocked ? 'Current outcome' : 'Current result'"></span>
