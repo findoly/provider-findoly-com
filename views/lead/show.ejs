@@ -29,7 +29,7 @@
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
   <nav class="provider-detail-breadcrumb" aria-label="Lead navigation">
-    <a :href="isUnlocked ? '/leads?status=unlocked' : '/leads?status=marketplace'"><span aria-hidden="true">←</span><span x-text="isUnlocked ? 'Back to my leads' : 'Back to marketplace'"></span></a>
+    <a :href="isUnlocked ? '/leads?status=unlocked' : '/leads?status=marketplace'"><span aria-hidden="true">←</span><span x-text="isUnlocked ? 'Back to assigned requirements' : 'Back to legacy opportunities'"></span></a>
     <span class="provider-detail-breadcrumb-id" x-text="lead.recordId || lead.enquiryId || ''"></span>
   </nav>
 
@@ -45,16 +45,16 @@
             </div>
             <div class="text-muted mt-2">
               <span x-text="lead.category || humanize(lead.categorySlug)"></span>
-              <span> · published </span>
-              <span x-text="formatDate(lead.marketplacePublishedAt || lead.createdAt)"></span>
+              <span x-text="isUnlocked ? ' · assigned ' : ' · published '"></span>
+              <span x-text="formatDate(isUnlocked ? lead.unlockedAt : (lead.marketplacePublishedAt || lead.createdAt))"></span>
             </div>
           </div>
           <div class="portal-price-box">
-            <span x-text="isUnlocked ? 'Access' : 'Unlock cost'"></span>
+            <span x-text="isUnlocked ? 'Credits charged' : 'Unlock cost'"></span>
             <div class="portal-price-values">
-              <strong x-text="isUnlocked ? 'Unlocked' : credits(lead.leadCostCredits)">0 Credits</strong>
+              <strong x-text="isUnlocked ? credits(lead.chargedCredits ?? lead.leadCostCredits) : credits(lead.leadCostCredits)">0 Credits</strong>
             </div>
-            <small x-text="isUnlocked ? 'Customer contact available to your account' : 'CRM configured price'"></small>
+            <small x-text="isUnlocked ? 'Applied when Findoly assigned this requirement' : 'CRM configured price'"></small>
           </div>
         </div>
 
@@ -96,8 +96,17 @@
       <div class="portal-marketplace-trust workspace-signal-strip mb-4">
         <div><span>Priority</span><strong :class="'is-' + (lead.priority || 'normal')" x-text="humanize(lead.priority || 'normal') + ' priority'"></strong></div>
         <div><span>Approx. distance</span><strong x-text="distanceLabel(lead.providerDistanceKm)"></strong></div>
-        <div><span>Unlock availability</span><strong>🔓 <span x-text="lead.unlockedCount || 0"></span> of <span x-text="lead.maxProviderUnlocks || 5"></span> used</strong><small><span x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></span> remaining</small></div>
-        <div><span>Current result</span><strong :class="lead.currentlyConfirmed ? 'is-confirmed' : ''" x-text="lead.currentlyConfirmed ? 'Confirmed by ' + lead.providerConfirmedCount : 'Not confirmed yet'"></strong></div>
+        <div>
+          <span x-text="isUnlocked ? 'Assigned' : 'Unlock availability'"></span>
+          <strong x-show="isUnlocked" x-cloak x-text="formatDate(lead.unlockedAt)"></strong>
+          <strong x-show="!isUnlocked">🔓 <span x-text="lead.unlockedCount || 0"></span> of <span x-text="lead.maxProviderUnlocks || 5"></span> used</strong>
+          <small x-show="!isUnlocked"><span x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></span> remaining</small>
+        </div>
+        <div>
+          <span x-text="isUnlocked ? 'Current outcome' : 'Current result'"></span>
+          <strong x-show="isUnlocked" x-cloak :class="lead.providerSaleOutcome === 'confirmed' ? 'is-confirmed' : ''" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : 'Outcome pending'"></strong>
+          <strong x-show="!isUnlocked" :class="lead.currentlyConfirmed ? 'is-confirmed' : ''" x-text="lead.currentlyConfirmed ? 'Confirmed by ' + lead.providerConfirmedCount : 'Not confirmed yet'"></strong>
+        </div>
       </div>
 
       <section class="provider-detail-unlock-banner mb-4" x-show="!isUnlocked" x-cloak>
@@ -120,7 +129,7 @@
           <div>
             <div class="portal-step-label">Required update</div>
             <h5 class="mb-1">Sale outcome</h5>
-            <div class="text-muted fs-sm">Mark whether this lead resulted in a confirmed sale. You can correct it later if the customer decision changes.</div>
+            <div class="text-muted fs-sm">Mark whether this assigned requirement resulted in a confirmed sale. You can correct it later if the customer decision changes.</div>
           </div>
           <span class="badge ms-auto" :class="outcomeClass" x-text="lead.providerSaleOutcome ? humanize(lead.providerSaleOutcome) : 'Pending'"></span>
         </div>
@@ -132,7 +141,7 @@
             </label>
             <label :class="{ selected: feedbackForm.outcome === 'not_confirmed' }">
               <input type="radio" name="providerSaleOutcome" value="not_confirmed" x-model="feedbackForm.outcome">
-              <span><strong>Not Confirmed</strong><small>No completed sale at this time. Findoly may review this unlock for a credit reversal.</small></span>
+              <span><strong>Not Confirmed</strong><small>No completed sale at this time. Findoly may review this assignment for a credit reversal.</small></span>
             </label>
           </div>
 
@@ -224,9 +233,9 @@
         <div class="card-header border-bottom d-flex align-items-center">
           <div>
             <h5 class="mb-1">Customer contact</h5>
-            <div class="text-muted fs-sm">Unlocked only for your provider account.</div>
+            <div class="text-muted fs-sm">Available for this Findoly-assigned requirement.</div>
           </div>
-          <span class="badge bg-success text-white ms-auto">Unlocked</span>
+          <span class="badge bg-success text-white ms-auto">Assigned</span>
         </div>
         <div class="card-body">
           <div class="portal-contact-grid">
@@ -243,7 +252,7 @@
     <div class="col-xl-4">
       <div id="lead-access-panel" class="card portal-card portal-sticky-card workspace-access-panel">
         <div class="card-header border-bottom">
-          <h5 class="mb-0" x-text="isUnlocked ? 'Lead unlocked' : 'Unlock this lead'"></h5>
+          <h5 class="mb-0" x-text="isUnlocked ? 'Assigned requirement' : 'Unlock this lead'"></h5>
         </div>
         <div class="card-body">
           <div class="portal-wallet-summary mb-3">
@@ -295,8 +304,8 @@
             <div>
               <a class="btn btn-light w-100 provider-action-button provider-action-call" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon me-2"><use href="#i-phone"></use></svg>Call customer</a>
               <a class="btn btn-light w-100 mt-2 provider-action-button provider-action-whatsapp" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'https://wa.me/91' + String(contact.mobile).replace(/\D/g, '').slice(-10) : '#'" target="_blank" rel="noopener">WhatsApp customer</a>
-              <a class="btn btn-outline-primary w-100 mt-2" href="/leads?status=unlocked">All unlocked leads</a>
-              <p class="text-muted fs-sm mt-3 mb-0" x-text="lead.unlockMethod === 'direct_payment' ? 'Unlocked with a verified direct payment.' : 'The credit deduction is recorded in your transaction history.'"></p>
+              <a class="btn btn-outline-primary w-100 mt-2" href="/leads?status=unlocked">Assigned requirements</a>
+              <p class="text-muted fs-sm mt-3 mb-0" x-text="lead.unlockMethod === 'direct_payment' ? 'Access was completed with a verified direct payment.' : 'The assignment credit deduction is recorded in your credit activity.'"></p>
             </div>
           </template>
         </div>
@@ -469,9 +478,9 @@
           this.syncStatusForm();
           const enquiryId = this.lead.enquiryId || this.recordId;
           this.$dispatch('portal-page', {
-            title: `Lead ${enquiryId}`,
-            subtitle: enquiryId,
-            documentTitle: `Lead ${enquiryId} · Provider Lead Portal`
+            title: `Requirement ${enquiryId}`,
+            subtitle: this.isUnlocked ? 'Assigned by Findoly' : enquiryId,
+            documentTitle: `Requirement ${enquiryId} · Findoly Provider Portal`
           });
         } catch (error) {
           this.error = error.message;
@@ -591,7 +600,7 @@
             body: JSON.stringify(this.feedbackForm)
           })).data;
           this.syncStatusForm();
-          this.$dispatch('portal-notify', { type: 'success', message: this.lead.syncWarning || 'Lead outcome updated successfully.' });
+          this.$dispatch('portal-notify', { type: 'success', message: this.lead.syncWarning || 'Requirement outcome updated successfully.' });
         } catch (error) {
           this.error = error.message;
         } finally {
