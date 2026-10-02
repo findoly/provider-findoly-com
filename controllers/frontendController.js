@@ -25,7 +25,7 @@ const frontendController = {
     "Requirements",
     "Review New requirements or manage work already assigned to your account",
   ),
-  lead: render("lead/show", "Lead details"),
+  lead: render("lead/show", "Requirement details"),
   plans: render(
     "wallet/plans",
     "Account credits",
@@ -34,7 +34,7 @@ const frontendController = {
   wallet: render(
     "wallet/index",
     "Credit activity",
-    "Your available credits, assignment charges, refunds and purchase history",
+    "Your available credits, requirement access charges, refunds and purchase history",
   ),
   profile: render(
     "profile/index",
