@@ -161,8 +161,8 @@
             <label class="provider-filter-control provider-check-control"><span>Pending follow-up</span><span class="provider-checkbox-row"><input type="checkbox" x-model="filters.overdue"> Overdue 7+ days</span></label>
           </div></template>
 
-          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Unlocked from' : 'Published from'"></span><input class="form-control" type="date" x-model="filters.startDate"></label>
-          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Unlocked to' : 'Published to'"></span><input class="form-control" type="date" x-model="filters.endDate"></label>
+          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Assigned from' : 'Shared from'"></span><input class="form-control" type="date" x-model="filters.startDate"></label>
+          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Assigned to' : 'Shared to'"></span><input class="form-control" type="date" x-model="filters.endDate"></label>
           <label class="provider-filter-control"><span>Minimum credits</span><input class="form-control" type="number" min="0" step="1" x-model="filters.minCredits" placeholder="No minimum"></label>
           <label class="provider-filter-control"><span>Maximum credits</span><input class="form-control" type="number" min="0" step="1" x-model="filters.maxCredits" placeholder="No maximum"></label>
           <label class="provider-filter-control"><span>Sort by</span><select class="form-select" x-model="filters.sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>
