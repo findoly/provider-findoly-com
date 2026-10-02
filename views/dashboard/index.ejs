@@ -20,7 +20,7 @@
             <h1 class="page-title mb-0 text-truncate" x-text="page.title"><%= title %></h1>
             <div class="page-subtitle mt-1" x-show="page.subtitle" x-text="page.subtitle"><%= subtitle || '' %></div>
           </div>
-          <a href="/leads?status=unlocked" class="btn btn-primary workspace-page-action d-none d-sm-inline-flex"><svg class="icon"><use href="#i-briefcase"></use></svg><span>Assigned requirements</span></a>
+          <a href="/leads?status=marketplace" class="btn btn-primary workspace-page-action d-none d-sm-inline-flex"><svg class="icon"><use href="#i-lead"></use></svg><span>New requirements</span></a>
         </div>
       </div>
       <div class="content workspace-content">
@@ -33,15 +33,15 @@
     <div class="provider-dashboard-command-copy">
       <span class="workspace-eyebrow">Business command centre</span>
       <h2>Welcome, <span x-text="data.provider?.businessName || data.provider?.name || 'Provider'"></span></h2>
-      <p>Manage customer requirements assigned by Findoly, contact customers, follow up and keep every outcome updated.</p>
+      <p>Review new customer requirements shared by Findoly, unlock the ones you want to handle, and manage every assigned customer outcome.</p>
       <div class="provider-dashboard-command-actions">
-        <a class="btn btn-primary" href="/leads?status=unlocked"><svg class="icon"><use href="#i-briefcase"></use></svg>View assigned requirements</a>
-        <a class="btn btn-light" href="/leads?status=unlocked&amp;outcome=pending"><svg class="icon"><use href="#i-clock"></use></svg>Pending updates</a>
+        <a class="btn btn-primary" href="/leads?status=marketplace"><svg class="icon"><use href="#i-lead"></use></svg>View new requirements</a>
+        <a class="btn btn-light" href="/leads?status=unlocked"><svg class="icon"><use href="#i-briefcase"></use></svg>Assigned requirements</a>
       </div>
     </div>
     <a class="provider-dashboard-credit" href="/plans">
       <span class="provider-dashboard-credit-icon"><svg class="icon"><use href="#i-wallet"></use></svg></span>
-      <span><small>Available credits</small><strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong><em>For Findoly-assigned requirements</em></span>
+      <span><small>Available credits</small><strong x-text="credits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Credits</strong><em>For new unlocks and direct assignments</em></span>
       <svg class="icon provider-dashboard-credit-arrow"><use href="#i-arrow"></use></svg>
     </a>
   </section>
@@ -80,7 +80,8 @@
     </section>
   </div>
 
-  <section class="provider-dashboard-summary workspace-metric-grid provider-dashboard-metrics" aria-label="Assigned requirement summary">
+  <section class="provider-dashboard-summary workspace-metric-grid provider-dashboard-metrics" aria-label="Requirement summary">
+    <a href="/leads?status=marketplace" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-lead"></use></svg></span><span class="workspace-metric-label">New requirements</span><strong x-text="`${data.offered || 0}${data.offeredCapped ? '+' : ''}`">0</strong><small>Available to review</small></a>
     <a href="/leads?status=unlocked" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-briefcase"></use></svg></span><span class="workspace-metric-label">Assigned requirements</span><strong x-text="data.unlocked || 0">0</strong><small>Customer assignments</small></a>
     <button type="button" class="provider-dashboard-stat workspace-metric-card text-start" @click="data.pendingOutcomeCount > 0 ? reminderOpen = true : null"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-clock"></use></svg></span><span class="workspace-metric-label">Action required</span><strong x-text="pendingCountLabel()">0</strong><small>Pending outcomes</small></button>
     <a href="/leads?status=unlocked&amp;activityStatus=follow_up" class="provider-dashboard-stat workspace-metric-card"><span class="workspace-metric-icon"><svg class="icon"><use href="#i-trend"></use></svg></span><span class="workspace-metric-label">Follow-ups</span><strong x-text="data.followUp || 0">0</strong><small>Continue conversations</small></a>
@@ -97,13 +98,18 @@
       <div class="provider-priority-list">
         <a href="/leads?status=unlocked&amp;outcome=pending" :class="Number(data.pendingOutcomeCount || 0) ? 'is-urgent' : ''">
           <span class="provider-priority-icon"><svg class="icon"><use href="#i-clock"></use></svg></span>
-          <span><strong>Complete pending outcomes</strong><small>Mark unlocked leads Confirmed or Not Confirmed.</small></span>
+          <span><strong>Complete pending outcomes</strong><small>Mark assigned requirements Confirmed or Not Confirmed.</small></span>
           <b x-text="pendingCountLabel()">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
         </a>
         <a href="/leads?status=unlocked&amp;activityStatus=follow_up">
           <span class="provider-priority-icon"><svg class="icon"><use href="#i-trend"></use></svg></span>
           <span><strong>Continue follow-ups</strong><small>Return to customers who need another conversation.</small></span>
           <b x-text="data.followUp || 0">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
+        </a>
+        <a href="/leads?status=marketplace">
+          <span class="provider-priority-icon"><svg class="icon"><use href="#i-lead"></use></svg></span>
+          <span><strong>Review new requirements</strong><small>Choose the Findoly-shared requirements you want to unlock.</small></span>
+          <b x-text="`${data.offered || 0}${data.offeredCapped ? '+' : ''}`">0</b><svg class="icon provider-priority-arrow"><use href="#i-arrow"></use></svg>
         </a>
         <a href="/leads?status=unlocked">
           <span class="provider-priority-icon"><svg class="icon"><use href="#i-briefcase"></use></svg></span>

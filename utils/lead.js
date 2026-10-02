@@ -83,6 +83,8 @@ function presentLead(enquiry = {}, unlock = null, visibility = {}) {
       : sanitizeDetails(enquiry.additionalDetails || {}),
     unlockedAt: unlock?.unlockedAt || null,
     unlockMethod: unlock?.unlockMethod || "",
+    assignmentSource: unlock?.assignmentSource || "",
+    assignedAt: unlock?.assignedAt || null,
     chargedCredits: Number(unlock?.chargedCredits || 0),
     chargedPaise: Number(unlock?.chargedPaise || 0),
     createdAt: enquiry.createdAt || unlock?.createdAt || null,

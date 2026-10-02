@@ -35,30 +35,32 @@
   </div>
 
   <section class="workspace-lead-command">
-    <nav class="provider-lead-tabs provider-minimal-tabs workspace-lead-tabs" aria-label="Requirement sections" x-show="filters.status === 'unlocked'" x-cloak>
-      <a href="/leads?status=unlocked" :class="filters.outcome !== 'pending' ? 'active' : ''">
-        <span class="provider-tab-icon"><svg class="icon"><use href="#i-briefcase"></use></svg></span>
-        <span class="provider-tab-copy"><strong>Assigned requirements</strong><small>Customer assignments and outcomes</small></span>
-        <span class="provider-tab-count" x-show="filters.outcome !== 'pending' && !loading" x-text="`${pagination.returned || 0}${pagination.hasNext ? "+" : ""}`"></span>
+    <nav class="provider-lead-tabs provider-minimal-tabs workspace-lead-tabs" aria-label="Requirement sections">
+      <a href="/leads?status=marketplace" :class="filters.status !== 'unlocked' ? 'active' : ''">
+        <span class="provider-tab-icon"><svg class="icon"><use href="#i-lead"></use></svg></span>
+        <span class="provider-tab-copy"><strong>New requirements</strong><small>Review and unlock Findoly-shared requirements</small></span>
+        <span class="provider-tab-count" x-show="filters.status !== 'unlocked' && !loading" x-text="`${pagination.returned || 0}${pagination.hasNext ? "+" : ""}`"></span>
       </a>
-      <a href="/leads?status=unlocked&amp;outcome=pending" :class="filters.outcome === 'pending' ? 'active' : ''">
+      <a href="/leads?status=unlocked" :class="filters.status === 'unlocked' && filters.outcome !== 'pending' ? 'active' : ''">
+        <span class="provider-tab-icon"><svg class="icon"><use href="#i-briefcase"></use></svg></span>
+        <span class="provider-tab-copy"><strong>Assigned requirements</strong><small>Customer access and outcome management</small></span>
+        <span class="provider-tab-count" x-show="filters.status === 'unlocked' && filters.outcome !== 'pending' && !loading" x-text="`${pagination.returned || 0}${pagination.hasNext ? "+" : ""}`"></span>
+      </a>
+      <a href="/leads?status=unlocked&amp;outcome=pending" :class="filters.status === 'unlocked' && filters.outcome === 'pending' ? 'active' : ''">
         <span class="provider-tab-icon"><svg class="icon"><use href="#i-clock"></use></svg></span>
         <span class="provider-tab-copy"><strong>Pending outcomes</strong><small>Assignments needing an update</small></span>
-        <span class="provider-tab-count" x-show="filters.outcome === 'pending' && !loading" x-text="`${pagination.returned || 0}${pagination.hasNext ? "+" : ""}`"></span>
+        <span class="provider-tab-count" x-show="filters.status === 'unlocked' && filters.outcome === 'pending' && !loading" x-text="`${pagination.returned || 0}${pagination.hasNext ? "+" : ""}`"></span>
       </a>
     </nav>
-    <div class="alert alert-light border mb-3" x-show="filters.status !== 'unlocked'" x-cloak>
-      This legacy opportunity view is kept for compatibility. Your normal workflow is under <a href="/leads?status=unlocked" class="fw-semibold">Assigned requirements</a>.
-    </div>
 
     <div class="provider-quick-filters" aria-label="Quick lead filters">
       <template x-if="filters.status !== 'unlocked'">
         <div class="provider-quick-filter-track">
-          <button type="button" :class="{ active: quickFilterActive('all') }" @click="applyQuickFilter('all')">All opportunities</button>
+          <button type="button" :class="{ active: quickFilterActive('all') }" @click="applyQuickFilter('all')">All new requirements</button>
           <button type="button" :class="{ active: quickFilterActive('urgent_priority') }" @click="applyQuickFilter('urgent_priority')">Urgent priority</button>
-          <button type="button" :class="{ active: quickFilterActive('fresh') }" @click="applyQuickFilter('fresh')">Fresh today</button>
-          <button type="button" :class="{ active: quickFilterActive('no_unlocks') }" @click="applyQuickFilter('no_unlocks')">No unlocks yet</button>
-          <button type="button" :class="{ active: quickFilterActive('open_result') }" @click="applyQuickFilter('open_result')">Not confirmed yet</button>
+          <button type="button" :class="{ active: quickFilterActive('fresh') }" @click="applyQuickFilter('fresh')">Shared today</button>
+          <button type="button" :class="{ active: quickFilterActive('no_unlocks') }" @click="applyQuickFilter('no_unlocks')">No provider access yet</button>
+          <button type="button" :class="{ active: quickFilterActive('open_result') }" @click="applyQuickFilter('open_result')">Open requirements</button>
         </div>
       </template>
       <template x-if="filters.status === 'unlocked'">
@@ -138,7 +140,7 @@
       </div>
 
       <div class="provider-advanced-panel workspace-filter-panel" x-show="filtersOpen" x-cloak>
-        <div class="workspace-filter-heading"><div><strong>Advanced filters</strong><span>Refine assigned requirements by location, priority, activity and credits.</span></div><button type="button" @click="filtersOpen = false" aria-label="Close filters">×</button></div>
+        <div class="workspace-filter-heading"><div><strong>Advanced filters</strong><span>Refine requirements by location, priority, activity and credits.</span></div><button type="button" @click="filtersOpen = false" aria-label="Close filters">×</button></div>
         <div class="provider-advanced-grid workspace-filter-grid">
           <label class="provider-filter-control provider-mobile-filter-search-control"><span>Search</span><input class="form-control" type="search" x-model="filters.q" @keydown.enter.prevent="apply(); filtersOpen = false" placeholder="Requirement, city or lead ID"></label>
           <label class="provider-filter-control"><span>Category</span><select class="form-select" x-model="filters.categorySlug"><option value="">All categories</option><template x-for="category in categories" :key="category"><option :value="category" x-text="humanize(category)"></option></template></select></label>
@@ -149,8 +151,8 @@
 
           <template x-if="filters.status !== 'unlocked'"><div class="provider-advanced-subgrid workspace-filter-subgrid">
             <label class="provider-filter-control"><span>Provider confirmation</span><select class="form-select" x-model="filters.confirmation"><option value="">Any confirmation</option><option value="confirmed">Currently confirmed</option><option value="not_confirmed">Not confirmed</option></select></label>
-            <label class="provider-filter-control"><span>Providers unlocked</span><select class="form-select" x-model="filters.unlockCount"><option value="">Any number</option><option value="none">None</option><option value="one_two">1–2 providers</option><option value="three_plus">3+ providers</option></select></label>
-            <label class="provider-filter-control"><span>Lead age</span><select class="form-select" x-model="filters.age"><option value="">Any age</option><option value="today">Last 24 hours</option><option value="3d">Last 3 days</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select></label>
+            <label class="provider-filter-control"><span>Providers with access</span><select class="form-select" x-model="filters.unlockCount"><option value="">Any number</option><option value="none">None</option><option value="one_two">1–2 providers</option><option value="three_plus">3+ providers</option></select></label>
+            <label class="provider-filter-control"><span>Requirement age</span><select class="form-select" x-model="filters.age"><option value="">Any age</option><option value="today">Last 24 hours</option><option value="3d">Last 3 days</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select></label>
           </div></template>
 
           <template x-if="filters.status === 'unlocked'"><div class="provider-advanced-subgrid workspace-filter-subgrid">
@@ -159,8 +161,8 @@
             <label class="provider-filter-control provider-check-control"><span>Pending follow-up</span><span class="provider-checkbox-row"><input type="checkbox" x-model="filters.overdue"> Overdue 7+ days</span></label>
           </div></template>
 
-          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Unlocked from' : 'Published from'"></span><input class="form-control" type="date" x-model="filters.startDate"></label>
-          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Unlocked to' : 'Published to'"></span><input class="form-control" type="date" x-model="filters.endDate"></label>
+          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Assigned from' : 'Shared from'"></span><input class="form-control" type="date" x-model="filters.startDate"></label>
+          <label class="provider-filter-control"><span x-text="filters.status === 'unlocked' ? 'Assigned to' : 'Shared to'"></span><input class="form-control" type="date" x-model="filters.endDate"></label>
           <label class="provider-filter-control"><span>Minimum credits</span><input class="form-control" type="number" min="0" step="1" x-model="filters.minCredits" placeholder="No minimum"></label>
           <label class="provider-filter-control"><span>Maximum credits</span><input class="form-control" type="number" min="0" step="1" x-model="filters.maxCredits" placeholder="No maximum"></label>
           <label class="provider-filter-control"><span>Sort by</span><select class="form-select" x-model="filters.sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>
@@ -174,8 +176,8 @@
 
   <div class="provider-minimal-results workspace-results-bar" x-show="!loading" x-cloak>
     <div class="workspace-results-copy">
-      <strong><span x-text="`${pagination.returned || 0}${pagination.hasNext ? "+" : ""}`"></span> <span x-text="filters.status === 'unlocked' ? (Number(pagination.returned || 0) === 1 ? 'assigned requirement on this page' : 'assigned requirements on this page') : (Number(pagination.returned || 0) === 1 ? 'opportunity on this page' : 'opportunities on this page')"></span></strong>
-      <span x-text="filters.status === 'unlocked' ? 'Customer requirements assigned to your account' : 'Legacy matched opportunities'"></span>
+      <strong><span x-text="`${pagination.returned || 0}${pagination.hasNext ? "+" : ""}`"></span> <span x-text="filters.status === 'unlocked' ? (Number(pagination.returned || 0) === 1 ? 'assigned requirement on this page' : 'assigned requirements on this page') : (Number(pagination.returned || 0) === 1 ? 'new requirement on this page' : 'new requirements on this page')"></span></strong>
+      <span x-text="filters.status === 'unlocked' ? 'Customer requirements assigned to your account' : 'Requirements shared by Findoly and matched to your service area'"></span>
     </div>
     <div class="workspace-results-actions">
       <span class="workspace-results-sort" x-text="humanize(filters.sort)"></span>
@@ -197,7 +199,7 @@
           <div class="provider-conversion-card-top">
             <div class="provider-conversion-card-labels">
               <span class="provider-minimal-category" x-text="lead.category || humanize(lead.categorySlug) || 'Service category'"></span>
-              <span class="provider-recommended-badge" x-show="!lead.contactUnlocked && Number(lead.unlockedCount || 0) <= 1 && lead.priority === 'urgent'" x-cloak>Urgent lead</span>
+              <span class="provider-recommended-badge" x-show="!lead.contactUnlocked && Number(lead.unlockedCount || 0) <= 1 && lead.priority === 'urgent'" x-cloak>Urgent requirement</span>
             </div>
             <span class="provider-priority-badge" :class="'is-' + (lead.priority || 'normal')" x-text="priorityLabel(lead.priority)"></span>
           </div>
@@ -222,21 +224,21 @@
 
             <template x-if="!lead.contactUnlocked">
               <div class="provider-lead-insight is-age">
-                <span><svg class="icon"><use href="#i-clock"></use></svg>Lead age</span>
+                <span><svg class="icon"><use href="#i-clock"></use></svg>Shared</span>
                 <strong x-text="relativeAge(lead.marketplacePublishedAt || lead.createdAt)"></strong>
               </div>
             </template>
             <template x-if="!lead.contactUnlocked">
               <div class="provider-lead-insight is-interest provider-unlock-availability">
-                <span><svg class="icon"><use href="#i-unlock"></use></svg>Unlock availability</span>
-                <strong>🔓 <b x-text="lead.unlockedCount || 0"></b> of <b x-text="lead.maxProviderUnlocks || 5"></b> unlocks used</strong>
-                <small><b x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></b> unlocks remaining</small>
+                <span><svg class="icon"><use href="#i-unlock"></use></svg>Provider access</span>
+                <strong>🔓 <b x-text="lead.unlockedCount || 0"></b> of <b x-text="lead.maxProviderUnlocks || 5"></b> providers accessed</strong>
+                <small><b x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></b> access slots remaining</small>
               </div>
             </template>
             <template x-if="!lead.contactUnlocked">
               <div class="provider-lead-insight" :class="lead.currentlyConfirmed ? 'is-confirmed' : 'is-open-result'">
                 <span><svg class="icon"><use href="#i-check"></use></svg>Current result</span>
-                <strong x-text="lead.currentlyConfirmed ? `${lead.providerConfirmedCount || 1} provider confirmed` : 'Open for conversion'"></strong>
+                <strong x-text="lead.currentlyConfirmed ? `${lead.providerConfirmedCount || 1} provider confirmed` : 'Open requirement'"></strong>
               </div>
             </template>
 
@@ -260,8 +262,8 @@
             </template>
             <template x-if="lead.contactUnlocked">
               <div class="provider-lead-insight" :class="isOverdue(lead) ? 'is-overdue' : 'is-unlocked-date'">
-                <span><svg class="icon"><use href="#i-clock"></use></svg><span x-text="isOverdue(lead) ? 'Action due' : 'Assigned'"></span></span>
-                <strong x-text="isOverdue(lead) ? 'Outcome overdue' : formatDateOnly(lead.unlockedAt)"></strong>
+                <span><svg class="icon"><use href="#i-clock"></use></svg><span x-text="isOverdue(lead) ? 'Action due' : (lead.assignmentSource === 'crm_manual' ? 'Assigned by Findoly' : 'Unlocked by you')"></span></span>
+                <strong x-text="isOverdue(lead) ? 'Outcome overdue' : formatDateOnly(lead.assignedAt || lead.unlockedAt)"></strong>
               </div>
             </template>
           </div>
@@ -270,14 +272,14 @@
         <aside class="provider-decision-action" :class="[lead.contactUnlocked ? 'is-unlocked-action' : 'is-unlock-action', lead.contactUnlocked ? statusClass(lead) : '']">
           <template x-if="!lead.contactUnlocked">
             <div class="provider-decision-action-inner">
-              <span class="provider-action-kicker">Unlock this opportunity</span>
-              <div class="provider-action-cost"><strong x-text="credits(lead.leadCostCredits)"></strong><small>one-time lead access</small></div>
+              <span class="provider-action-kicker">Unlock this requirement</span>
+              <div class="provider-action-cost"><strong x-text="credits(lead.leadCostCredits)"></strong><small>one-time customer access</small></div>
               <div class="provider-action-benefits">
                 <span><svg class="icon"><use href="#i-phone"></use></svg>Customer phone number</span>
                 <span><svg class="icon"><use href="#i-lead"></use></svg>Full requirement details</span>
               </div>
               <a class="btn btn-primary provider-unlock-cta provider-decision-primary provider-action-button provider-action-primary" :href="'/leads/' + lead.recordId">
-                <span><b>View &amp; unlock lead</b><small x-text="`Use ${credits(lead.leadCostCredits)}`"></small></span>
+                <span><b>View &amp; unlock requirement</b><small x-text="`Use ${credits(lead.leadCostCredits)}`"></small></span>
                 <svg class="icon"><use href="#i-arrow"></use></svg>
               </a>
               <small class="provider-action-balance" x-text="`Available balance: ${credits(provider.availableCredits ?? provider.walletCredits)}`"></small>
@@ -294,14 +296,14 @@
                 <a x-show="lead.customerMobile" class="btn btn-light provider-card-whatsapp provider-action-button provider-action-whatsapp" :href="whatsappHref(lead.customerMobile)" target="_blank" rel="noopener"><span aria-hidden="true">↗</span><span>WhatsApp</span></a>
               </div>
               <a class="btn btn-primary provider-decision-primary provider-action-button provider-action-primary" :href="'/leads/' + lead.recordId"><span x-text="lead.providerSaleOutcome ? 'Open requirement' : 'Update outcome now'"></span><svg class="icon"><use href="#i-arrow"></use></svg></a>
-              <small class="provider-action-balance" x-text="`Assigned ${formatDateOnly(lead.unlockedAt)}`"></small>
+              <small class="provider-action-balance" x-text="lead.assignmentSource === 'crm_manual' ? `Assigned ${formatDateOnly(lead.assignedAt || lead.unlockedAt)}` : `Unlocked ${formatDateOnly(lead.unlockedAt)}`"></small>
             </div>
           </template>
         </aside>
       </article>
     </template>
 
-    <section class="card portal-card provider-minimal-empty workspace-empty-state" x-show="loading || (!loading && !rows.length)"><div class="card-body text-center"><div x-show="loading" class="text-muted">Loading requirements…</div><div x-show="!loading && !rows.length"><div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div><strong x-text="filters.status === 'unlocked' ? 'No assigned requirements found' : (!locationReady ? 'No legacy opportunities available yet' : 'No opportunities match your filters')"></strong><span x-text="hasActiveFilters() ? 'Clear or change your filters to see more results.' : (filters.status === 'unlocked' ? 'Requirements assigned by the Findoly team will appear here.' : 'Legacy matching opportunities will appear here if available.')"></span><button x-show="hasActiveFilters()" type="button" class="btn btn-light btn-sm" @click="clear()">Clear filters</button></div></div></section>
+    <section class="card portal-card provider-minimal-empty workspace-empty-state" x-show="loading || (!loading && !rows.length)"><div class="card-body text-center"><div x-show="loading" class="text-muted">Loading requirements…</div><div x-show="!loading && !rows.length"><div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div><strong x-text="filters.status === 'unlocked' ? 'No assigned requirements found' : (!locationReady ? 'No new requirements available yet' : 'No new requirements match your filters')"></strong><span x-text="hasActiveFilters() ? 'Clear or change your filters to see more results.' : (filters.status === 'unlocked' ? 'Requirements you unlock or Findoly assigns directly will appear here.' : 'New requirements shared by Findoly will appear here when they match your service area and categories.')"></span><button x-show="hasActiveFilters()" type="button" class="btn btn-light btn-sm" @click="clear()">Clear filters</button></div></div></section>
   </main>
 
   <div class="portal-card portal-pagination provider-minimal-pagination workspace-pagination" x-show="cursorHistory.length || pagination.hasNext" x-cloak><span><span x-text="pagination.returned || 0"></span> shown</span><div><button class="btn btn-light btn-sm" :disabled="!cursorHistory.length || loading" @click="goPrevious()">Previous</button><button class="btn btn-light btn-sm" :disabled="!pagination.hasNext || loading" @click="goNext()">Next</button></div></div>
@@ -411,7 +413,7 @@
       },
       updatePageTitle() {
         const unlocked = this.filters.status === 'unlocked';
-        this.$dispatch('portal-page', { title: unlocked ? 'Assigned requirements' : 'Legacy opportunities', subtitle: unlocked ? 'Customer assignments, follow-ups and outcome updates' : 'Compatibility view for matched opportunities' });
+        this.$dispatch('portal-page', { title: unlocked ? 'Assigned requirements' : 'New requirements', subtitle: unlocked ? 'Customer access, follow-ups and outcome updates' : 'Findoly-shared requirements available for you to review and unlock' });
       },
       params() {
         const params = new URLSearchParams();
@@ -428,7 +430,7 @@
       hasActiveFilters() { return this.filterKeys().some((key) => Boolean(this.filters[key])); },
       activeFilterCount() { return this.filterKeys().filter((key) => Boolean(this.filters[key])).length; },
       chipText(key, value) {
-        const labels = { q: `Search: ${value}`, categorySlug: humanize(value), city: value, pincode: `PIN ${value}`, maxDistanceKm: `Within ${value} km`, priority: `${humanize(value)} priority`, confirmation: value === 'confirmed' ? 'Currently confirmed' : 'Not confirmed', unlockCount: { none: 'No unlocks', one_two: '1–2 unlocks', three_plus: '3+ unlocks' }[value], age: { today: 'Last 24 hours', '3d': 'Last 3 days', '7d': 'Last 7 days', '30d': 'Last 30 days' }[value], outcome: `Outcome: ${humanize(value)}`, activityStatus: `Activity: ${humanize(value)}`, overdue: 'Overdue 7+ days', startDate: `From ${value}`, endDate: `To ${value}`, minCredits: `Min ${value} credits`, maxCredits: `Max ${value} credits` };
+        const labels = { q: `Search: ${value}`, categorySlug: humanize(value), city: value, pincode: `PIN ${value}`, maxDistanceKm: `Within ${value} km`, priority: `${humanize(value)} priority`, confirmation: value === 'confirmed' ? 'Currently confirmed' : 'Not confirmed', unlockCount: { none: 'No provider access', one_two: '1–2 providers', three_plus: '3+ providers' }[value], age: { today: 'Last 24 hours', '3d': 'Last 3 days', '7d': 'Last 7 days', '30d': 'Last 30 days' }[value], outcome: `Outcome: ${humanize(value)}`, activityStatus: `Activity: ${humanize(value)}`, overdue: 'Overdue 7+ days', startDate: `From ${value}`, endDate: `To ${value}`, minCredits: `Min ${value} credits`, maxCredits: `Max ${value} credits` };
         return labels[key] || humanize(value);
       },
       activeChips() { return this.filterKeys().filter((key) => Boolean(this.filters[key])).map((key) => ({ key, label: this.chipText(key, this.filters[key]) })); },

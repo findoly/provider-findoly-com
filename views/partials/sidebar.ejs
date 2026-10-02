@@ -10,7 +10,8 @@
     <nav class="portal-sidebar-nav workspace-sidebar-nav" aria-label="Workspace navigation">
       <span class="workspace-nav-label">Workspace</span>
       <a data-portal-menu-link href="/dashboard" :class="{ active: pathIs('/dashboard') }"><svg class="icon"><use href="#i-home"></use></svg><span>Overview</span></a>
-      <a data-portal-menu-link href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && queryValue('outcome') !== 'pending' && queryValue('activityStatus') !== 'follow_up' }"><svg class="icon"><use href="#i-briefcase"></use></svg><span>Assigned requirements</span></a>
+      <a data-portal-menu-link href="/leads?status=marketplace" :class="{ active: pathIs('/leads') && ['marketplace', 'offered'].includes(queryValue('status')) }"><svg class="icon"><use href="#i-lead"></use></svg><span>New requirements</span></a>
+      <a data-portal-menu-link href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && !['marketplace', 'offered'].includes(queryValue('status')) && queryValue('outcome') !== 'pending' && queryValue('activityStatus') !== 'follow_up' }"><svg class="icon"><use href="#i-briefcase"></use></svg><span>Assigned requirements</span></a>
       <a data-portal-menu-link href="/leads?status=unlocked&amp;outcome=pending" :class="{ active: pathIs('/leads') && queryValue('outcome') === 'pending' }"><svg class="icon"><use href="#i-clock"></use></svg><span>Pending outcomes</span></a>
       <a data-portal-menu-link href="/leads?status=unlocked&amp;activityStatus=follow_up" :class="{ active: pathIs('/leads') && queryValue('activityStatus') === 'follow_up' }"><svg class="icon"><use href="#i-trend"></use></svg><span>Follow-ups</span></a>
 
