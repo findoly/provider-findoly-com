@@ -39,7 +39,7 @@
 
     <div class="portal-header-context workspace-page-context d-none d-md-grid">
       <strong x-text="page.title || 'Business workspace'">Business workspace</strong>
-      <span x-text="page.subtitle || 'Assigned requirements, customer follow-ups and account credits'">Assigned requirements, customer follow-ups and account credits</span>
+      <span x-text="page.subtitle || 'New and assigned requirements, customer follow-ups and account credits'">New and assigned requirements, customer follow-ups and account credits</span>
     </div>
 
     <div class="portal-navbar-actions workspace-topbar-actions ms-auto">
@@ -84,9 +84,9 @@
 <nav class="portal-mobile-nav d-lg-none workspace-mobile-nav" aria-label="Mobile navigation">
   <a href="/dashboard" :class="{ active: pathIs('/dashboard') }"><svg class="icon"><use href="#i-home"></use></svg><span>Home</span></a>
   <a href="/leads?status=marketplace" :class="{ active: pathIs('/leads') && ['marketplace', 'offered'].includes(queryValue('status')) }"><svg class="icon"><use href="#i-lead"></use></svg><span>New</span></a>
-  <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && !['marketplace', 'offered'].includes(queryValue('status')) && queryValue('outcome') !== 'pending' }"><svg class="icon"><use href="#i-briefcase"></use></svg><span>Assigned</span></a>
-  <a href="/leads?status=unlocked&amp;outcome=pending" :class="{ active: pathIs('/leads') && queryValue('outcome') === 'pending' }"><svg class="icon"><use href="#i-clock"></use></svg><span>Pending</span></a>
+  <a href="/leads?status=unlocked" :class="{ active: pathIs('/leads') && !['marketplace', 'offered'].includes(queryValue('status')) }"><svg class="icon"><use href="#i-briefcase"></use></svg><span>Assigned</span></a>
   <a href="/plans" :class="{ active: pathIs('/plans') || pathIs('/wallet') }"><svg class="icon"><use href="#i-unlock"></use></svg><span>Credits</span></a>
+  <a href="/profile" :class="{ active: pathIs('/profile') }"><svg class="icon"><use href="#i-user"></use></svg><span>Profile</span></a>
 </nav>
 
 <div class="portal-toast" x-cloak x-show="notice.show" x-transition :class="'portal-toast-' + notice.type" role="status" aria-live="polite">
