@@ -24,7 +24,7 @@
           <div>
             <span class="provider-section-kicker">Account credits</span>
             <h1 id="lead-usage-title">Credit activity</h1>
-            <p>Your available credits, assignment charges, refunds and purchase history in one place.</p>
+            <p>Your available credits, requirement access charges, refunds and purchase history in one place.</p>
           </div>
           <a class="btn btn-primary" href="/plans">Add account credits</a>
         </section>
@@ -35,7 +35,7 @@
               <span class="provider-credit-overview-icon"><svg class="icon"><use href="#i-unlock"></use></svg></span>
               <div>
                 <span>Available credits</span>
-                <small>Available for Findoly-assigned customer requirements</small>
+                <small>Available for New requirement unlocks and direct Findoly assignments</small>
               </div>
             </div>
             <strong class="provider-credit-overview-value" x-text="leadCredits(data.provider?.availableCredits ?? data.provider?.walletCredits)">0 Lead Credits</strong>
@@ -55,7 +55,7 @@
               <div class="card-header border-bottom d-flex align-items-center">
                 <div>
                   <h5 class="mb-1">Credit activity history</h5>
-                  <div class="text-muted fs-sm">Credit purchases, assignment charges, refunds and account adjustments.</div>
+                  <div class="text-muted fs-sm">Credit purchases, requirement access charges, refunds and account adjustments.</div>
                 </div>
                 <span class="badge bg-light text-body border ms-auto" x-text="`${pagination.returned || 0}${pagination.hasNext ? '+' : ''} shown`"></span>
               </div>
@@ -85,7 +85,7 @@
                       <td colspan="5" class="text-center py-5">
                         <div class="portal-empty-icon"><svg class="icon"><use href="#i-lead"></use></svg></div>
                         <div class="fw-semibold mt-2">No credit activity yet</div>
-                        <div class="text-muted fs-sm mt-1">Credit purchases and assignment charges will appear here.</div>
+                        <div class="text-muted fs-sm mt-1">Credit purchases and requirement access charges will appear here.</div>
                       </td>
                     </tr>
                   </tbody>
