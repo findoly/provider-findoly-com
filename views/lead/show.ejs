@@ -29,7 +29,7 @@
   <div x-show="error" x-cloak class="alert alert-danger portal-flash" x-text="error"></div>
 
   <nav class="provider-detail-breadcrumb" aria-label="Lead navigation">
-    <a :href="isUnlocked ? '/leads?status=unlocked' : '/leads?status=marketplace'"><span aria-hidden="true">←</span><span x-text="isUnlocked ? 'Back to assigned requirements' : 'Back to legacy opportunities'"></span></a>
+    <a :href="isUnlocked ? '/leads?status=unlocked' : '/leads?status=marketplace'"><span aria-hidden="true">←</span><span x-text="isUnlocked ? 'Back to assigned requirements' : 'Back to new requirements'"></span></a>
     <span class="provider-detail-breadcrumb-id" x-text="lead.recordId || lead.enquiryId || ''"></span>
   </nav>
 
@@ -45,16 +45,16 @@
             </div>
             <div class="text-muted mt-2">
               <span x-text="lead.category || humanize(lead.categorySlug)"></span>
-              <span x-text="isUnlocked ? ' · assigned ' : ' · published '"></span>
-              <span x-text="formatDate(isUnlocked ? lead.unlockedAt : (lead.marketplacePublishedAt || lead.createdAt))"></span>
+              <span x-text="isUnlocked ? (lead.assignmentSource === 'crm_manual' ? ' · assigned ' : ' · unlocked ') : ' · shared '"></span>
+              <span x-text="formatDate(isUnlocked ? (lead.assignedAt || lead.unlockedAt) : (lead.marketplacePublishedAt || lead.createdAt))"></span>
             </div>
           </div>
           <div class="portal-price-box">
-            <span x-text="isUnlocked ? 'Credits charged' : 'Unlock cost'"></span>
+            <span x-text="isUnlocked ? 'Credits charged' : 'Access cost'"></span>
             <div class="portal-price-values">
               <strong x-text="isUnlocked ? credits(lead.chargedCredits ?? lead.leadCostCredits) : credits(lead.leadCostCredits)">0 Credits</strong>
             </div>
-            <small x-text="isUnlocked ? 'Applied when Findoly assigned this requirement' : 'CRM configured price'"></small>
+            <small x-text="isUnlocked ? (lead.assignmentSource === 'crm_manual' ? 'Deducted when Findoly assigned this requirement' : 'Deducted when you unlocked this requirement') : 'Deducted only when you unlock'"></small>
           </div>
         </div>
 
@@ -97,8 +97,8 @@
         <div><span>Priority</span><strong :class="'is-' + (lead.priority || 'normal')" x-text="humanize(lead.priority || 'normal') + ' priority'"></strong></div>
         <div><span>Approx. distance</span><strong x-text="distanceLabel(lead.providerDistanceKm)"></strong></div>
         <div>
-          <span x-text="isUnlocked ? 'Assigned' : 'Unlock availability'"></span>
-          <strong x-show="isUnlocked" x-cloak x-text="formatDate(lead.unlockedAt)"></strong>
+          <span x-text="isUnlocked ? (lead.assignmentSource === 'crm_manual' ? 'Assigned by Findoly' : 'Unlocked by you') : 'Provider access'"></span>
+          <strong x-show="isUnlocked" x-cloak x-text="formatDate(lead.assignedAt || lead.unlockedAt)"></strong>
           <strong x-show="!isUnlocked">🔓 <span x-text="lead.unlockedCount || 0"></span> of <span x-text="lead.maxProviderUnlocks || 5"></span> used</strong>
           <small x-show="!isUnlocked"><span x-text="lead.remainingUnlocks ?? Math.max(0, (lead.maxProviderUnlocks || 5) - (lead.unlockedCount || 0))"></span> remaining</small>
         </div>
@@ -113,12 +113,12 @@
         <div class="provider-detail-unlock-banner-copy">
           <span class="provider-eyebrow">CUSTOMER CONTACT</span>
           <strong>Ready to discuss this requirement?</strong>
-          <small>Unlock the customer phone number and complete lead details for your provider account.</small>
+          <small>Unlock the customer phone number and full requirement details. Credits are deducted only after access is successfully granted.</small>
         </div>
         <div class="provider-detail-unlock-banner-action">
-          <span><small>UNLOCK COST</small><strong x-text="credits(lead.leadCostCredits)"></strong></span>
+          <span><small>ACCESS COST</small><strong x-text="credits(lead.leadCostCredits)"></strong></span>
           <button class="btn btn-primary provider-action-button provider-action-primary" type="button" @click="hasEnoughBalance ? unlock() : document.getElementById('lead-access-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })" :disabled="unlocking || payingDirect || loading">
-            <span x-text="unlocking ? 'Unlocking…' : (hasEnoughBalance ? 'Unlock lead now' : 'View unlock options')"></span>
+            <span x-text="unlocking ? 'Unlocking…' : (hasEnoughBalance ? 'Unlock requirement now' : 'View access options')"></span>
             <svg class="icon"><use href="#i-arrow"></use></svg>
           </button>
         </div>
@@ -252,7 +252,7 @@
     <div class="col-xl-4">
       <div id="lead-access-panel" class="card portal-card portal-sticky-card workspace-access-panel">
         <div class="card-header border-bottom">
-          <h5 class="mb-0" x-text="isUnlocked ? 'Assigned requirement' : 'Unlock this lead'"></h5>
+          <h5 class="mb-0" x-text="isUnlocked ? 'Requirement access' : 'Unlock this requirement'"></h5>
         </div>
         <div class="card-body">
           <div class="portal-wallet-summary mb-3">
@@ -263,8 +263,8 @@
           <template x-if="!isUnlocked">
             <div>
               <div class="portal-unlock-price mb-3">
-                <div><span>Lead access</span><strong>Customer contact</strong></div>
-                <div class="is-total"><span>Unlock cost</span><strong x-text="credits(lead.leadCostCredits)"></strong></div>
+                <div><span>Requirement access</span><strong>Customer contact</strong></div>
+                <div class="is-total"><span>Access cost</span><strong x-text="credits(lead.leadCostCredits)"></strong></div>
               </div>
 
               <template x-if="hasEnoughBalance">
@@ -280,11 +280,11 @@
               <template x-if="!hasEnoughBalance">
                 <div>
                   <div class="alert alert-warning py-2 mb-3">
-                    You need <strong x-text="credits(creditShortfall)"></strong> more to unlock with credits.
+                    You need <strong x-text="credits(creditShortfall)"></strong> more to unlock this requirement with credits.
                   </div>
 
                   <div class="portal-direct-payment-breakdown mb-3">
-                    <div><span>Lead price</span><strong x-text="money(directBasePaise)"></strong></div>
+                    <div><span>Requirement access</span><strong x-text="money(directBasePaise)"></strong></div>
                     <div><span>GST (18%)</span><strong x-text="money(directGstPaise)"></strong></div>
                     <div class="is-total"><span>Pay now</span><strong x-text="money(directTotalPaise)"></strong></div>
                   </div>
@@ -294,7 +294,7 @@
                     <span x-text="payingDirect ? 'Opening secure checkout…' : `Pay ${money(directTotalPaise)} & unlock`"></span>
                   </button>
                   <a href="/plans" class="btn btn-light w-100 mt-2">Choose a credit plan</a>
-                  <p class="text-muted fs-sm mt-3 mb-0">Direct payment unlocks only this lead. It does not add credits to your account.</p>
+                  <p class="text-muted fs-sm mt-3 mb-0">Direct payment unlocks only this requirement. It does not add credits to your account.</p>
                 </div>
               </template>
             </div>
@@ -305,7 +305,7 @@
               <a class="btn btn-light w-100 provider-action-button provider-action-call" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'tel:' + contact.mobile : '#'"><svg class="icon me-2"><use href="#i-phone"></use></svg>Call customer</a>
               <a class="btn btn-light w-100 mt-2 provider-action-button provider-action-whatsapp" :class="contact.mobile ? '' : 'disabled'" :href="contact.mobile ? 'https://wa.me/91' + String(contact.mobile).replace(/\D/g, '').slice(-10) : '#'" target="_blank" rel="noopener">WhatsApp customer</a>
               <a class="btn btn-outline-primary w-100 mt-2" href="/leads?status=unlocked">Assigned requirements</a>
-              <p class="text-muted fs-sm mt-3 mb-0" x-text="lead.unlockMethod === 'direct_payment' ? 'Access was completed with a verified direct payment.' : 'The assignment credit deduction is recorded in your credit activity.'"></p>
+              <p class="text-muted fs-sm mt-3 mb-0" x-text="lead.unlockMethod === 'direct_payment' ? 'Access was completed with a verified direct payment.' : 'The requirement access charge is recorded in your credit activity.'"></p>
             </div>
           </template>
         </div>
@@ -316,7 +316,7 @@
   <div class="portal-mobile-lead-action d-xl-none" x-cloak x-show="!loading">
     <template x-if="!isUnlocked">
       <button type="button" class="btn btn-primary provider-action-button provider-action-primary" @click="document.getElementById('lead-access-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">
-        <span>Unlock options</span><strong x-text="credits(lead.leadCostCredits)"></strong>
+        <span>Access options</span><strong x-text="credits(lead.leadCostCredits)"></strong>
       </button>
     </template>
     <template x-if="isUnlocked && !lead.providerSaleOutcome">
@@ -479,7 +479,9 @@
           const enquiryId = this.lead.enquiryId || this.recordId;
           this.$dispatch('portal-page', {
             title: `Requirement ${enquiryId}`,
-            subtitle: this.isUnlocked ? 'Assigned by Findoly' : enquiryId,
+            subtitle: this.isUnlocked
+              ? (this.lead.assignmentSource === 'crm_manual' ? 'Assigned by Findoly' : 'Unlocked by you')
+              : 'New requirement shared by Findoly',
             documentTitle: `Requirement ${enquiryId} · Findoly Provider Portal`
           });
         } catch (error) {
@@ -502,7 +504,7 @@
           })).data;
           this.syncStatusForm();
           this.$dispatch('wallet-updated');
-          this.$dispatch('portal-notify', { type: 'success', message: 'Customer contact unlocked successfully.' });
+          this.$dispatch('portal-notify', { type: 'success', message: 'Requirement unlocked and moved to Assigned requirements.' });
         } catch (error) {
           this.error = error.message;
         } finally {
@@ -534,7 +536,7 @@
             amount: order.amountPaise,
             currency: order.currency,
             name: 'Findoly',
-            description: `Direct unlock · ${order.lead?.title || 'Lead'}`,
+            description: `Requirement access · ${order.lead?.title || 'Requirement'}`,
             order_id: order.razorpayOrderId,
             retry: { enabled: true },
             remember_customer: false,
@@ -561,7 +563,7 @@
                 } else if (verification.lead) {
                   this.lead = verification.lead;
                   this.syncStatusForm();
-                  this.$dispatch('portal-notify', { type: 'success', message: 'Payment verified and customer contact unlocked.' });
+                  this.$dispatch('portal-notify', { type: 'success', message: 'Payment verified. Requirement moved to Assigned requirements.' });
                 }
               } catch (error) {
                 this.error = error.message;
