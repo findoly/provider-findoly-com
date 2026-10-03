@@ -191,8 +191,8 @@ test("credit routes are separate and new legacy subscription orders are blocked"
   assert.doesNotMatch(controllerSource, /data: await walletService\.createPlanOrder/);
   assert.match(frontend, /"wallet\/plans"/);
   assert.match(frontend, /"wallet\/index"/);
-  assert.match(sidebar, />Get Lead Credits</);
-  assert.match(sidebar, />Lead usage</);
+  assert.match(sidebar, />Account credits</);
+  assert.match(sidebar, />Credit activity</);
 });
 
 test("legacy plan order creation is rejected at runtime without calling the old service", () => {
