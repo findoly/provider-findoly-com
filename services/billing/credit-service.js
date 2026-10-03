@@ -183,11 +183,11 @@ async function reconcileZeroBalanceFromAllocations(provider, session, now = new 
     session,
   );
 
-  const ledgerBalance = allocations.reduce(
-    (total, allocation) =>
-      total + Math.max(0, Math.round(Number(allocation.remainingMinorCredits || 0))),
-    0,
-  );
+  const ledgerBalance = allocations.reduce((total, allocation) => {
+    const value = Number(allocation.remainingMinorCredits || 0);
+    if (!Number.isFinite(value) || value <= 0) return total;
+    return total + Math.round(value);
+  }, 0);
   if (ledgerBalance <= 0) return provider;
 
   // Admin and Provider share the same allocation ledger. Repair only a
@@ -234,8 +234,11 @@ async function syncWithinSession(providerId, session) {
     });
   }
 
+  const canonicalProviderId = String(
+    provider.providerId || provider.id || providerId,
+  );
   await createLegacyAllocation(provider, session);
-  await makePurchasedCreditsNonExpiring(providerId, session);
+  await makePurchasedCreditsNonExpiring(canonicalProviderId, session);
   provider = await expireAllocations(provider, session);
   provider = await reconcileZeroBalanceFromAllocations(provider, session);
   return provider;
