@@ -184,3 +184,24 @@ test("an existing positive provider balance is never overwritten by reconciliati
   assert.equal(synced.walletBalancePaise, 12000);
   assert.equal(state.providerUpdates.length, 0);
 });
+
+
+test("malformed allocation values cannot corrupt a repaired credit balance", async () => {
+  const { service } = compileCreditService({
+    provider: {
+      _id: "mongo-provider-4",
+      providerId: "provider-4",
+      walletBalancePaise: 0,
+    },
+    activeAllocations: [
+      { source: "crm_manual_credit", remainingMinorCredits: "invalid", expiresAt: null },
+      { source: "lead_unlock_refund", remainingMinorCredits: -1000, expiresAt: null },
+      { source: "credit_purchase", remainingMinorCredits: 7500, expiresAt: null },
+    ],
+  });
+
+  const synced = await service.syncWithinSession("provider-4", { id: "session" });
+
+  assert.equal(synced.walletBalancePaise, 7500);
+  assert.equal(Number.isFinite(synced.walletBalancePaise), true);
+});
