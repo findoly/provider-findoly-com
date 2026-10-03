@@ -18,8 +18,12 @@ test("provider portal reads shared credit allocations and wallet transactions", 
   assert.match(walletService, /creditsFromPaise\(transaction\.amountPaise\)/);
 });
 
-test("provider credit activity explains Findoly adjustments", () => {
+test("provider credit activity preserves Admin-authored transaction descriptions", () => {
   const view = source("views/wallet/index.ejs");
-  assert.match(view, /Findoly credit adjustments/);
+  const walletService = source("services/wallet/wallet-service.js");
+
+  assert.match(view, /account adjustments/);
   assert.match(view, /transaction\.description/);
+  assert.match(walletService, /query: \{ providerId \}/);
+  assert.match(walletService, /transaction\.description/);
 });
