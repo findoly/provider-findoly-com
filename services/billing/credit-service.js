@@ -166,6 +166,61 @@ async function expireAllocations(provider, session, now = new Date()) {
   return updated || provider;
 }
 
+async function reconcileZeroBalanceFromAllocations(provider, session, now = new Date()) {
+  const providerId = String(provider.providerId || provider.id || "");
+  const currentBalance = Number(provider.walletBalancePaise || 0);
+  if (!providerId || currentBalance > 0) return provider;
+
+  const allocations = await sessionQuery(
+    CreditAllocation.find({
+      providerId,
+      status: "active",
+      remainingMinorCredits: { $gt: 0 },
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
+    })
+      .select({ remainingMinorCredits: 1 })
+      .lean(),
+    session,
+  );
+
+  const ledgerBalance = allocations.reduce(
+    (total, allocation) =>
+      total + Math.max(0, Math.round(Number(allocation.remainingMinorCredits || 0))),
+    0,
+  );
+  if (ledgerBalance <= 0) return provider;
+
+  // Admin and Provider share the same allocation ledger. Repair only a
+  // missing/zero cached provider balance from that authoritative ledger; never
+  // overwrite an existing positive balance or create duplicate credit records.
+  const updatedProvider = await Provider.findOneAndUpdate(
+    {
+      _id: provider._id,
+      $or: [
+        { walletBalancePaise: 0 },
+        { walletBalancePaise: null },
+        { walletBalancePaise: { $exists: false } },
+      ],
+    },
+    {
+      $set: {
+        walletBalancePaise: ledgerBalance,
+        walletUpdatedAt: now,
+        updatedAt: now,
+      },
+    },
+    { new: true, session },
+  );
+
+  if (updatedProvider) return updatedProvider;
+
+  const latestProvider = await sessionQuery(
+    Provider.findOne(providerQuery(providerId)),
+    session,
+  );
+  return latestProvider || provider;
+}
+
 async function syncWithinSession(providerId, session) {
   let provider = await sessionQuery(
     Provider.findOne(providerQuery(providerId)),
@@ -182,6 +237,7 @@ async function syncWithinSession(providerId, session) {
   await createLegacyAllocation(provider, session);
   await makePurchasedCreditsNonExpiring(providerId, session);
   provider = await expireAllocations(provider, session);
+  provider = await reconcileZeroBalanceFromAllocations(provider, session);
   return provider;
 }
 
