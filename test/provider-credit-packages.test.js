@@ -28,7 +28,7 @@ function compile(relativePath, mocks = {}) {
   return loaded.exports;
 }
 
-test("provider Lead Packs use final prices, bonuses, non-expiring credits and 50-credit lead estimates", () => {
+test("provider Lead Packs use one-to-one final credits, non-expiring balances and 50-credit lead estimates", () => {
   const packages = listCreditPackages();
   assert.equal(packages.length, 4);
   assert.equal(MINIMUM_LEAD_CREDITS, 50);
@@ -49,9 +49,9 @@ test("provider Lead Packs use final prices, bonuses, non-expiring credits and 50
     })),
     [
       { code: "starter", name: "Starter", price: 99900, baseCredits: 1000, bonusPercent: 0, bonusCredits: 0, credits: 1000, leads: 20, expiry: null, recommended: false, bestValue: false },
-      { code: "growth-plus", name: "Growth", price: 299900, baseCredits: 3000, bonusPercent: 10, bonusCredits: 300, credits: 3300, leads: 66, expiry: null, recommended: true, bestValue: false },
-      { code: "scale", name: "Scale", price: 499900, baseCredits: 5000, bonusPercent: 20, bonusCredits: 1000, credits: 6000, leads: 120, expiry: null, recommended: false, bestValue: false },
-      { code: "pro", name: "Pro", price: 999900, baseCredits: 10000, bonusPercent: 30, bonusCredits: 3000, credits: 13000, leads: 260, expiry: null, recommended: false, bestValue: true },
+      { code: "growth-plus", name: "Growth", price: 299900, baseCredits: 3000, bonusPercent: 0, bonusCredits: 0, credits: 3000, leads: 60, expiry: null, recommended: true, bestValue: false },
+      { code: "scale", name: "Scale", price: 499900, baseCredits: 5000, bonusPercent: 0, bonusCredits: 0, credits: 5000, leads: 100, expiry: null, recommended: false, bestValue: false },
+      { code: "pro", name: "Pro", price: 999900, baseCredits: 10000, bonusPercent: 0, bonusCredits: 0, credits: 10000, leads: 200, expiry: null, recommended: false, bestValue: true },
     ],
   );
 
@@ -61,7 +61,7 @@ test("provider Lead Packs use final prices, bonuses, non-expiring credits and 50
     assert.equal(item.expiryLabel, "Never expires");
   }
 
-  assert.equal(getCreditPackage("growth-plus").credits, 3300);
+  assert.equal(getCreditPackage("growth-plus").credits, 3000);
   assert.equal(getCreditPackage("pro").name, "Pro");
   assert.throws(
     () => getCreditPackage("monthly"),
@@ -106,14 +106,14 @@ test("Lead Pack pricing page is focused, lead-oriented and has horizontal mobile
   assert.match(pricingCss, /flex:\s*0 0 min\(84vw, 21rem\)/);
 });
 
-test("Lead usage page removes wallet framing while keeping activity separate from pricing", () => {
+test("credit activity page keeps balance, activity and purchase history separate from pricing", () => {
   const activity = source("views/wallet/index.ejs");
 
-  assert.match(activity, /Lead usage/);
+  assert.match(activity, /Credit activity/);
   assert.match(activity, /Available Lead Credits/);
-  assert.match(activity, /Lead usage history/);
+  assert.match(activity, /Credit activity history/);
   assert.match(activity, /Purchase history/);
-  assert.match(activity, /href="\/plans">Get Lead Credits/);
+  assert.match(activity, /href="\/plans">Add account credits/);
   assert.match(activity, /transactionDescription\(transaction\)/);
   assert.match(activity, /paymentDescription\(order\)/);
   assert.match(activity, /transaction\.source === 'plan_purchase'/);
@@ -122,18 +122,18 @@ test("Lead usage page removes wallet framing while keeping activity separate fro
   assert.doesNotMatch(activity, /portal-billing-toggle|Choose your plan|Monthly|Yearly|purchase\(plan\)|Razorpay/);
 });
 
-test("provider navigation uses Lead Credits and Lead usage instead of wallet wording", () => {
+test("provider navigation uses Account credits and Credit activity wording", () => {
   const frontend = source("controllers/frontendController.js");
   const sidebar = source("views/partials/sidebar.ejs");
   const navbar = source("views/partials/navbar.ejs");
 
-  assert.match(frontend, /"Get Lead Credits"/);
-  assert.match(frontend, /"Lead usage"/);
-  assert.match(sidebar, />Get Lead Credits</);
-  assert.match(sidebar, />Lead usage</);
+  assert.match(frontend, /"Account credits"/);
+  assert.match(frontend, /"Credit activity"/);
+  assert.match(sidebar, />Account credits</);
+  assert.match(sidebar, />Credit activity</);
   assert.doesNotMatch(sidebar, />Wallet &amp; activity</);
-  assert.match(navbar, /Open Lead Credit activity/);
-  assert.match(navbar, />Get Lead Credits</);
+  assert.match(navbar, /Open credit activity/);
+  assert.match(navbar, />Account credits</);
   assert.doesNotMatch(navbar, /Open wallet and credit activity/);
 });
 
@@ -191,8 +191,8 @@ test("credit routes are separate and new legacy subscription orders are blocked"
   assert.doesNotMatch(controllerSource, /data: await walletService\.createPlanOrder/);
   assert.match(frontend, /"wallet\/plans"/);
   assert.match(frontend, /"wallet\/index"/);
-  assert.match(sidebar, />Get Lead Credits</);
-  assert.match(sidebar, />Lead usage</);
+  assert.match(sidebar, />Account credits</);
+  assert.match(sidebar, />Credit activity</);
 });
 
 test("legacy plan order creation is rejected at runtime without calling the old service", () => {
