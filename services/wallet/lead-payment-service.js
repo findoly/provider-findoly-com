@@ -90,8 +90,23 @@ async function releaseReservation(paymentOrderId, reason = "expired") {
     const managedSlot = order.employeeDirectAccessOverride === true
       && order.employeeDirectAccessConsumedSlot === true;
     const counterUpdate = order.employeeDirectAccessOverride === true && !managedSlot
-      ? { $inc: { reservedUnlockCount: -1 }, $set: { remainingUnlocks: 0, updatedAt: now } }
-      : { $inc: { reservedUnlockCount: -1, remainingUnlocks: 1 }, $set: { updatedAt: now } };
+      ? {
+          $inc: { reservedUnlockCount: -1 },
+          $set: {
+            remainingUnlocks: 0,
+            marketplacePickedProviderId: "",
+            marketplacePickedUntil: null,
+            updatedAt: now,
+          },
+        }
+      : {
+          $inc: { reservedUnlockCount: -1, remainingUnlocks: 1 },
+          $set: {
+            marketplacePickedProviderId: "",
+            marketplacePickedUntil: null,
+            updatedAt: now,
+          },
+        };
     const enquiry = await Enquiry.findOneAndUpdate(
       { enquiryId: order.enquiryId, reservedUnlockCount: { $gt: 0 } },
       counterUpdate,
@@ -280,6 +295,8 @@ async function createLeadOrder(provider, enquiryIdInput, options = {}) {
             marketplaceAvailable: false,
             marketplaceStatus: "closed",
             marketplaceClosureReason: "provider_pending",
+            marketplacePickedProviderId: providerId,
+            marketplacePickedUntil: reservedUntil,
             updatedAt: now,
           },
         },
@@ -301,7 +318,11 @@ async function createLeadOrder(provider, enquiryIdInput, options = {}) {
           },
           {
             $inc: { remainingUnlocks: -1, reservedUnlockCount: 1 },
-            $set: { updatedAt: now },
+            $set: {
+              marketplacePickedProviderId: providerId,
+              marketplacePickedUntil: reservedUntil,
+              updatedAt: now,
+            },
           },
           { new: true, session },
         );
@@ -334,7 +355,12 @@ async function createLeadOrder(provider, enquiryIdInput, options = {}) {
           },
           {
             $inc: { reservedUnlockCount: 1 },
-            $set: { remainingUnlocks: 0, updatedAt: now },
+            $set: {
+              remainingUnlocks: 0,
+              marketplacePickedProviderId: providerId,
+              marketplacePickedUntil: reservedUntil,
+              updatedAt: now,
+            },
           },
           { new: true, session },
         );
@@ -478,8 +504,23 @@ async function fulfillLeadOrder(paymentOrderInput, paymentId) {
         const managedSlot = order.employeeDirectAccessOverride === true
           && order.employeeDirectAccessConsumedSlot === true;
         const counterUpdate = order.employeeDirectAccessOverride === true && !managedSlot
-          ? { $inc: { reservedUnlockCount: -1 }, $set: { remainingUnlocks: 0, updatedAt: new Date() } }
-          : { $inc: { reservedUnlockCount: -1, remainingUnlocks: 1 }, $set: { updatedAt: new Date() } };
+          ? {
+              $inc: { reservedUnlockCount: -1 },
+              $set: {
+                remainingUnlocks: 0,
+                marketplacePickedProviderId: "",
+                marketplacePickedUntil: null,
+                updatedAt: new Date(),
+              },
+            }
+          : {
+              $inc: { reservedUnlockCount: -1, remainingUnlocks: 1 },
+              $set: {
+                marketplacePickedProviderId: "",
+                marketplacePickedUntil: null,
+                updatedAt: new Date(),
+              },
+            };
         await Enquiry.updateOne(
           { enquiryId: order.enquiryId, reservedUnlockCount: { $gt: 0 } },
           counterUpdate,
@@ -505,7 +546,14 @@ async function fulfillLeadOrder(paymentOrderInput, paymentId) {
     if (order.reservationStatus === "reserved") {
       enquiry = await Enquiry.findOneAndUpdate(
         { enquiryId: order.enquiryId, reservedUnlockCount: { $gt: 0 } },
-        { $inc: { reservedUnlockCount: -1, unlockedCount: 1 }, $set: { updatedAt: new Date() } },
+        {
+          $inc: { reservedUnlockCount: -1, unlockedCount: 1 },
+          $set: {
+            marketplacePickedProviderId: "",
+            marketplacePickedUntil: null,
+            updatedAt: new Date(),
+          },
+        },
         { new: true, session },
       );
     } else {

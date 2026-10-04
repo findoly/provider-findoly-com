@@ -5,6 +5,9 @@ const RADIUS_STAGES = Object.freeze([
   { maxDistanceKm: Number.POSITIVE_INFINITY, delayMinutes: 60, label: "Open network" },
 ]);
 
+const MARKETPLACE_MAX_AGE_DAYS = 3;
+// Backward-compatible export for older callers. Provider marketplace visibility
+// is now governed by MARKETPLACE_MAX_AGE_DAYS.
 const MARKETPLACE_MAX_AGE_MONTHS = 6;
 
 function numericCoordinate(value) {
@@ -52,7 +55,7 @@ function marketplaceVisibleAt(publishedAt, distanceKm) {
 function marketplaceAgeCutoff(now = new Date()) {
   const cutoff = new Date(now);
   if (Number.isNaN(cutoff.getTime())) return null;
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - MARKETPLACE_MAX_AGE_MONTHS);
+  cutoff.setTime(cutoff.getTime() - MARKETPLACE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
   return cutoff;
 }
 
@@ -65,7 +68,7 @@ function isMarketplaceWithinAge(publishedAt, now = new Date()) {
     && !Number.isNaN(published.getTime())
     && !Number.isNaN(current.getTime())
     && published <= current
-    && published >= cutoff,
+    && published > cutoff,
   );
 }
 
@@ -90,6 +93,7 @@ function isMarketplaceVisible(record = {}, now = new Date()) {
 }
 
 module.exports = {
+  MARKETPLACE_MAX_AGE_DAYS,
   MARKETPLACE_MAX_AGE_MONTHS,
   RADIUS_STAGES,
   haversineDistanceKm,

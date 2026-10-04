@@ -2,6 +2,7 @@
 
 const Enquiry = require("../../models/Enquiry");
 const ProviderLeadUnlock = require("../../models/ProviderLeadUnlock");
+const { isMarketplaceWithinAge } = require("../../utils/marketplace-radius");
 
 function blockingQuery(enquiryId, excludeProviderId = "") {
   const query = {
@@ -113,6 +114,7 @@ async function reopenAfterReservationRelease(enquiryId, session = null, now = ne
     && lead.isActive !== false
     && lead.marketplacePublishedAt
     && new Date(lead.marketplacePublishedAt) <= now
+    && isMarketplaceWithinAge(lead.marketplacePublishedAt, now)
     && lead.marketplaceExpiresAt
     && new Date(lead.marketplaceExpiresAt) > now
     && Number(lead.reservedUnlockCount || 0) === 0

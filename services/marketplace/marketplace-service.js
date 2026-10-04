@@ -6,6 +6,8 @@ const {
 } = require("../../utils/provider");
 const {
   haversineDistanceKm,
+  isMarketplaceWithinAge,
+  marketplaceAgeCutoff,
   marketplaceVisibleAt,
 } = require("../../utils/marketplace-radius");
 const {
@@ -51,8 +53,11 @@ const MARKETPLACE_SELECT = Object.freeze({
   locationSource: 1,
   marketplaceStatus: 1,
   marketplaceAvailable: 1,
+  marketplaceClosureReason: 1,
   marketplacePublishedAt: 1,
   marketplaceExpiresAt: 1,
+  marketplacePickedProviderId: 1,
+  marketplacePickedUntil: 1,
   maxProviderUnlocks: 1,
   unlockedCount: 1,
   reservedUnlockCount: 1,
@@ -117,8 +122,22 @@ function visibilityFor(provider = {}, lead = {}) {
 }
 
 function isVisibleNow(provider, lead, now = new Date()) {
+  const providerId = providerIdentity(provider);
+  const pickedUntil = lead.marketplacePickedUntil ? new Date(lead.marketplacePickedUntil) : null;
+  const pickedByProvider = Boolean(
+    providerId
+    && String(lead.marketplacePickedProviderId || "") === providerId
+    && pickedUntil
+    && Number.isFinite(pickedUntil.getTime())
+    && pickedUntil > now
+    && lead.marketplaceStatus === "closed"
+    && lead.marketplaceClosureReason === "provider_pending"
+  );
+  if (pickedByProvider) return true;
+
   if (!lead.marketplaceAvailable || lead.marketplaceStatus !== "published") return false;
   if (!lead.marketplacePublishedAt || new Date(lead.marketplacePublishedAt) > now) return false;
+  if (!isMarketplaceWithinAge(lead.marketplacePublishedAt, now)) return false;
   if (!lead.marketplaceExpiresAt || new Date(lead.marketplaceExpiresAt) <= now) return false;
   if (Number(lead.remainingUnlocks || 0) <= 0) return false;
   const visibleAt = visibilityFor(provider, lead).marketplaceVisibleAt;
@@ -165,7 +184,13 @@ async function loadMarketplaceEnquiry(provider, enquiryId, options = {}) {
 
 
 async function closeIfFull(enquiry, session = null) {
-  if (!enquiry || Number(enquiry.remainingUnlocks || 0) > 0) return false;
+  // A direct-payment pick temporarily consumes the last slot but must remain
+  // owned by the picking provider until that reservation is released or converted.
+  if (
+    !enquiry
+    || Number(enquiry.remainingUnlocks || 0) > 0
+    || Number(enquiry.reservedUnlockCount || 0) > 0
+  ) return false;
   const options = session ? { session } : {};
   const result = await Enquiry.updateOne(
     { enquiryId: enquiry.enquiryId, remainingUnlocks: 0 },
@@ -226,16 +251,34 @@ function buildMarketplaceQuery(provider, filters = {}, now = new Date()) {
   const endDate = parseIsoDateFilter(filters.endDate, { endOfDay: true });
   assertDateRange(startDate, endDate);
   const publishedAt = { $lte: now };
+  const providerCutoff = marketplaceAgeCutoff(now);
+  if (providerCutoff) publishedAt.$gt = providerCutoff;
   if (startDate) publishedAt.$gte = startDate;
   if (endDate && endDate < now) publishedAt.$lte = endDate;
 
+  const providerId = providerIdentity(provider);
+  const lifecycleBranches = [
+    {
+      marketplaceAvailable: true,
+      marketplaceStatus: "published",
+      marketplacePublishedAt: publishedAt,
+      marketplaceExpiresAt: { $gt: now },
+      remainingUnlocks: { $gt: 0 },
+    },
+  ];
+  if (providerId) {
+    lifecycleBranches.push({
+      marketplaceAvailable: false,
+      marketplaceStatus: "closed",
+      marketplaceClosureReason: "provider_pending",
+      marketplacePickedProviderId: providerId,
+      marketplacePickedUntil: { $gt: now },
+    });
+  }
+
   const query = {
-    marketplaceAvailable: true,
-    marketplaceStatus: "published",
     categorySlug: requestedCategory || { $in: categories.slice(0, 50) },
-    marketplacePublishedAt: publishedAt,
-    marketplaceExpiresAt: { $gt: now },
-    remainingUnlocks: { $gt: 0 },
+    $and: [{ $or: lifecycleBranches }],
   };
 
   const minimumCredits = parseNonNegativeNumber(filters.minCredits, "Minimum credits filter");
@@ -268,9 +311,8 @@ function buildMarketplaceQuery(provider, filters = {}, now = new Date()) {
   }
   if (ageDays) {
     const threshold = new Date(now.getTime() - ageDays * 24 * 60 * 60 * 1000);
-    query.marketplacePublishedAt.$gte = query.marketplacePublishedAt.$gte
-      && query.marketplacePublishedAt.$gte > threshold
-      ? query.marketplacePublishedAt.$gte
+    publishedAt.$gte = publishedAt.$gte && publishedAt.$gte > threshold
+      ? publishedAt.$gte
       : threshold;
   }
 
@@ -299,22 +341,26 @@ function buildMarketplaceQuery(provider, filters = {}, now = new Date()) {
       throw Object.assign(new Error("Search is too long"), { status: 400 });
     }
     if (/^[a-zA-Z0-9_-]{8,120}$/.test(search)) {
-      query.$or = [
-        { enquiryId: search },
-        { requirementTitleKey: prefixRegex(search) },
-        { cityKey: prefixRegex(search) },
-        { pincode: prefixRegex(search) },
-      ];
+      query.$and.push({
+        $or: [
+          { enquiryId: search },
+          { requirementTitleKey: prefixRegex(search) },
+          { cityKey: prefixRegex(search) },
+          { pincode: prefixRegex(search) },
+        ],
+      });
     } else {
       const normalized = normalizeSearchText(search);
       if (normalized.length < 2) {
         throw Object.assign(new Error("Enter at least 2 characters to search"), { status: 400 });
       }
-      query.$or = [
-        { requirementTitleKey: prefixRegex(normalized) },
-        { cityKey: prefixRegex(normalized) },
-        { pincode: prefixRegex(normalized) },
-      ];
+      query.$and.push({
+        $or: [
+          { requirementTitleKey: prefixRegex(normalized) },
+          { cityKey: prefixRegex(normalized) },
+          { pincode: prefixRegex(normalized) },
+        ],
+      });
     }
   }
   return query;

@@ -27,6 +27,8 @@ const enquirySchema = new mongoose.Schema(
     marketplaceClosureReason: { type: String, enum: ["", "unlock_limit", "provider_pending", "status_change", "invalid", "deactivated", "expired"], default: "" },
     marketplacePublishedAt: { type: Date, default: null, index: true },
     marketplaceExpiresAt: { type: Date, default: null, index: true },
+    marketplacePickedProviderId: { type: String, default: "", trim: true, index: true },
+    marketplacePickedUntil: { type: Date, default: null, index: true },
     category: { type: String, default: "", trim: true },
     categorySlug: { type: String, required: true, trim: true, index: true },
     serviceType: { type: String, default: "", trim: true },
@@ -97,5 +99,6 @@ enquirySchema.index({ status: 1, categorySlug: 1, createdAt: -1 });
 enquirySchema.index({ marketplaceAvailable: 1, categorySlug: 1, marketplacePublishedAt: -1, _id: -1 });
 enquirySchema.index({ marketplaceAvailable: 1, categorySlug: 1, priority: 1, marketplacePublishedAt: -1, _id: -1 });
 enquirySchema.index({ marketplaceStatus: 1, marketplaceExpiresAt: 1, _id: 1 });
+enquirySchema.index({ marketplacePickedProviderId: 1, marketplacePickedUntil: 1, marketplacePublishedAt: -1, _id: -1 });
 
 module.exports = mongoose.model("Enquiry", enquirySchema, "enquiries");
