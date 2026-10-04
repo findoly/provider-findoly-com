@@ -53,6 +53,7 @@ const MARKETPLACE_SELECT = Object.freeze({
   locationSource: 1,
   marketplaceStatus: 1,
   marketplaceAvailable: 1,
+  marketplaceClosureReason: 1,
   marketplacePublishedAt: 1,
   marketplaceExpiresAt: 1,
   marketplacePickedProviderId: 1,
