@@ -84,7 +84,6 @@ async function markReadyForReassignment(enquiryId, session = null, now = new Dat
     && lead.isActive !== false
     && lead.marketplacePublishedAt
     && new Date(lead.marketplacePublishedAt) <= now
-    && isMarketplaceWithinAge(lead.marketplacePublishedAt, now)
     && lead.marketplaceExpiresAt
     && new Date(lead.marketplaceExpiresAt) > now;
   if (!activeLifecycle) {
@@ -115,6 +114,7 @@ async function reopenAfterReservationRelease(enquiryId, session = null, now = ne
     && lead.isActive !== false
     && lead.marketplacePublishedAt
     && new Date(lead.marketplacePublishedAt) <= now
+    && isMarketplaceWithinAge(lead.marketplacePublishedAt, now)
     && lead.marketplaceExpiresAt
     && new Date(lead.marketplaceExpiresAt) > now
     && Number(lead.reservedUnlockCount || 0) === 0
