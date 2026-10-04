@@ -218,9 +218,9 @@ test("mobile provider navigation has native click controls and safe drawer layer
   assert.match(css, /pointer-events: auto/);
   assert.match(css, /z-index: 2100/);
   assert.match(css, /z-index: 2090/);
-  assert.match(css, /workspace-sidebar-content[\\s\\S]*overflow: hidden !important/);
-  assert.match(css, /workspace-sidebar-nav[\\s\\S]*overflow-y: auto !important/);
-  assert.match(css, /workspace-sidebar-footer[\\s\\S]*safe-area-inset-bottom/);
+  assert.match(css, /workspace-sidebar-content[\s\S]*overflow: hidden !important/);
+  assert.match(css, /workspace-sidebar-nav[\s\S]*overflow-y: auto !important/);
+  assert.match(css, /workspace-sidebar-footer[\s\S]*safe-area-inset-bottom/);
 });
 
 test("credit packages explain the Not Confirmed refund review as a visual timeline", () => {
@@ -236,9 +236,9 @@ test("credit packages explain the Not Confirmed refund review as a visual timeli
   assert.match(plans, /Not approved: the original credit charge remains/);
   assert.match(plans, /requirements paid with account credits where credits were actually charged/);
   assert.match(plans, /Direct-payment transactions are not described by this credit-refund flow/);
-  assert.match(css, /\\.provider-refund-timeline/);
-  assert.match(css, /grid-template-columns: repeat\\(4, minmax\\(0, 1fr\\)\\)/);
-  assert.match(css, /provider-refund-step:not\\(:last-child\\)::after/);
+  assert.match(css, /\.provider-refund-timeline/);
+  assert.match(css, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(css, /provider-refund-step:not\(:last-child\)::after/);
   assert.match(head, /mobile-drawer-refund-20261005-1/);
 });
 
