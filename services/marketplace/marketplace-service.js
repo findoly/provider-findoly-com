@@ -184,7 +184,13 @@ async function loadMarketplaceEnquiry(provider, enquiryId, options = {}) {
 
 
 async function closeIfFull(enquiry, session = null) {
-  if (!enquiry || Number(enquiry.remainingUnlocks || 0) > 0) return false;
+  // A direct-payment pick temporarily consumes the last slot but must remain
+  // owned by the picking provider until that reservation is released or converted.
+  if (
+    !enquiry
+    || Number(enquiry.remainingUnlocks || 0) > 0
+    || Number(enquiry.reservedUnlockCount || 0) > 0
+  ) return false;
   const options = session ? { session } : {};
   const result = await Enquiry.updateOne(
     { enquiryId: enquiry.enquiryId, remainingUnlocks: 0 },
