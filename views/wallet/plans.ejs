@@ -25,7 +25,7 @@
           <div>
             <span class="provider-section-kicker">Account credits</span>
             <h1 id="lead-packs-title">Credits for New and assigned requirements</h1>
-            <p>Maintain enough account credits for customer requirements. Credits are deducted when you unlock a New requirement or when Findoly assigns a requirement directly. If an outcome is Not Confirmed, the existing Findoly credit-refund review process applies.</p>
+            <p>Maintain enough account credits for customer requirements. Credits are deducted when you unlock a New requirement or receive an eligible Findoly assignment. If a credit-paid requirement is marked Not Confirmed, it is sent for review; credits are returned only if Findoly approves the refund.</p>
           </div>
           <div class="d-flex align-items-center gap-3">
             <div class="text-end d-none d-sm-block">
@@ -39,6 +39,59 @@
         <div x-show="data.razorpay && !data.razorpay.enabled" x-cloak class="alert alert-warning mb-4">
           Lead Credit Pack checkout is temporarily unavailable because secure payment is not configured.
         </div>
+
+        <section class="provider-refund-guide mb-4" aria-labelledby="credit-refund-title">
+          <div class="provider-refund-guide-header">
+            <div>
+              <span class="provider-section-kicker">Credit protection</span>
+              <h2 id="credit-refund-title">How credit refunds work</h2>
+              <p>Marking a requirement <strong>Not Confirmed</strong> starts a Findoly review. It does not refund credits automatically.</p>
+            </div>
+          </div>
+
+          <div class="provider-refund-timeline" role="list" aria-label="Credit refund review steps">
+            <article class="provider-refund-step" role="listitem">
+              <div class="provider-refund-step-marker" aria-hidden="true">1</div>
+              <div class="provider-refund-step-copy">
+                <span>Requirement accessed</span>
+                <strong>Credits are deducted</strong>
+                <p>Your account credits are charged when you unlock an eligible requirement or receive an eligible direct assignment.</p>
+              </div>
+            </article>
+
+            <article class="provider-refund-step" role="listitem">
+              <div class="provider-refund-step-marker" aria-hidden="true">2</div>
+              <div class="provider-refund-step-copy">
+                <span>Your update</span>
+                <strong>Mark it Not Confirmed</strong>
+                <p>If the credit-paid requirement does not convert, update the outcome to Not Confirmed with the correct reason.</p>
+              </div>
+            </article>
+
+            <article class="provider-refund-step" role="listitem">
+              <div class="provider-refund-step-marker" aria-hidden="true">3</div>
+              <div class="provider-refund-step-copy">
+                <span>Findoly review</span>
+                <strong>Our team checks the request</strong>
+                <p>The refund stays under review while Findoly checks the Not Confirmed reason and requirement activity.</p>
+              </div>
+            </article>
+
+            <article class="provider-refund-step" role="listitem">
+              <div class="provider-refund-step-marker" aria-hidden="true">4</div>
+              <div class="provider-refund-step-copy">
+                <span>Review result</span>
+                <strong>Credits follow the decision</strong>
+                <div class="provider-refund-outcomes">
+                  <span class="is-approved">Approved: credits are returned to your account credit balance.</span>
+                  <span class="is-kept">Not approved: the original credit charge remains.</span>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <p class="provider-refund-note"><strong>Applies to:</strong> requirements paid with account credits where credits were actually charged. Direct-payment transactions are not described by this credit-refund flow.</p>
+        </section>
 
         <div class="lead-pack-mobile-hint" aria-hidden="true">
           <strong>4 Lead Credit Packs</strong>
@@ -76,13 +129,13 @@
 
                   <div class="lead-pack-estimate">
                     <span>How credits work</span>
-                    <strong>Deducted on unlock or direct assignment · reviewed if Not Confirmed</strong>
+                    <strong>Not Confirmed starts a Findoly review — no automatic credit refund</strong>
                   </div>
 
                   <ul class="lead-pack-features">
                     <li><svg class="icon"><use href="#i-check"></use></svg><span>Unlock New requirements or receive direct assignments</span></li>
                     <li><svg class="icon"><use href="#i-check"></use></svg><span>Confirmed outcome keeps the requirement access charge</span></li>
-                    <li><svg class="icon"><use href="#i-check"></use></svg><span>Not Confirmed outcomes go through Findoly credit-refund review</span></li>
+                    <li><svg class="icon"><use href="#i-check"></use></svg><span>If Findoly approves the review, refunded credits return to your account balance</span></li>
                   </ul>
 
                   <button

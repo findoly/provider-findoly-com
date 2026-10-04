@@ -3249,6 +3249,163 @@ body {
 .portal-plan-features li { font-size: .9rem; }
 .portal-plan-value { font-size: .77rem; }
 
+/* Credit refund journey: explain the real review workflow visually. */
+.provider-refund-guide {
+  overflow: hidden;
+  padding: 1.15rem 1.2rem;
+  border: 1px solid #d7e1ec;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(23, 43, 77, .045);
+}
+.provider-refund-guide-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.provider-refund-guide-header h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 1.18rem;
+  letter-spacing: -.02em;
+}
+.provider-refund-guide-header p {
+  max-width: 48rem;
+  margin: .3rem 0 0;
+  color: #667085;
+  font-size: .84rem;
+  line-height: 1.5;
+}
+.provider-refund-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .85rem;
+  margin-top: 1.05rem;
+}
+.provider-refund-step {
+  position: relative;
+  min-width: 0;
+  padding: 0 .2rem;
+}
+.provider-refund-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 1rem;
+  left: 2.55rem;
+  right: -.62rem;
+  height: 2px;
+  background: #dce7f3;
+}
+.provider-refund-step-marker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #c7dcf2;
+  border-radius: 50%;
+  background: #edf5ff;
+  color: #0b5ca8;
+  font-size: .76rem;
+  font-weight: 800;
+}
+.provider-refund-step-copy {
+  margin-top: .58rem;
+}
+.provider-refund-step-copy > span {
+  display: block;
+  color: #7a8698;
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.provider-refund-step-copy strong {
+  display: block;
+  margin-top: .12rem;
+  color: #23344b;
+  font-size: .9rem;
+  line-height: 1.35;
+}
+.provider-refund-step-copy p {
+  margin: .28rem 0 0;
+  color: #667085;
+  font-size: .77rem;
+  line-height: 1.45;
+}
+.provider-refund-outcomes {
+  display: grid;
+  gap: .32rem;
+  margin-top: .48rem;
+}
+.provider-refund-outcomes span {
+  display: block;
+  padding: .42rem .5rem;
+  border-radius: .55rem;
+  font-size: .7rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.provider-refund-outcomes .is-approved {
+  border: 1px solid #b8e3cf;
+  background: #ecf9f2;
+  color: #087443;
+}
+.provider-refund-outcomes .is-kept {
+  border: 1px solid #e0e5eb;
+  background: #f7f8fa;
+  color: #536174;
+}
+.provider-refund-note {
+  margin: 1rem 0 0;
+  padding: .68rem .78rem;
+  border: 1px solid #e0e6ed;
+  border-radius: .68rem;
+  background: #f8fafc;
+  color: #59677a;
+  font-size: .76rem;
+  line-height: 1.45;
+}
+.provider-refund-note strong { color: #344054; }
+
+@media (max-width: 767.98px) {
+  .provider-refund-guide {
+    padding: 1rem .92rem;
+  }
+  .provider-refund-guide-header {
+    display: block;
+  }
+  .provider-refund-timeline {
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-top: .95rem;
+  }
+  .provider-refund-step {
+    display: grid;
+    grid-template-columns: 2.15rem minmax(0, 1fr);
+    gap: .68rem;
+    padding: 0 0 1rem;
+  }
+  .provider-refund-step:not(:last-child)::after {
+    top: 2rem;
+    bottom: 0;
+    left: .98rem;
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+  .provider-refund-step-copy {
+    margin-top: .05rem;
+  }
+  .provider-refund-note {
+    margin-top: .2rem;
+  }
+}
+
 /* Lead cards: more context without turning the list into a detail page. */
 .provider-minimal-results { font-size: .82rem; }
 .provider-minimal-list { gap: .78rem; }
@@ -7261,10 +7418,30 @@ body {
   }
   .workspace-sidebar-content {
     height: 100% !important;
-    overflow-y: auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
+    overscroll-behavior: contain;
+  }
+  .workspace-sidebar-mobile-head {
+    flex: 0 0 auto;
+  }
+  .workspace-sidebar-nav {
+    flex: 1 1 auto !important;
+    min-height: 0;
     overflow-x: hidden !important;
+    overflow-y: auto !important;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    padding-bottom: .7rem;
+  }
+  .workspace-sidebar-footer {
+    flex: 0 0 auto;
+    margin-top: 0 !important;
+    padding-bottom: max(.72rem, env(safe-area-inset-bottom)) !important;
+    background: #f8fafc !important;
   }
   .portal-sidebar-overlay {
     inset: var(--portal-navbar-height) 0 0 0 !important;
