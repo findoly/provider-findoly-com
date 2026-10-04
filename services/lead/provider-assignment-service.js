@@ -2,6 +2,7 @@
 
 const Enquiry = require("../../models/Enquiry");
 const ProviderLeadUnlock = require("../../models/ProviderLeadUnlock");
+const { isMarketplaceWithinAge } = require("../../utils/marketplace-radius");
 
 function blockingQuery(enquiryId, excludeProviderId = "") {
   const query = {
@@ -83,6 +84,7 @@ async function markReadyForReassignment(enquiryId, session = null, now = new Dat
     && lead.isActive !== false
     && lead.marketplacePublishedAt
     && new Date(lead.marketplacePublishedAt) <= now
+    && isMarketplaceWithinAge(lead.marketplacePublishedAt, now)
     && lead.marketplaceExpiresAt
     && new Date(lead.marketplaceExpiresAt) > now;
   if (!activeLifecycle) {
