@@ -123,14 +123,14 @@ test("marketplace uses the approved 20 km to open-network visibility stages", ()
   );
   assert.equal(
     isMarketplaceWithinAge(
-      new Date("2026-01-18T10:00:00.000Z"),
+      new Date("2026-07-15T10:00:00.001Z"),
       new Date("2026-07-18T10:00:00.000Z"),
     ),
     true,
   );
   assert.equal(
     isMarketplaceWithinAge(
-      new Date("2026-01-17T23:59:59.000Z"),
+      new Date("2026-07-15T10:00:00.000Z"),
       new Date("2026-07-18T10:00:00.000Z"),
     ),
     false,
