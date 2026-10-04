@@ -236,6 +236,7 @@ test("credit packages explain the Not Confirmed refund review as a visual timeli
   assert.match(plans, /Not approved: the original credit charge remains/);
   assert.match(plans, /requirements paid with account credits where credits were actually charged/);
   assert.match(plans, /Direct-payment transactions are not described by this credit-refund flow/);
+  assert.doesNotMatch(plans, /lead-pack-estimate[\\s\\S]*Not Confirmed starts a Findoly review/);
   assert.match(css, /\.provider-refund-timeline/);
   assert.match(css, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(css, /provider-refund-step:not\(:last-child\)::after/);
